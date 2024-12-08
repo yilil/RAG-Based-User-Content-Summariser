@@ -5,10 +5,12 @@ The target knowledge base sources are Little Red Book and Stack Overflow.
 
 ## Regular Meeting
 Time: TBD
+
 Link: https://uni-sydney.zoom.us/my/ydgan
 
 ## Catchup Meeting
 Time: TBD
+
 Link: https://uni-sydney.zoom.us/my/ydgan
 
 ## Resources
