@@ -4,7 +4,7 @@ The system is capable of retrieving relevant information from a large number of 
 The target knowledge base sources are Little Red Book and Stack Overflow.
 
 ## Regular Meeting
-Time: 15:30 - 16:30 Sydney Timezone (UTC+11)
+Time: Tuesday, 15:30 - 16:30 Sydney Timezone (UTC+11)
 
 Link: https://uni-sydney.zoom.us/my/ydgan
 
