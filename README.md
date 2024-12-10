@@ -15,3 +15,4 @@ Link: https://uni-sydney.zoom.us/my/ydgan
 
 ## Resources
 - [Web Development](https://www.notion.so/Web-Development-d45066738c604a8cbf783bf8ac1bcae7?pvs=4)
+- [Tasks](https://docs.google.com/document/d/1pWmh07-DyQ-Cz5ZIpRNOjjC2DhFShZApeUEzYii5-n4/edit?usp=sharing) (Tentative; used for drafting the product backlog)
