@@ -9,7 +9,7 @@ Time: Tuesday, 15:30 - 16:30 Sydney Timezone (UTC+11)
 Link: https://uni-sydney.zoom.us/my/ydgan
 
 ## Catchup Meeting
-Time: TBD Sydney Timezone (UTC+11)
+Time: Sunday, 14:00 - 14:40 Sydney Timezone (UTC+11)
 
 Link: https://uni-sydney.zoom.us/my/ydgan
 
