@@ -15,8 +15,16 @@
 </form>
 
 {% if result %}
-    <h2>Reasult:</h2>
+    <h2>Results:</h2>
     <p>{{ result }}</p>
+    <!-- <ul>
+        {% for doc in result %}
+            <li>
+                <h3>{{ doc.title }}</h3>  
+                <p>{{ doc.content }}</p>  
+                <small>Source: {{ doc.source }}</small>
+        {% endfor %}
+    </ul> -->
 {% endif %}
 </body>
 </html>
