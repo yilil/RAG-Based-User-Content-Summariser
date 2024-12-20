@@ -7,3 +7,6 @@ venv\Scripts\activate     # Windows
 
 # Install project dependencies
 pip install -r requirements.txt
+
+# To setup Gemini API Key
+python set_api_key.py # enter your key then restart terminal
