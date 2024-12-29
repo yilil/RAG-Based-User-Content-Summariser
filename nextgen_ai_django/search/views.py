@@ -24,4 +24,4 @@ def search(request):
 
         result = gs.process_search_query(search_query)
         # result = gs.process_search_query(search_query, document_data)
-    return render(request, 'search_sample.html', {'result': result})
+    return render(request, 'searchbar.html', {'result': result})
