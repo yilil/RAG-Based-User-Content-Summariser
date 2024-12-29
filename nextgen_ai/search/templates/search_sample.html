@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>search sample</title>
+</head>
+
+<body>
+<h1 style="text-align: center;">AI Search</h1>
+<form method="POST" action="{% url 'search_sample' %}" style="text-align: center;">
+    {% csrf_token %}
+    <input type="text" name="search_query" placeholder="Anything to ask">
+    <button type="submit">Submit</button>
+</form>
+
+{% if result %}
+    <h2>Results:</h2>
+    <p>{{ result }}</p>
+    <!-- <ul>
+        {% for doc in result %}
+            <li>
+                <h3>{{ doc.title }}</h3>  
+                <p>{{ doc.content }}</p>  
+                <small>Source: {{ doc.source }}</small>
+        {% endfor %}
+    </ul> -->
+{% endif %}
+</body>
+</html>
