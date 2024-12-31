@@ -3,6 +3,7 @@
 
 # Activate the virtual environment
 ```source venv/bin/activate  # macOS/Linux```
+
 ```venv\Scripts\activate     # Windows```
 
 # Install project dependencies
