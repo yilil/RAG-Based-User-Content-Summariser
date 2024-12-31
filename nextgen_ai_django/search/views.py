@@ -1,11 +1,13 @@
+import logging
 import concurrent
 from django.shortcuts import render
 from django.http import HttpResponse
-from search.models import RedditContent, StackOverflowContent 
-
-
+from .index_service import IndexService
 
 import search.gemini_sample as gs
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 def search(request):
     print("Request method:", request.method)  
@@ -30,3 +32,16 @@ def search(request):
                 result = f"Error: {str(e)}"
 
     return render(request, 'searchwithTemple.html', {'result': result})
+
+def index_content():
+    index_service = IndexService()
+
+    try:
+        index_service.index_reddit_content()
+        index_service.index_stackoverflow_content()
+
+        return HttpResponse("Indexing finished.")
+    
+    except Exception as e:
+        logger.error(f"Error during indexing: {str(e)}")
+        return HttpResponse(f"Error during indexing: {str(e)}", status=500)

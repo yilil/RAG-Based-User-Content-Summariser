@@ -1,5 +1,23 @@
 from django.db import models
 
+class ContentIndex(models.Model):
+    """
+    Content model used for storing embeddings for semantic search
+    """
+    source = models.CharField(max_length=50)  
+    content_type = models.CharField(max_length=50)  
+    thread_id = models.CharField(max_length=100)  
+    author_name = models.CharField(max_length=150)
+    content = models.TextField()  
+    
+    embedding = models.JSONField() 
+    
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'content_index' 
+
 class BaseContent(models.Model):
     """
     Universal base model for all content types
