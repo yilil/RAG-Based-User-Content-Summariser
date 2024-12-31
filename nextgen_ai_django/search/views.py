@@ -1,6 +1,7 @@
+import concurrent
 from django.shortcuts import render
 from django.http import HttpResponse
-from search.models import Document  # Import the Document model
+from search.models import RedditContent, StackOverflowContent 
 
 # Create your views here.
 
@@ -10,18 +11,20 @@ def search(request):
     result = None
     if request.method == "POST":
         search_query = request.POST.get('search_query')
+        if search_query:  
+            print(f"Received search query: {search_query}")
+            
+            try:
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(gs.process_search_query, search_query)
+                    try:
+                        result = future.result(timeout=30)
+                    except concurrent.futures.TimeoutError:
+                        print("Query timed out after 30 seconds")
+                        result = "Error: Request timed out. Please try again."
+                    
+            except Exception as e:
+                print(f"Error in view: {str(e)}")
+                result = f"Error: {str(e)}"
 
-        # # Query the database to find documents where the content contains the search query
-        # documents = Document.objects.filter(content__icontains=search_query)  # Case-insensitive match
-        # document_data = [
-        #     {
-        #         "title": doc.title,  # Extract title
-        #         "content": doc.content,  # Extract content
-        #         "source": doc.source  # Extract source
-        #     }
-        #     for doc in documents
-        # ]
-
-        result = gs.process_search_query(search_query)
-        # result = gs.process_search_query(search_query, document_data)
     return render(request, 'searchbar.html', {'result': result})

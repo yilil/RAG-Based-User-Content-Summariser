@@ -44,16 +44,26 @@
             margin-top: 20px;
             text-align: left;
         }
+        .loading {
+            display: none;
+            margin-top: 20px;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 <div class="search-container">
     <h2>Search</h2>
-    <form id="search-form" method="POST" action="{% url 'searchbar' %}">
+    <form id="search-form" method="POST" action="{% url 'search' %}">
         {% csrf_token %}
         <input type="text" name="search_query" placeholder="Enter your question..." required>
         <button type="submit">Submit</button>
     </form>
+
+    <div id="loading" class="loading">
+        Processing your request... Please wait.
+    </div>
 
     {% if result %}
     <div class="result">
@@ -62,5 +72,12 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+    document.getElementById('search-form').addEventListener('submit', function(e) {
+        document.getElementById('loading').style.display = 'block';
+    });
+</script>
+
 </body>
 </html>

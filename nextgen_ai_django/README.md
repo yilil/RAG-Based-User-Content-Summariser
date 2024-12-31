@@ -10,7 +10,8 @@
 
 # To setup Gemini API Key
 ```python set_api_key.py # enter your key``` 
-then restart terminal
+then restart terminal and reactivate the virtual environment
+```venv\Scripts\Activate.ps1  # Windows```
 
 # Install langchain_community and faiss-cpu python packages
 ```pip install -qU langchain_community faiss-cpu langchain-gemini```
