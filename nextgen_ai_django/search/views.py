@@ -3,11 +3,13 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from search.models import RedditContent, StackOverflowContent 
 
-# Create your views here.
+
 
 import search.gemini_sample as gs
 
 def search(request):
+    print("Request method:", request.method)  
+    print("POST data:", request.POST)       
     result = None
     if request.method == "POST":
         search_query = request.POST.get('search_query')
@@ -27,4 +29,4 @@ def search(request):
                 print(f"Error in view: {str(e)}")
                 result = f"Error: {str(e)}"
 
-    return render(request, 'searchbar.html', {'result': result})
+    return render(request, 'searchwithTemple.html', {'result': result})
