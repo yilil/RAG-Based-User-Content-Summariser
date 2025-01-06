@@ -21,5 +21,12 @@ then restart terminal and reactivate the virtual environment
 # Install `scikit-learn` for Similarity Search
 ```pip install scikit-learn```
 
+# Install Langchain community
+```pip install langchain-community```
+
+# 需要设置 Application Default Credentials (ADC)，并添加到环境变量中
+
+# 在成功在
+
 https://pypi.org/project/langchain-google-genai/
 https://python.langchain.com/docs/integrations/text_embedding/google_generative_ai/
