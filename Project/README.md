@@ -34,7 +34,7 @@ then restart terminal and reactivate the virtual environment
 2. `python manage.py makemigrations` 数据库迁移
 3. `python manage.py runserver`
 4. 访问网站 http://127.0.0.1:8000/index_content/ 对当前数据库中内容先初始化一次embedding和indexing (之后跑的时候数据库如果没更新就不用再访问一遍了)
-5. 之后就正常访问http://127.0.0.1:8000即可输入query测试+使用RAG功能
+5. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
 
 # *注意事项：
 因为项目要用到embedding和indexing，所以需要先在google cloude platform上注册账号，并且获得'GOOGLE_APPLICATION_CREDENTIALS'才可以调用，否则没权限，需要完成以下步骤 (具体设备可能会有差异)：
