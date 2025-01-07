@@ -23,7 +23,7 @@ class BaseContent(models.Model):
     Universal base model for all content types
     """
     id = models.BigAutoField(primary_key=True)
-    source = models.CharField(max_length=50)      # 'reddit' or 'stackoverflow'
+    source = models.CharField(max_length=50)      # 'reddit' or 'stackoverflow' or 'littleredbook'
     content_type = models.CharField(max_length=50)  # 'question', 'answer', 'post' or 'comment'
     
     # Content relationship
@@ -79,3 +79,18 @@ class StackOverflowContent(BaseContent):
     
     class Meta(BaseContent.Meta):
         db_table = 'stackoverflow_content'
+
+class LittleRedBookContent(BaseContent):
+    """
+    Model for LittleRedBook content
+    """
+    # channels = models.CharField(max_length=100)
+    tags = models.CharField(max_length=500, null=True, blank=True)
+    likes = models.IntegerField(default=0)
+
+    @property
+    def tags_list(self):
+        return [tag.strip() for tag in (self.tags or '').split(',') if tag.strip()]
+
+    class Meta(BaseContent.Meta):
+        db_table = 'reddit_content'

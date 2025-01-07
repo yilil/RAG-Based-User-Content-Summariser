@@ -10,6 +10,7 @@ from .utils import get_embeddings
 from search.models import (
     RedditContent,
     StackOverflowContent,
+    LittleRedBookContent,
     ContentIndex
 )
 # Initialize logger
@@ -29,12 +30,20 @@ class IndexService:
     #  构建 FAISS 索引
     # -----------------------------------------------------------
 
-    def build_faiss_index(self):
+    def build_faiss_index(self, filters=None):
         """
-        1) 获取数据库中所有已embedding的记录 (ContentIndex表).
+        1) 获取数据库中已embedding的记录, 支持按source过滤.
         2) 将它们转换成LangChain文档(文本 + metadata + 向量).
         3) 使用 FAISS.from_documents() 或 FAISS.from_texts() 创建索引.
         4) 保存索引到本地 (self.faiss_index_path).
+
+        Args:
+            filters (dict, optional): 过滤条件字典
+                例如: {
+                        'source': 'reddit',
+                        'content_type': ['post', 'comment'],
+                        'created_at__gte': datetime(2024, 1, 1)
+                    }
         """
         logger.info("Building FAISS index from ContentIndex data...")
 
@@ -44,32 +53,117 @@ class IndexService:
         """
         TO BE DONE: Data filtering according to specific queries
         """
-        content_objects = ContentIndex.objects.all()
+        
+        try:
+            # 1. 构建基础查询
+            base_query = ContentIndex.objects.filter(embedding__isnull=False)
 
-        # 准备 LangChain 的 Document 列表
-        docs = []
-        for obj in content_objects:
-            text = obj.content or ""
-            metadata = {
-                "id": obj.id,
-                "source": obj.source,
-                "thread_id": obj.thread_id,
-                "content_type": obj.content_type,
-                "author_name": obj.author_name,
-                # maybe more contents
-            }
-            # 每条记录 -> 一个 Document
-            # 其中 embedding 需要通过 "embedding_function" 方式注入
-            # 但在from_documents时, 会自动调用 self.embedding_model 来生成向量
-            doc = Document(page_content=text, metadata=metadata)
-            docs.append(doc)
+            # 如果指定了source过滤
+            if filters:
+                base_query = base_query.filter(**filters)
 
-        # 使用 from_documents创建索引(会自动对doc.page_content调用embedding_model生成向量)
-        self.faiss_store = FAISS.from_documents(docs, self.embedding_model)
+            # 获取总记录数
+            total_records = base_query.count()
+            logger.info(f"Found {total_records} records to process")
 
-        # 保存到本地
-        self.faiss_store.save_local(self.faiss_index_path)
-        logger.info(f"FAISS index built and saved to {self.faiss_index_path}.")
+            # 分批处理
+            BATCH_SIZE = 1000
+            processed = 0
+            docs = []
+
+            while processed < total_records:
+                # 获取当前批次数据
+                batch = ContentIndex.objects.filter(
+                    embedding__isnull=False
+                ).order_by('id')[processed:processed + BATCH_SIZE]
+
+                for obj in batch:
+                    # 根据source和thread_id获取对应的完整内容记录
+                    content_obj = None
+                    if obj.source == 'reddit':
+                        content_obj = RedditContent.objects.filter(thread_id=obj.thread_id).first()
+                    elif obj.source == 'stackoverflow':
+                        content_obj = StackOverflowContent.objects.filter(thread_id=obj.thread_id).first()
+                    elif obj.source == 'littleredbook':
+                        content_obj = LittleRedBookContent.objects.filter(thread_id=obj.thread_id).first()
+
+                    # 构建基础metadata（from BaseContent）
+                    metadata = {
+                        "id": obj.id,
+                        "source": obj.source,
+                        "content_type": obj.content_type,
+                        
+                        # Content relationship
+                        "thread_id": obj.thread_id,
+                        "thread_title": content_obj.thread_title if content_obj else None,
+                        "parent_id": content_obj.parent_id if content_obj else None,
+                        "url": content_obj.url if content_obj else None,
+                        
+                        # Author and comment identification
+                        "author_name": obj.author_name,
+                        "comment_id": content_obj.comment_id if content_obj else None,
+                        "commenter_name": content_obj.commenter_name if content_obj else None,
+                        
+                        # Timestamps
+                        "created_at": obj.created_at.isoformat(),
+                        "updated_at": obj.updated_at.isoformat(),
+                    }
+
+                    # 添加平台特有的字段
+                    if content_obj:
+                        if obj.source == 'reddit':
+                            metadata.update({
+                                "subreddit": content_obj.subreddit,
+                                "upvotes": content_obj.upvotes
+                            })
+                        elif obj.source == 'stackoverflow':
+                            metadata.update({
+                                "tags": content_obj.tags,
+                                "vote_score": content_obj.vote_score
+                            })
+                        elif obj.source == 'littleredbook':
+                            metadata.update({
+                                "tags": content_obj.tags,
+                                "likes": content_obj.likes
+                            })
+                        
+                        # 如果原始模型中有额外的metadata字段，也添加进来
+                        if content_obj.metadata:
+                            metadata.update(content_obj.metadata)
+
+                    # 2. 准备 LangChain 的 Document 列表
+                    #   每条记录 -> 一个 Document
+                    #   其中 embedding 需要通过 "embedding_function" 方式注入
+                    #   但在from_documents时, 会自动调用 self.embedding_model 来生成向量
+                    doc = Document(
+                        page_content=obj.content or "",
+                        metadata=metadata
+                    )
+                    docs.append(doc)
+
+                processed += BATCH_SIZE
+                logger.info(f"Processed {min(processed, total_records)}/{total_records} documents")
+
+            # 3. 使用 from_documents创建索引(会自动对doc.page_content调用embedding_model生成向量)
+            logger.info("Creating FAISS index...")
+            self.faiss_store = FAISS.from_documents(
+                docs,
+                self.embedding_model,
+                distance_strategy="cosine"
+            )
+
+            # 4. 保存到本地
+            logger.info(f"Saving FAISS index to {self.faiss_index_path}")
+            self.faiss_store.save_local(self.faiss_index_path)
+            
+            # 5. 验证索引
+            self._verify_index()
+            
+            logger.info(f"FAISS index built and saved to {self.faiss_index_path}.")
+            
+        except Exception as e:
+            logger.error(f"Error building FAISS index: {str(e)}")
+            raise
 
     # -----------------------------------------------------------
     #  加载 FAISS 索引
@@ -106,6 +200,9 @@ class IndexService:
         logger.info(f"FAISS search found {len(results)} results.")
         return results
 
+    """
+    TO BE DONE: 代码复用性
+    """
 
     def index_reddit_content(self):
         """
@@ -147,6 +244,27 @@ class IndexService:
             logger.info(f"Indexed {len(stackoverflow_content_objects)} StackOverflow content objects.")
         except Exception as e:
             logger.error(f"Error indexing StackOverflow content: {str(e)}")
+            raise
+
+    def index_littleredbook_content(self):
+        """
+        Genertate embeddings, and index LittleRedBook content with embeddings.
+        """
+        logger.info("Indexing LittleRedBook content...")
+
+        try:
+            littleredbook_content_objects = LittleRedBookContent.objects.all()
+
+            for content in littleredbook_content_objects:
+                # Generate the embedding for the content
+                embedding = self.embedding_model.embed_query(content.content)
+
+                # Save the embedding and relevant data in a search index or custom table
+                self._index_content(content, embedding, 'littleredbook')
+
+            logger.info(f"Indexed {len(littleredbook_content_objects)} LittleRedBook content objects.")
+        except Exception as e:
+            logger.error(f"Error indexing LittleRedBook content: {str(e)}")
             raise
 
     # 此函数中可能需要加入数据清洗部分，保证存入数据库中的是clean的（不包括针对具体query根据表头进行筛选的部分）
