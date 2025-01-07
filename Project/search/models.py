@@ -93,4 +93,4 @@ class LittleRedBookContent(BaseContent):
         return [tag.strip() for tag in (self.tags or '').split(',') if tag.strip()]
 
     class Meta(BaseContent.Meta):
-        db_table = 'reddit_content'
+        db_table = 'littleredbook_content'
