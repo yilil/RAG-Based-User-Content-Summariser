@@ -1,4 +1,4 @@
-UI Design Figma Link（Dev mode）：https://www.figma.com/design/SESz8lZuJHqmSrcNtRJFSo/NextGen-AI(v1.0)?node-id=0-1&m=dev
+UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
 
 # Create a virtual environment
 ```python3 -m venv venv```
