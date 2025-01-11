@@ -6,10 +6,16 @@ from .index_service import IndexService
 from django.views.decorators.http import require_POST
 import time
 
-import search.gemini_sample as gs
+from langchain_parser import parse_langchain_response
+from prompt_generator import generate_prompt
+from prompt_sender import send_prompt_to_gemini
+from concurrent.futures import ThreadPoolExecutor
 
 # Initialize logger
 logger = logging.getLogger(__name__)
+
+# Initialize ThreadPoolExecutor
+executor = ThreadPoolExecutor(max_workers=5)
 
 def search(request):
     """
@@ -25,45 +31,50 @@ def search(request):
         return render(request, 'searchwithTemple.html')
 
     search_query = request.POST.get('search_query')
+    llm_model = request.POST.get('llm_model')
+    #TODO get model from frontend
+    if not llm_model:
+        llm_model = "gemini-1.5-flash"
+    additional_option = request.POST.get('additional_option')
+
     if not search_query:
         return render(request, 'searchwithTemple.html', {
             'error': 'Please provide a search query'
         })
 
-    logger.info(f"Processing search query: {search_query}")
+    logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {additional_option}")
 
     try:
         # 1. FAISS搜索
-        index_service = IndexService()
-        # 这里假设已经建好了faiss_index并可直接load
-        retrieved_docs = index_service.faiss_search(
-            query=search_query,
-            top_k=5
-        )
+        # index_service = IndexService()
+        # retrieved_docs = index_service.faiss_search(
+        #     query=search_query,
+        #     top_k=5
+        # )
+        retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
-        # 2. Gemini处理
-        # 将 retrieved_docs 一并传入 process_search_query
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        # 2. 生成prompt
+        prompt = generate_prompt(search_query, retrieved_docs)
+
+        # 3. 异步发送prompt并获取响应
+        with ThreadPoolExecutor(max_workers=5) as executor:
             future = executor.submit(
-                gs.process_search_query, 
-                search_query, 
-                retrieved_docs
+                send_prompt_to_gemini, 
+                prompt, 
+                llm_model
             )
-            try:
-                result = future.result(timeout=30)
-            except concurrent.futures.TimeoutError:
-                logger.error("Gemini query timed out")
-                result = "Sorry, the request timed out. Please try again."
-            except Exception as e:
-                logger.error(f"Error in Gemini processing: {str(e)}")
-                result = "Sorry, an error occurred while processing your query."
+            response = future.result()
+
+        answer, metadata = parse_langchain_response(response)
 
     except Exception as e:
         logger.error(f"Error in search process: {str(e)}", exc_info=True)
-        result = "An unexpected error occurred. Please try again later."
+        answer = "An unexpected error occurred. Please try again later."
+        metadata = {}
 
-    return render(request, 'searchwithTemple.html', {'result': result})
+    print(answer)
+    return render(request, 'searchwithTemple.html', {'result': answer, 'metadata': metadata})
 
 
 # Initialization of indexing and embeddings
