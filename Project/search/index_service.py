@@ -4,7 +4,6 @@ from django.conf import settings
 
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
-from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from .utils import get_embeddings
 
 from search.models import (
@@ -203,69 +202,98 @@ class IndexService:
     """
     TO BE DONE: 代码复用性
     """
-
-    def index_reddit_content(self):
+    def index_platform_content(self, platform):
         """
-        Generate Embeddings, and index Reddit content with embeddings.
+        通用的平台内容索引方法，替代原来的三个重复方法
         """
-        logger.info("Indexing Reddit content...")
-
-        try:
-            reddit_content_objects = RedditContent.objects.all()
-
-            for content in reddit_content_objects:
-                # Generate the embedding for the content
-                embedding = self.embedding_model.embed_query(content.content)
-
-                # Save the embedding and relevant data in a search index or custom table
-                self._index_content(content, embedding, 'reddit')
+        PLATFORM_MODEL_MAP = {
+            'reddit': RedditContent,
+            'stackoverflow': StackOverflowContent,
+            'littleredbook': LittleRedBookContent
+        }
+        
+        if platform not in PLATFORM_MODEL_MAP:
+            raise ValueError(f"Unsupported platform: {platform}")
             
-            logger.info(f"Indexed {len(reddit_content_objects)} Reddit content objects.")
+        logger.info(f"Indexing {platform} content...")
+        model_class = PLATFORM_MODEL_MAP[platform]
+        
+        try:
+            content_objects = model_class.objects.all()
+            total = content_objects.count()
+            processed = 0
+            batch_size = 32  # BGE推荐的批处理大小
+            
+            while processed < total:
+                # 获取批次数据
+                batch = content_objects[processed:processed + batch_size]
+                
+                # 批量生成embeddings
+                contents = [obj.content for obj in batch]
+                embeddings = self._batch_create_embeddings(contents)
+                
+                # 保存embeddings
+                for content_obj, embedding in zip(batch, embeddings):
+                    self._index_content(content_obj, embedding, platform)
+                
+                processed += batch_size
+                logger.info(f"Progress: {min(processed, total)}/{total}")
+                
+            logger.info(f"Indexed {total} {platform} objects.")
+            
         except Exception as e:
-            logger.error(f"Error indexing Reddit content: {str(e)}")
+            logger.error(f"Error indexing {platform} content: {str(e)}")
             raise
+
+    def _batch_create_embeddings(self, texts, batch_size=32):
+        """
+        批量生成 embeddings
+        """
+        try:
+            if not texts:
+                return []
+                
+            # 预处理文本
+            texts = [self._preprocess_text(text) for text in texts]
+            
+            # 批量生成
+            embeddings = []
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
+                batch_embeddings = self.embedding_model.embed_documents(batch)
+                embeddings.extend(batch_embeddings)
+                
+            return embeddings
+        except Exception as e:
+            logger.error(f"Error in batch embedding creation: {str(e)}")
+            raise
+
+    def _preprocess_text(self, text):
+        """
+        文本预处理
+        """
+        if not isinstance(text, str):
+            text = str(text)
+        
+        text = text.strip()
+        if not text:
+            return ""
+        
+        # BGE模型的最大输入长度
+        max_length = 512  
+        if len(text) > max_length:
+            text = text[:max_length]
+        
+        return text
+    
+    def index_reddit_content(self):
+        return self.index_platform_content('reddit')
 
     def index_stackoverflow_content(self):
-        """
-        Genertate embeddings, and index StackOverflow content with embeddings.
-        """
-        logger.info("Indexing StackOverflow content...")
-
-        try:
-            stackoverflow_content_objects = StackOverflowContent.objects.all()
-
-            for content in stackoverflow_content_objects:
-                # Generate the embedding for the content
-                embedding = self.embedding_model.embed_query(content.content)
-
-                # Save the embedding and relevant data in a search index or custom table
-                self._index_content(content, embedding, 'stackoverflow')
-
-            logger.info(f"Indexed {len(stackoverflow_content_objects)} StackOverflow content objects.")
-        except Exception as e:
-            logger.error(f"Error indexing StackOverflow content: {str(e)}")
-            raise
+        return self.index_platform_content('stackoverflow')
 
     def index_littleredbook_content(self):
-        """
-        Genertate embeddings, and index LittleRedBook content with embeddings.
-        """
-        logger.info("Indexing LittleRedBook content...")
-
-        try:
-            littleredbook_content_objects = LittleRedBookContent.objects.all()
-
-            for content in littleredbook_content_objects:
-                # Generate the embedding for the content
-                embedding = self.embedding_model.embed_query(content.content)
-
-                # Save the embedding and relevant data in a search index or custom table
-                self._index_content(content, embedding, 'littleredbook')
-
-            logger.info(f"Indexed {len(littleredbook_content_objects)} LittleRedBook content objects.")
-        except Exception as e:
-            logger.error(f"Error indexing LittleRedBook content: {str(e)}")
-            raise
+        return self.index_platform_content('littleredbook')
 
     # 此函数中可能需要加入数据清洗部分，保证存入数据库中的是clean的（不包括针对具体query根据表头进行筛选的部分）
     def _index_content(self, content, embedding, source): 

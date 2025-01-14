@@ -43,3 +43,16 @@ then restart terminal and reactivate the virtual environment
 1. 注册google claude账号
 2. 创建service account账号并add key，然后获取json文件(有关google cloud功能使用权限)保存在本地 ，并将它添加到系统环境变量中让项目可以识别到这个json文件
 3. 在service account上设定自己的Role: 例如 - owner是最高权限调用各种功能和api
+
+# 如果使用bge-en-icl embedding model
+1. 首先卸载当前的langchain相关包：
+`pip uninstall langchain langchain-community`
+2. 然后安装新的依赖：
+`pip install sentence-transformers torch transformers`
+`pip install langchain langchain-community`
+
+# 测试需要install faker
+`pip install faker`
+
+# 测试
+`python manage.py test_rag`

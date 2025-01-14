@@ -126,3 +126,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+BGE_MODEL_NAME = "BAAI/bge-large-en"
+BGE_BATCH_SIZE = 32
