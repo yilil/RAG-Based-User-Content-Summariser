@@ -5,7 +5,8 @@ from django.http import HttpResponse, JsonResponse
 from .index_service import IndexService
 from django.views.decorators.http import require_POST
 import time
-
+from django.shortcuts import render
+from django.http import HttpResponse
 from langchain_parser import parse_langchain_response
 from prompt_generator import generate_prompt
 from prompt_sender import send_prompt_to_gemini
@@ -29,12 +30,16 @@ def search(request):
 
     if request.method != "POST":
         return render(request, 'searchwithTemple.html')
-
+    if 'llm_model' in request.POST:
+        llm_model = request.POST.get('llm_model')
+        # 将选择的模型保存在 session 中
+        request.session['llm_model'] = llm_model
+        request.session.save() 
+        return render(request, 'searchwithTemple.html', {
+                'llm_model': llm_model  # 将模型传递给模板
+            })
     search_query = request.POST.get('search_query')
-    llm_model = request.POST.get('llm_model')
-    #TODO get model from frontend
-    if not llm_model:
-        llm_model = "gemini-1.5-flash"
+    llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
     additional_option = request.POST.get('additional_option')
 
     if not search_query:
@@ -45,13 +50,13 @@ def search(request):
     logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {additional_option}")
 
     try:
-        # 1. FAISS搜索
-        # index_service = IndexService()
-        # retrieved_docs = index_service.faiss_search(
-        #     query=search_query,
-        #     top_k=5
-        # )
-        retrieved_docs = []
+        #1. FAISS搜索
+        index_service = IndexService()
+        retrieved_docs = index_service.faiss_search(
+            query=search_query,
+            top_k=5
+        )
+        #retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
@@ -74,7 +79,7 @@ def search(request):
         metadata = {}
 
     print(answer)
-    return render(request, 'searchwithTemple.html', {'result': answer, 'metadata': metadata})
+    return render(request, 'searchwithTemple.html', {'result': answer, 'metadata': metadata, 'llm_model': llm_model})
 
 
 # Initialization of indexing and embeddings

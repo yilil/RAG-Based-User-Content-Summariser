@@ -19,6 +19,7 @@ def generate_prompt(query, retrieved_docs):
         prompt = (
             f"**User Query**: {query}\n"
             "No relevant documents were retrieved. Please attempt to answer based on your general knowledge.\n"
+            "Every time you try to change a line, use a new line to separate the previous line.\n"
         )
     
     return prompt
