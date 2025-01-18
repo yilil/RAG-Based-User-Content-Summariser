@@ -52,7 +52,7 @@ class Command(BaseCommand):
             self.stdout.write('Indexing content...')
 
             index_service.index_reddit_content()
-            
+
             # if platform in ['all', 'stackoverflow']:
             #     index_service.index_stackoverflow_content()
             # if platform in ['all', 'littleredbook']:
@@ -85,7 +85,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"\n=== Test: {test_case['description']} ===")
                 self.stdout.write(f"Query: {test_case['query']}")
                 
-                results = index_service.faiss_search(test_case['query'], top_k=3)
+                results = index_service.faiss_search(test_case['query'], top_k=1)
                 
                 # 验证结果相关性
                 relevant_results = [
