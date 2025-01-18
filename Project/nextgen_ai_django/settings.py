@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'langchain_parser',
     'prompt_sender',
     'prompt_generator',
+    'memory',
 ]
 
 MIDDLEWARE = [

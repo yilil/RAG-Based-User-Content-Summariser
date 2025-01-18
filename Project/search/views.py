@@ -11,6 +11,7 @@ from langchain_parser import parse_langchain_response
 from prompt_generator import generate_prompt
 from prompt_sender import send_prompt_to_gemini
 from concurrent.futures import ThreadPoolExecutor
+from memory.service import MemoryService
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -28,6 +29,11 @@ def search(request):
     logger.debug(f"Request method: {request.method}")
     logger.debug(f"POST data: {request.POST}")
 
+    session_id = request.session.session_key
+    if not session_id:
+        request.session.create()  # 创建新会话
+        session_id = request.session.session_key
+
     if request.method != "POST":
         return render(request, 'searchwithTemple.html')
     if 'llm_model' in request.POST:
@@ -42,6 +48,8 @@ def search(request):
     llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
     additional_option = request.POST.get('additional_option')
 
+    recent_memory = MemoryService.get_recent_memory(session_id)
+
     if not search_query:
         return render(request, 'searchwithTemple.html', {
             'error': 'Please provide a search query'
@@ -51,16 +59,16 @@ def search(request):
 
     try:
         #1. FAISS搜索
-        index_service = IndexService()
-        retrieved_docs = index_service.faiss_search(
-            query=search_query,
-            top_k=5
-        )
-        #retrieved_docs = []
+        # index_service = IndexService()
+        # retrieved_docs = index_service.faiss_search(
+        #     query=search_query,
+        #     top_k=5
+        # )
+        retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
-        prompt = generate_prompt(search_query, retrieved_docs)
+        prompt = generate_prompt(search_query, retrieved_docs, recent_memory)
 
         # 3. 异步发送prompt并获取响应
         with ThreadPoolExecutor(max_workers=5) as executor:
@@ -72,6 +80,8 @@ def search(request):
             response = future.result()
 
         answer, metadata = parse_langchain_response(response)
+
+        MemoryService.add_to_memory(session_id, search_query, answer)
 
     except Exception as e:
         logger.error(f"Error in search process: {str(e)}", exc_info=True)
