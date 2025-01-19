@@ -24,3 +24,4 @@ def get_embeddings():
         cache_folder="./model_cache"  # 指定本地缓存目录
     )
     return embeddings
+

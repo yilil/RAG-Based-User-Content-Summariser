@@ -29,7 +29,7 @@ class IndexService:
     #  构建 FAISS 索引
     # -----------------------------------------------------------
 
-    def build_faiss_index(self, filters=None):
+    def build_faiss_index(self, source_filter=None):
         """
         1) 获取数据库中已embedding的记录, 支持按source过滤.
         2) 将它们转换成LangChain文档(文本 + metadata + 向量).
@@ -37,7 +37,9 @@ class IndexService:
         4) 保存索引到本地 (self.faiss_index_path).
 
         Args:
-            filters (dict, optional): 过滤条件字典
+            source_filter:
+                - str: 简单的source过滤 (如 'reddit') 
+                - dict: 复杂的过滤条件
                 例如: {
                         'source': 'reddit',
                         'content_type': ['post', 'comment'],
@@ -58,8 +60,13 @@ class IndexService:
             base_query = ContentIndex.objects.filter(embedding__isnull=False)
 
             # 如果指定了source过滤
-            if filters:
-                base_query = base_query.filter(**filters)
+            if source_filter:
+                if isinstance(source_filter, str):
+                    # 测试场景：简单字符串
+                    base_query = base_query.filter(source=source_filter)
+                else:
+                    # 爬虫场景：复杂过滤条件
+                    base_query = base_query.filter(**source_filter)
 
             # 获取总记录数
             total_records = base_query.count()
@@ -164,6 +171,32 @@ class IndexService:
             logger.error(f"Error building FAISS index: {str(e)}")
             raise
 
+    def _verify_index(self):
+        """
+        验证FAISS索引是否正确构建和可用
+        """
+        try:
+            if not self.faiss_store:
+                raise ValueError("FAISS store not initialized")
+
+            # 1. 执行一个测试查询
+            test_query = "This is a test query"
+            results = self.faiss_store.similarity_search(test_query, k=1)
+
+            # 2. 验证返回结果
+            if not results:
+                raise ValueError("Index verification failed: No results returned")
+            
+            # 3. 验证返回结果的结构
+            if not hasattr(results[0], 'page_content') or not hasattr(results[0], 'metadata'):
+                raise ValueError("Index verification failed: Invalid result structure")
+
+            logger.info("Index verification successful")
+            
+        except Exception as e:
+            logger.error(f"Index verification failed: {str(e)}")
+            raise
+
     # -----------------------------------------------------------
     #  加载 FAISS 索引
     # -----------------------------------------------------------
@@ -172,7 +205,10 @@ class IndexService:
         从本地目录加载 FAISS 索引到 self.faiss_store
         """
         logger.info(f"Loading FAISS index from {self.faiss_index_path} ...")
-        self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model)
+
+        # 加载FAISS索引时，允许不安全的反序列化
+        self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model, allow_dangerous_deserialization=True)
+
         logger.info("FAISS index loaded successfully.")
 
     # -----------------------------------------------------------
@@ -195,9 +231,11 @@ class IndexService:
         """
         results = self.faiss_store.similarity_search(query, k=top_k)
 
+        # 去重：根据文档的 ID 去重，避免返回重复的文档
+        unique_results = {doc.metadata["id"]: doc for doc in results}.values()
 
-        logger.info(f"FAISS search found {len(results)} results.")
-        return results
+        logger.info(f"FAISS search found {len(unique_results)} results.")
+        return unique_results
 
     """
     TO BE DONE: 代码复用性

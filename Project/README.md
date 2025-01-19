@@ -33,10 +33,17 @@ then restart terminal and reactivate the virtual environment
 
 # 后续数据库的数据可以被存储后，可以先按以下操作来：
 1. 初始化好环境
-2. `python manage.py makemigrations` 数据库迁移
-3. `python manage.py runserver`
-4. 访问网站 http://127.0.0.1:8000/index_content/ 对当前数据库中内容先初始化一次embedding和indexing (之后跑的时候数据库如果没更新就不用再访问一遍了)
-5. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
+2. 生成迁移文件：如果修改了模型（例如 RedditContent，StackOverflowContent 等），先生成迁移文件：
+`python manage.py makemigrations`
+
+3. 应用迁移：然后应用迁移到数据库：
+`python manage.py migrate`
+4. 检查迁移是否成功
+`python manage.py showmigrations`
+1. 访问 http://127.0.0.1:8000/index_content/ 接口以初始化索引。
+可以通过浏览器、Postman 或 curl 发起 POST 请求：
+curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit" （命令行操作）
+2. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
 
 # *注意事项：
 因为项目要用到embedding和indexing，所以需要先在google cloude platform上注册账号，并且获得'GOOGLE_APPLICATION_CREDENTIALS'才可以调用，否则没权限，需要完成以下步骤 (具体设备可能会有差异)：

@@ -12,6 +12,15 @@ from prompt_generator import generate_prompt
 from prompt_sender import send_prompt_to_gemini
 from concurrent.futures import ThreadPoolExecutor
 from memory.service import MemoryService
+from search.models import (
+    RedditContent,
+    StackOverflowContent,
+    LittleRedBookContent,
+    ContentIndex
+)
+from django.shortcuts import render
+from django.http import JsonResponse
+from crawler import fetch_and_save_xhs_content
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -59,12 +68,12 @@ def search(request):
 
     try:
         #1. FAISS搜索
-        # index_service = IndexService()
-        # retrieved_docs = index_service.faiss_search(
-        #     query=search_query,
-        #     top_k=5
-        # )
-        retrieved_docs = []
+        index_service = IndexService()
+        retrieved_docs = index_service.faiss_search(
+            query=search_query,
+            top_k=5
+        )
+        # retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
@@ -93,6 +102,7 @@ def search(request):
 
 
 # Initialization of indexing and embeddings
+
 @require_POST
 def index_content(request):
     """
@@ -107,18 +117,33 @@ def index_content(request):
     source_filter = request.POST.get('source')
 
     try:
-        # 1. 生成embeddings
+        # 1. 生成embeddings和构建索引，避免重复操作
+        # 检查是否已经索引过
         if not source_filter or source_filter == 'reddit':
             logger.info("Indexing Reddit content...")
-            index_service.index_reddit_content()
+
+            # 检查 Reddit 数据是否已经有索引，如果没有就进行索引
+            for content in RedditContent.objects.all():
+                # 检查是否已经索引
+                if not ContentIndex.objects.filter(content=content.content).exists():
+                    index_service.index_reddit_content()
+            
         
         if not source_filter or source_filter == 'stackoverflow':
             logger.info("Indexing StackOverflow content...")
-            index_service.index_stackoverflow_content()
+            
+            # 检查 StackOverflow 数据是否已经有索引
+            for content in StackOverflowContent.objects.all():
+                if not ContentIndex.objects.filter(content=content.content).exists():
+                    index_service.index_stackoverflow_content()
             
         if not source_filter or source_filter == 'littleredbook':
             logger.info("Indexing LittleRedBook content...")
-            index_service.index_littleredbook_content()
+            
+            # 检查 LittleRedBook 数据是否已经有索引
+            for content in LittleRedBookContent.objects.all():
+                if not ContentIndex.objects.filter(content=content.content).exists():
+                    index_service.index_littleredbook_content()
 
         # 2. 构建对应数据的FAISS索引
         logger.info("Building FAISS index...")
@@ -139,3 +164,19 @@ def index_content(request):
             "status": "error",
             "message": str(e)
         }, status=500)
+    
+def crawl_and_save(request):
+    # 替换为小红书页面 URL
+    url = 'https://www.xiaohongshu.com/discovery/item/your_item_id'  # 替换为实际 URL
+    
+    # 模拟登录后的 headers，其中 Cookie 是实际的登录 Cookie
+    headers = {
+        'User-Agent': 'Chrome/91.0.4472.124',
+        'Cookie': 'your_valid_cookie_here',  # 请将其替换为您自己的 Cookie
+        'Referer': 'https://www.xiaohongshu.com'
+    }
+    
+    # 调用爬虫获取并保存内容
+    fetch_and_save_xhs_content(url, headers)
+    
+    return JsonResponse({"status": "success", "message": "Content fetched and saved successfully."})
