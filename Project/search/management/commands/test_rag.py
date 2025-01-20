@@ -19,7 +19,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--platform',
             type=str,
-            choices=['reddit'], # Currently test Reddit; 'all', 'reddit', 'stackoverflow', 'littleredbook'
+            choices=['reddit'], # Currently test Reddit; 'all', 'reddit', 'stackoverflow', 'rednote'
             default='reddit',   # 'all'
             help='Platform to test'
         )
@@ -41,9 +41,9 @@ class Command(BaseCommand):
             #     generator.generate_stackoverflow_data(count)
             #     self.stdout.write(f'Generated {count} StackOverflow records')
                 
-            # if platform in ['all', 'littleredbook']:
-            #     generator.generate_littleredbook_data(count)
-            #     self.stdout.write(f'Generated {count} LittleRedBook records')
+            # if platform in ['all', 'rednote']:
+            #     generator.generate_rednote_data(count)
+            #     self.stdout.write(f'Generated {count} rednote records')
 
             # 2. 初始化索引服务
             index_service = IndexService()
@@ -55,8 +55,8 @@ class Command(BaseCommand):
 
             # if platform in ['all', 'stackoverflow']:
             #     index_service.index_stackoverflow_content()
-            # if platform in ['all', 'littleredbook']:
-            #     index_service.index_littleredbook_content()
+            # if platform in ['all', 'rednote']:
+            #     index_service.index_rednote_content()
 
             # 4. 构建FAISS索引
             index_service.build_faiss_index(source_filter='reddit')

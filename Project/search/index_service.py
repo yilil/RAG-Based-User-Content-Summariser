@@ -9,7 +9,7 @@ from .utils import get_embeddings
 from search.models import (
     RedditContent,
     StackOverflowContent,
-    LittleRedBookContent,
+    RednoteContent,
     ContentIndex
 )
 # Initialize logger
@@ -90,8 +90,8 @@ class IndexService:
                         content_obj = RedditContent.objects.filter(thread_id=obj.thread_id).first()
                     elif obj.source == 'stackoverflow':
                         content_obj = StackOverflowContent.objects.filter(thread_id=obj.thread_id).first()
-                    elif obj.source == 'littleredbook':
-                        content_obj = LittleRedBookContent.objects.filter(thread_id=obj.thread_id).first()
+                    elif obj.source == 'rednote':
+                        content_obj = RednoteContent.objects.filter(thread_id=obj.thread_id).first()
 
                     # 构建基础metadata（from BaseContent）
                     metadata = {
@@ -127,7 +127,7 @@ class IndexService:
                                 "tags": content_obj.tags,
                                 "vote_score": content_obj.vote_score
                             })
-                        elif obj.source == 'littleredbook':
+                        elif obj.source == 'rednote':
                             metadata.update({
                                 "tags": content_obj.tags,
                                 "likes": content_obj.likes
@@ -205,7 +205,10 @@ class IndexService:
         从本地目录加载 FAISS 索引到 self.faiss_store
         """
         logger.info(f"Loading FAISS index from {self.faiss_index_path} ...")
-        self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model)
+
+        # 加载FAISS索引时，允许不安全的反序列化
+        self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model, allow_dangerous_deserialization=True)
+
         logger.info("FAISS index loaded successfully.")
 
     # -----------------------------------------------------------
@@ -214,23 +217,93 @@ class IndexService:
     def faiss_search(self, query, top_k=5):
         """
         使用 FAISS 进行相似度搜索，返回 LangChain Document 列表
+        支持三个平台的内容检索和点赞/评分合并
         """
-        if not self.faiss_store:
-            logger.warning("FAISS store not loaded. Attempting load now.")
-            self.load_faiss_index()
-
+        self._ensure_faiss_store_loaded()
         logger.info(f"Performing FAISS similarity_search for query: {query}")
         # similarity_search返回一个Document列表，包含page_content和metadata
-
 
         """
         TO BE DONE: 此处的搜索 & 排序的逻辑后续可以优化
         """
         results = self.faiss_store.similarity_search(query, k=top_k)
 
+        grouped_results = self._group_search_results(results)
+        merged_results = self._merge_and_sort_results(grouped_results, top_k)
 
-        logger.info(f"FAISS search found {len(results)} results.")
-        return results
+        logger.info(f"FAISS search found {len(merged_results)} results.")
+        return merged_results
+
+    def _ensure_faiss_store_loaded(self):
+        """
+        确保 FAISS store 已加载
+        """
+        if not self.faiss_store:
+            logger.warning("FAISS store not loaded. Attempting load now.")
+            self.load_faiss_index()
+
+    def _group_search_results(self, results):
+        """将搜索结果按内容分组"""
+        grouped_results = {}
+        for doc in results:
+            content = doc.page_content
+            if content not in grouped_results:
+                grouped_results[content] = {
+                    'doc': doc,
+                    'engagement_score': 0,
+                    'sources': []
+                }
+            
+            self._update_engagement_score(grouped_results[content], doc)
+            self._add_source_info(grouped_results[content], doc)
+        
+        return grouped_results
+
+    def _update_engagement_score(self, content_info, doc):
+        """更新内容的参与度评分"""
+        try:
+            thread_id = doc.metadata['thread_id']
+            source = doc.metadata['source']
+            
+            if source == 'reddit':
+                score = RedditContent.objects.get(thread_id=thread_id).upvotes
+            elif source == 'stackoverflow':
+                score = StackOverflowContent.objects.get(thread_id=thread_id).vote_score
+            elif source == 'littleredbook':
+                score = RednoteContent.objects.get(thread_id=thread_id).likes
+            else:
+                score = 0
+                
+            content_info['engagement_score'] += score
+        except Exception as e:
+            logger.warning(f"Error getting engagement score: {str(e)}")
+
+    def _add_source_info(self, content_info, doc):
+        """添加来源信息"""
+        content_info['sources'].append({
+            'source': doc.metadata['source'],
+            'thread_id': doc.metadata['thread_id'],
+            'url': doc.metadata.get('url')
+        })
+
+    def _merge_and_sort_results(self, grouped_results, top_k):
+        """合并和排序搜索结果"""
+        merged_results = []
+        for content_info in grouped_results.values():
+            doc = content_info['doc']
+            doc.metadata.update({
+                'engagement_score': content_info['engagement_score'],
+                'source_count': len(content_info['sources']),
+                'sources': content_info['sources']
+            })
+            merged_results.append(doc)
+        
+        return sorted(
+            merged_results,
+            key=lambda x: x.metadata['engagement_score'],
+            reverse=True
+        )[:top_k]
+
 
     """
     TO BE DONE: 代码复用性
@@ -242,7 +315,7 @@ class IndexService:
         PLATFORM_MODEL_MAP = {
             'reddit': RedditContent,
             'stackoverflow': StackOverflowContent,
-            'littleredbook': LittleRedBookContent
+            'rednote': RednoteContent
         }
         
         if platform not in PLATFORM_MODEL_MAP:
@@ -325,8 +398,8 @@ class IndexService:
     def index_stackoverflow_content(self):
         return self.index_platform_content('stackoverflow')
 
-    def index_littleredbook_content(self):
-        return self.index_platform_content('littleredbook')
+    def index_rednote_content(self):
+        return self.index_platform_content('rednote')
 
     # 此函数中可能需要加入数据清洗部分，保证存入数据库中的是clean的（不包括针对具体query根据表头进行筛选的部分）
     def _index_content(self, content, embedding, source): 

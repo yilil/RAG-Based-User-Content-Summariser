@@ -8,7 +8,7 @@ class ContentIndex(models.Model):
     content_type = models.CharField(max_length=50)  
     thread_id = models.CharField(max_length=100)  
     author_name = models.CharField(max_length=150)
-    content = models.TextField()  
+    content = models.TextField(unique = True) # should add "unique = True" tp make sure that no repetitions 
     
     embedding = models.JSONField() 
     
@@ -23,7 +23,7 @@ class BaseContent(models.Model):
     Universal base model for all content types
     """
     id = models.BigAutoField(primary_key=True)
-    source = models.CharField(max_length=50)      # 'reddit' or 'stackoverflow' or 'littleredbook'
+    source = models.CharField(max_length=50)      # 'reddit' or 'stackoverflow' or 'rednote'
     content_type = models.CharField(max_length=50)  # 'question', 'answer', 'post' or 'comment'
     
     # Content relationship
@@ -80,9 +80,9 @@ class StackOverflowContent(BaseContent):
     class Meta(BaseContent.Meta):
         db_table = 'stackoverflow_content'
 
-class LittleRedBookContent(BaseContent):
+class RednoteContent(BaseContent):
     """
-    Model for LittleRedBook content
+    Model for Rednote content
     """
     # channels = models.CharField(max_length=100)
     tags = models.CharField(max_length=500, null=True, blank=True)
@@ -93,4 +93,4 @@ class LittleRedBookContent(BaseContent):
         return [tag.strip() for tag in (self.tags or '').split(',') if tag.strip()]
 
     class Meta(BaseContent.Meta):
-        db_table = 'littleredbook_content'
+        db_table = 'rednote_content'

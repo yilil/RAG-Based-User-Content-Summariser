@@ -33,10 +33,17 @@ then restart terminal and reactivate the virtual environment
 
 # 后续数据库的数据可以被存储后，可以先按以下操作来：
 1. 初始化好环境
-2. `python manage.py makemigrations` 数据库迁移
-3. `python manage.py runserver`
-4. 访问网站 http://127.0.0.1:8000/index_content/ 对当前数据库中内容先初始化一次embedding和indexing (之后跑的时候数据库如果没更新就不用再访问一遍了)
-5. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
+2. 生成迁移文件：如果修改了模型（例如 RedditContent，StackOverflowContent 等），先生成迁移文件：
+`python manage.py makemigrations`
+
+3. 应用迁移：然后应用迁移到数据库：
+`python manage.py migrate`
+4. 检查迁移是否成功
+`python manage.py showmigrations`
+1. 访问 http://127.0.0.1:8000/index_content/ 接口以初始化索引。
+可以通过浏览器、Postman 或 curl 发起 POST 请求：
+curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit" （命令行操作）
+2. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
 
 # *注意事项：
 因为项目要用到embedding和indexing，所以需要先在google cloude platform上注册账号，并且获得'GOOGLE_APPLICATION_CREDENTIALS'才可以调用，否则没权限，需要完成以下步骤 (具体设备可能会有差异)：
@@ -56,3 +63,37 @@ then restart terminal and reactivate the virtual environment
 
 # 测试
 `python manage.py test_rag`
+
+# 序列图
+预览包含 Mermaid 图表的 Markdown 文档：
+1. Install插件 "Markdown Preview Enhanced"
+2. 使用 Ctrl+K V 打开预览
+
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Views as search/views.py<br>def search()
+    participant IS as search/index_service.py<br>class IndexService
+    participant BGE as search/utils.py<br>def get_embeddings()
+    participant FAISS as search/index_service.py<br>self.faiss_store
+    participant CI as search/models.py<br>class ContentIndex
+    participant GS as search/gemini_sample.py<br>def process_search_query()
+
+    User->>Views: HTTP POST /search/
+    Views->>IS: faiss_search(query, top_k=5)
+    Note over IS: index_service.py: def faiss_search()
+    IS->>BGE: embed_query(query)
+    Note over BGE: utils.py: HuggingFaceEmbeddings class
+    IS->>FAISS: similarity_search(query_vector)
+    Note over FAISS: FAISS from langchain_community.vectorstores
+    FAISS->>CI: Retrieve matches
+    Note over CI: models.py: ContentIndex.objects.filter()
+    CI-->>FAISS: Return documents
+    FAISS-->>IS: Return similar Documents
+    IS->>GS: process_search_query(query, docs)
+    Note over GS: gemini_sample.py: def process_search_query()
+    GS-->>Views: Generated response
+    Views-->>User: Render template with response
+    Note over Views: views.py: render('searchwithTemple.html')
+```

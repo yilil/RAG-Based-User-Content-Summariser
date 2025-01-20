@@ -49,4 +49,11 @@ google-generativeai==0.8.3
 # BGE-EN-ICL embedding model
 sentence-transformers>=2.2.0
 torch>=2.0.0  # 如果只用CPU可以用 torch==2.0.0+cpu
-transformers>=4.30.0  # Hugging Face 转换器库
+transformers>=4.39.0  # Hugging Face 转换器库
+huggingface-hub>=0.23.0
+langchain_huggingface
+
+# 爬虫
+beautifulsoup4>=4.9.3
+html5lib>=1.1
+

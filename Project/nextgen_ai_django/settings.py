@@ -49,13 +49,16 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 注释掉这一行来禁用 CSRF
+    # 'django.middleware.csrf.CsrfViewMiddleware'
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'nextgen_ai_django.urls'
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # 默认设置
 
 TEMPLATES = [
     {

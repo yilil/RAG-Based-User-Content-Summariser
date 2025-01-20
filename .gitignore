@@ -169,3 +169,12 @@ cython_debug/
 /nextgen_ai_django/.vscode
 /nextgen_ai_django/.idea
 /nextgen_ai_django/.idea
+
+# 索引文件
+faiss_index/
+
+# 模型缓存相关
+Project/model_cache/
+**/model_cache/
+**/.locks/
+**/models--*/
