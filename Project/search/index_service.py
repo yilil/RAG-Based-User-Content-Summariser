@@ -5,6 +5,7 @@ from django.conf import settings
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 from .utils import get_embeddings
+from difflib import SequenceMatcher
 
 from search.models import (
     RedditContent,
@@ -23,7 +24,86 @@ class IndexService:
         self.faiss_index_path = faiss_index_path
         # LangChain FAISS vector store object
         self.faiss_store = None
+        self._result_processor = self._ResultProcessor()  # 使用内部类，前缀下划线表示私有
 
+    class _ResultProcessor:
+        """IndexService 的内部帮助类，用于处理搜索结果"""
+        def __init__(self, similarity_threshold=0.85):
+            self.similarity_threshold = similarity_threshold
+
+        def group_similar_results(self, documents):
+            """
+            将推荐相同事物的内容分组，返回分组和未分组的所有结果
+            """
+            content_groups = []
+            processed_indices = set()
+            
+            for i, doc1 in enumerate(documents):
+                if i in processed_indices:
+                    continue
+                    
+                current_group = {
+                    'main_doc': doc1,
+                    'docs': [doc1],
+                    'total_upvotes': doc1.metadata.get('upvotes', 0)
+                }
+                processed_indices.add(i)
+                
+                # Compare doc1 with subsequent documents
+                for j in range(i + 1, len(documents)):
+                    if j in processed_indices:
+                        continue
+                    doc2 = documents[j]
+                    if self._is_same_item(doc1.page_content, doc2.page_content):
+                        current_group['docs'].append(doc2)
+                        current_group['total_upvotes'] += doc2.metadata.get('upvotes', 0)
+                        processed_indices.add(j)
+                
+                content_groups.append(current_group)
+            
+            return content_groups
+
+        def _is_same_item(self, content1, content2):
+            """判断是否在讨论同一个事物"""
+            # 相似度阈值
+
+            return SequenceMatcher(None, content1, content2).ratio() > self.similarity_threshold
+
+        def get_final_results(self, content_groups, top_k):
+            """获取最终处理后的结果"""
+            # 按总upvotes排序
+            sorted_groups = sorted(
+                content_groups,
+                key=lambda x: x['total_upvotes'],
+                reverse=True
+            )[:top_k]
+
+            return [self._create_merged_document(group) for group in sorted_groups]
+
+        def _create_merged_document(self, group):
+            """创建合并后的文档"""
+            
+            main_doc = group['main_doc']
+            docs = group['docs']
+            
+            # 合并内容，添加推荐统计
+            merged_content = (
+                f"{main_doc.page_content}\n\n"
+                f"Summary: {len(docs)} recommendations, "
+                f"{group['total_upvotes']} total upvotes"
+            )
+            
+            metadata = {
+                **main_doc.metadata,
+                'recommendation_count': len(docs),
+                'total_upvotes': group['total_upvotes'],
+                'source_contents': [doc.page_content for doc in docs]
+            }
+            
+            return Document(
+                page_content=merged_content,
+                metadata=metadata
+            )
 
     # -----------------------------------------------------------
     #  构建 FAISS 索引
@@ -214,28 +294,41 @@ class IndexService:
     # -----------------------------------------------------------
     #  使用 FAISS 搜索，优化搜索效率O(n) -> O(log(n))
     # -----------------------------------------------------------
-    def faiss_search(self, query, source, top_k=5):
+    def faiss_search(self, query, source, top_k=5, filter_value=None):
         """
-        使用 FAISS 进行相似度搜索，返回 LangChain Document 列表
-        支持三个平台的内容检索和点赞/评分合并
-        Args:
-            query: 搜索查询
-            source: 平台来源 ('reddit', 'stackoverflow', 或 'rednote')
-            top_k: 返回结果数量
+        通用的相似度搜索方法：
+            - query: 用户查询
+            - source: 平台，比如 'reddit'/'stackoverflow'/'rednote'
+            - top_k: 取多少条结果
+            - filter_value: 在reddit中表示subreddit; 在stackoverflow/rednote中表示tag
         """
         self._ensure_faiss_store_loaded()
-        logger.info(f"Performing FAISS similarity_search for query: {query}")
+        logger.info(f"Performing FAISS similarity_search for query: {query}, platform={source}")
         
         """
         TO BE DONE: 此处的搜索 & 排序的逻辑后续可以优化
         """
-        raw_results = self._get_raw_search_results(query, top_k)
-        filtered_results = self._filter_by_source(raw_results, source)
-        grouped_results = self._group_by_content(filtered_results)
-        sorted_results = self._sort_and_limit_results(grouped_results, top_k)
+        # 1. 获取原始搜索结果(增加获取更多结果以提高匹配质量)
+        raw_results = self._get_raw_search_results(query, top_k * 5)
 
-        logger.info(f"FAISS search found {len(sorted_results)} unique results from {source}.")
-        return sorted_results
+        # 2. 先按source过滤
+        filtered_by_source = [doc for doc in raw_results if doc.metadata['source'] == source]
+
+        # 3. 根据平台不同, 走不同的字段做过滤
+        if filter_value:
+            filtered_by_platform_field = self._filter_by_platform_field(filtered_by_source, source, filter_value)
+        else:
+            filtered_by_platform_field = filtered_by_source
+
+        if not filtered_by_platform_field:
+            return []
+
+        # 4. 对结果做分组/合并
+        content_groups = self._result_processor.group_similar_results(filtered_by_platform_field)
+
+        # 5. 排序并取top_k
+        final_results = self._result_processor.get_final_results(content_groups, top_k)
+        return final_results
 
     def _ensure_faiss_store_loaded(self):
         """
@@ -245,79 +338,34 @@ class IndexService:
             logger.warning("FAISS store not loaded. Attempting load now.")
             self.load_faiss_index()
 
-    def _get_raw_search_results(self, query, top_k):
+    def _get_raw_search_results(self, query, k):
         """获取原始搜索结果"""
-        # 获取2倍结果以便后续合并
-        return self.faiss_store.similarity_search(query, k=top_k*2)
+        return self.faiss_store.similarity_search(query, k=k)
 
     def _filter_by_source(self, results, source):
         """按平台过滤结果"""
         return [doc for doc in results if doc.metadata['source'] == source]
-
-    def _group_by_content(self, filtered_results):
-        """将结果按内容分组"""
-        grouped_results = {}
-        for doc in filtered_results:
-            content = doc.page_content
-            if content not in grouped_results:
-                grouped_results[content] = self._init_content_group(doc)
-            
-            self._update_content_group(grouped_results[content], doc)
-        
-        return grouped_results
-
-    def _init_content_group(self, doc):
-        """初始化内容分组"""
-        return {
-            'doc': doc,
-            'total_score': 0,
-            'posts': []
-        }
-
-    def _update_content_group(self, group, doc):
-        """更新分组信息"""
-        score = self._get_platform_score(doc)
-        group['total_score'] += score
-        group['posts'].append({
-            'thread_id': doc.metadata['thread_id'],
-            'url': doc.metadata.get('url'),
-            'score': score
-        })
-
-    def _get_platform_score(self, doc):
-        """获取特定平台的评分"""
-        try:
-            source = doc.metadata['source']
-            thread_id = doc.metadata['thread_id']
-            
-            if source == 'reddit':
-                return RedditContent.objects.get(thread_id=thread_id).upvotes
-            elif source == 'stackoverflow':
-                return StackOverflowContent.objects.get(thread_id=thread_id).vote_score
-            elif source == 'rednote':
-                return RednoteContent.objects.get(thread_id=thread_id).likes
-            return 0
-        except Exception as e:
-            logger.warning(f"Error getting score: {str(e)}")
-            return 0
-
-    def _sort_and_limit_results(self, grouped_results, top_k):
-        """排序并限制结果数量"""
-        merged_results = []
-        for content_info in grouped_results.values():
-            doc = content_info['doc']
-            doc.metadata.update({
-                'total_score': content_info['total_score'],
-                'post_count': len(content_info['posts']),
-                'posts': content_info['posts']
-            })
-            merged_results.append(doc)
-
-        return sorted(
-            merged_results,
-            key=lambda x: x.metadata['total_score'],
-            reverse=True
-        )[:top_k]
+    
+    def _filter_by_platform_field(self, docs, source, filter_value):
+        """
+        根据不同source使用不同字段做过滤:
+          - reddit: metadata['subreddit']
+          - stackoverflow/rednote: metadata['tags'] 
+        """
+        if source == 'reddit':
+            return [
+                d for d in docs 
+                if d.metadata.get('subreddit') == filter_value
+            ]
+        elif source in ('stackoverflow', 'rednote'):
+            # 如果 tags 是字符串，需要改成是否包含 substring；如果是list，就判断是否在列表里
+            return [
+                d for d in docs
+                if filter_value in d.metadata.get('tags', [])
+            ]
+        else:
+            # 如果新平台没做适配，这里直接不滤
+            return docs
 
 
     """

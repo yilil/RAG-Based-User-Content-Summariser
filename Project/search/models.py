@@ -8,7 +8,7 @@ class ContentIndex(models.Model):
     content_type = models.CharField(max_length=50)  
     thread_id = models.CharField(max_length=100)  
     author_name = models.CharField(max_length=150)
-    content = models.TextField(unique = True) # should add "unique = True" tp make sure that no repetitions 
+    content = models.TextField() 
     
     embedding = models.JSONField() 
     
@@ -17,6 +17,7 @@ class ContentIndex(models.Model):
 
     class Meta:
         db_table = 'content_index' 
+        unique_together = ['source', 'content']
 
 class BaseContent(models.Model):
     """

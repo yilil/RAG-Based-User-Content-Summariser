@@ -8,14 +8,9 @@ class TestDataGenerator:
         self.fake = Faker()
         self.start_date = timezone.now() - timedelta(days=365)
 
-    def generate_reddit_data(self, count=5):
+    def generate_reddit_data(self):
         """
-        生成Reddit测试数据:
-        - 1个编程相关帖子
-        - 1个美食相关帖子
-        - 1个旅游相关帖子
-        - 1个运动相关帖子
-        - 1个音乐相关帖子
+        Generate general Reddit test data with various topics.
         """
         # 预定义不同主题的内容
         test_contents = [
@@ -72,4 +67,44 @@ class TestDataGenerator:
                 created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
                 subreddit=content['subreddit'],
                 upvotes=content['upvotes']
+            )
+
+    def generate_library_ranking_data(self):
+        """
+        Creates two library scenarios under the 'study' subreddit:
+          - Library A: 1 user with upvote=100
+          - Library B: 100 users each with upvote=20
+        """
+        # Library A (single post with upvote=100)
+        RedditContent.objects.create(
+            source='reddit',
+            content_type='post',
+            thread_id=self.fake.uuid4(),
+            thread_title='Library A: Single user, 100 upvotes',
+            author_name=self.fake.user_name(),
+            content=(
+                "One user strongly recommends 'Library A'. "
+                "They gave it 100 upvotes in total!"
+            ),
+            created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
+            subreddit='study',
+            upvotes=100
+        )
+
+        # Library B (5 different users, each with upvote=40)
+        # We create multiple entries to simulate 5 separate recommendations
+        for i in range(5):
+            RedditContent.objects.create(
+                source='reddit',
+                content_type='post',
+                thread_id=self.fake.uuid4(),
+                thread_title=f'Library B: Many users, 20 upvotes each ({i+1}/100)',
+                author_name=self.fake.user_name(),
+                content=(
+                    f"[B Post {i+1}] Multiple users recommend 'Library B' with 20 upvotes each. "
+                    "There are 100 such recommendations, but each post is slightly different!"
+                ),
+                created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
+                subreddit='study',
+                upvotes=40
             )
