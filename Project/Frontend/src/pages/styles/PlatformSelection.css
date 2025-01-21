@@ -1,0 +1,56 @@
+/* Center the content and style the heading */
+.home-page {
+    text-align: center;
+    padding: 40px;
+    background-color: #f4f4f9;
+    height: 100vh; /* Ensures it spans the full height */
+  }
+  
+  .heading {
+    font-size: 36px;
+    font-weight: bold;
+    color: #2e2e2e;
+    margin-bottom: 40px;
+  }
+  
+  /* Style the buttons */
+  .platform-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* Add space between buttons */
+  }
+  
+  .btn {
+    padding: 20px 40px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .btn.purple {
+    background-color: #9b5de5;
+  }
+  
+  .btn.purple:hover {
+    background-color: #7e3ecf;
+  }
+  
+  .btn.teal {
+    background-color: #188a8d;
+  }
+  
+  .btn.teal:hover {
+    background-color: #106265;
+  }
+  
+  .btn.pink {
+    background-color: #ff5d8f;
+  }
+  
+  .btn.pink:hover {
+    background-color: #e84676;
+  }
+  

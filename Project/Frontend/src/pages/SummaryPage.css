@@ -1,0 +1,80 @@
+.summary-page {
+    padding: 20px;
+    background-color: #f9f9f9;
+  }
+  
+  .summary-page h3 {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  .summary-box {
+    background-color: #ffffff;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+  }
+  
+  .summary-box ol {
+    list-style-position: inside;
+    padding-left: 0;
+  }
+  
+  .detail-section {
+    margin-top: 20px;
+    background-color: #ffffff;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+  }
+  
+  .detail-section h4 {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .upvotes {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+  
+  .sentiment-section {
+    margin: 10px 0;
+  }
+  
+  .sentiments button {
+    margin-right: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .sentiments .btn-positive {
+    background-color: #c2f0c2;
+  }
+  
+  .sentiments .btn-neutral {
+    background-color: #ffe699;
+  }
+  
+  .sentiments .btn-negative {
+    background-color: #ffc2c2;
+  }
+  
+  .user-comments {
+    background-color: #f9f9f9;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #eee;
+  }
+  
+  .user-comments p {
+    margin: 4px 0;
+  }
+  
