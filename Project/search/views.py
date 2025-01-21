@@ -71,6 +71,7 @@ def search(request):
         index_service = IndexService()
         retrieved_docs = index_service.faiss_search(
             query=search_query,
+            source='reddit', # 搜索 Reddit 数据, 可以选择 'stackoverflow' 或 'rednote'
             top_k=5
         )
         # retrieved_docs = []

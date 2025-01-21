@@ -214,25 +214,28 @@ class IndexService:
     # -----------------------------------------------------------
     #  使用 FAISS 搜索，优化搜索效率O(n) -> O(log(n))
     # -----------------------------------------------------------
-    def faiss_search(self, query, top_k=5):
+    def faiss_search(self, query, source, top_k=5):
         """
         使用 FAISS 进行相似度搜索，返回 LangChain Document 列表
         支持三个平台的内容检索和点赞/评分合并
+        Args:
+            query: 搜索查询
+            source: 平台来源 ('reddit', 'stackoverflow', 或 'rednote')
+            top_k: 返回结果数量
         """
         self._ensure_faiss_store_loaded()
         logger.info(f"Performing FAISS similarity_search for query: {query}")
-        # similarity_search返回一个Document列表，包含page_content和metadata
-
+        
         """
         TO BE DONE: 此处的搜索 & 排序的逻辑后续可以优化
         """
-        results = self.faiss_store.similarity_search(query, k=top_k)
+        raw_results = self._get_raw_search_results(query, top_k)
+        filtered_results = self._filter_by_source(raw_results, source)
+        grouped_results = self._group_by_content(filtered_results)
+        sorted_results = self._sort_and_limit_results(grouped_results, top_k)
 
-        grouped_results = self._group_search_results(results)
-        merged_results = self._merge_and_sort_results(grouped_results, top_k)
-
-        logger.info(f"FAISS search found {len(merged_results)} results.")
-        return merged_results
+        logger.info(f"FAISS search found {len(sorted_results)} unique results from {source}.")
+        return sorted_results
 
     def _ensure_faiss_store_loaded(self):
         """
@@ -242,65 +245,77 @@ class IndexService:
             logger.warning("FAISS store not loaded. Attempting load now.")
             self.load_faiss_index()
 
-    def _group_search_results(self, results):
-        """将搜索结果按内容分组"""
+    def _get_raw_search_results(self, query, top_k):
+        """获取原始搜索结果"""
+        # 获取2倍结果以便后续合并
+        return self.faiss_store.similarity_search(query, k=top_k*2)
+
+    def _filter_by_source(self, results, source):
+        """按平台过滤结果"""
+        return [doc for doc in results if doc.metadata['source'] == source]
+
+    def _group_by_content(self, filtered_results):
+        """将结果按内容分组"""
         grouped_results = {}
-        for doc in results:
+        for doc in filtered_results:
             content = doc.page_content
             if content not in grouped_results:
-                grouped_results[content] = {
-                    'doc': doc,
-                    'engagement_score': 0,
-                    'sources': []
-                }
+                grouped_results[content] = self._init_content_group(doc)
             
-            self._update_engagement_score(grouped_results[content], doc)
-            self._add_source_info(grouped_results[content], doc)
+            self._update_content_group(grouped_results[content], doc)
         
         return grouped_results
 
-    def _update_engagement_score(self, content_info, doc):
-        """更新内容的参与度评分"""
-        try:
-            thread_id = doc.metadata['thread_id']
-            source = doc.metadata['source']
-            
-            if source == 'reddit':
-                score = RedditContent.objects.get(thread_id=thread_id).upvotes
-            elif source == 'stackoverflow':
-                score = StackOverflowContent.objects.get(thread_id=thread_id).vote_score
-            elif source == 'littleredbook':
-                score = RednoteContent.objects.get(thread_id=thread_id).likes
-            else:
-                score = 0
-                
-            content_info['engagement_score'] += score
-        except Exception as e:
-            logger.warning(f"Error getting engagement score: {str(e)}")
+    def _init_content_group(self, doc):
+        """初始化内容分组"""
+        return {
+            'doc': doc,
+            'total_score': 0,
+            'posts': []
+        }
 
-    def _add_source_info(self, content_info, doc):
-        """添加来源信息"""
-        content_info['sources'].append({
-            'source': doc.metadata['source'],
+    def _update_content_group(self, group, doc):
+        """更新分组信息"""
+        score = self._get_platform_score(doc)
+        group['total_score'] += score
+        group['posts'].append({
             'thread_id': doc.metadata['thread_id'],
-            'url': doc.metadata.get('url')
+            'url': doc.metadata.get('url'),
+            'score': score
         })
 
-    def _merge_and_sort_results(self, grouped_results, top_k):
-        """合并和排序搜索结果"""
+    def _get_platform_score(self, doc):
+        """获取特定平台的评分"""
+        try:
+            source = doc.metadata['source']
+            thread_id = doc.metadata['thread_id']
+            
+            if source == 'reddit':
+                return RedditContent.objects.get(thread_id=thread_id).upvotes
+            elif source == 'stackoverflow':
+                return StackOverflowContent.objects.get(thread_id=thread_id).vote_score
+            elif source == 'rednote':
+                return RednoteContent.objects.get(thread_id=thread_id).likes
+            return 0
+        except Exception as e:
+            logger.warning(f"Error getting score: {str(e)}")
+            return 0
+
+    def _sort_and_limit_results(self, grouped_results, top_k):
+        """排序并限制结果数量"""
         merged_results = []
         for content_info in grouped_results.values():
             doc = content_info['doc']
             doc.metadata.update({
-                'engagement_score': content_info['engagement_score'],
-                'source_count': len(content_info['sources']),
-                'sources': content_info['sources']
+                'total_score': content_info['total_score'],
+                'post_count': len(content_info['posts']),
+                'posts': content_info['posts']
             })
             merged_results.append(doc)
-        
+
         return sorted(
             merged_results,
-            key=lambda x: x.metadata['engagement_score'],
+            key=lambda x: x.metadata['total_score'],
             reverse=True
         )[:top_k]
 
