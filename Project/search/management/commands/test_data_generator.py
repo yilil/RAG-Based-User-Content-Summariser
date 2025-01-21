@@ -98,11 +98,11 @@ class TestDataGenerator:
                 source='reddit',
                 content_type='post',
                 thread_id=self.fake.uuid4(),
-                thread_title=f'Library B: Many users, 20 upvotes each ({i+1}/100)',
+                thread_title=f'Library B: Many users, 40 upvotes each ({i+1}/5)',
                 author_name=self.fake.user_name(),
                 content=(
-                    f"[B Post {i+1}] Multiple users recommend 'Library B' with 20 upvotes each. "
-                    "There are 100 such recommendations, but each post is slightly different!"
+                    f"[B Post {i+1}] Multiple users recommend 'Library B' with 40 upvotes each. "
+                    "There are 5 such recommendations, but each post is slightly different!"
                 ),
                 created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
                 subreddit='study',
