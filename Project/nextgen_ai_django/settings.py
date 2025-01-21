@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'prompt_sender',
     'prompt_generator',
     'memory',
+    'question_template',
 ]
 
 MIDDLEWARE = [
