@@ -66,25 +66,19 @@ sequenceDiagram
     actor User
     participant Views as search/views.py<br>def search()
     participant IS as search/index_service.py<br>class IndexService
-    participant BGE as search/utils.py<br>def get_embeddings()
     participant FAISS as search/index_service.py<br>self.faiss_store
-    participant CI as search/models.py<br>class ContentIndex
+    participant BGE as search/utils.py<br>HuggingFaceEmbeddings
     participant GS as search/gemini_sample.py<br>def process_search_query()
 
     User->>Views: HTTP POST /search/
     Views->>IS: faiss_search(query, top_k=5)
     Note over IS: index_service.py: def faiss_search()
-    IS->>BGE: embed_query(query)
-    Note over BGE: utils.py: HuggingFaceEmbeddings class
-    IS->>FAISS: similarity_search(query_vector)
-    Note over FAISS: FAISS from langchain_community.vectorstores
-    FAISS->>CI: Retrieve matches
-    Note over CI: models.py: ContentIndex.objects.filter()
-    CI-->>FAISS: Return documents
-    FAISS-->>IS: Return similar Documents
+    IS->>FAISS: similarity_search(query)
+    Note over FAISS: internally calls<br>HuggingFaceEmbeddings<br>to embed the query
+    FAISS-->>IS: returns similar Documents
     IS->>GS: process_search_query(query, docs)
     Note over GS: gemini_sample.py: def process_search_query()
-    GS-->>Views: Generated response
-    Views-->>User: Render template with response
-    Note over Views: views.py: render('searchwithTemple.html')
+    GS-->>Views: processed/merged results
+    Views-->>User: render('searchwithTemple.html') and return results
+
 ```
