@@ -26,22 +26,6 @@ then restart terminal and reactivate the virtual environment
 # Install Langchain community
 ```pip install langchain-community```
 
-# 需要设置 Application Default Credentials (ADC)，并添加到环境变量中
-
-# 后续数据库的数据可以被存储后，可以先按以下操作来：
-1. 初始化好环境
-2. 生成迁移文件：如果修改了模型（例如 RedditContent，StackOverflowContent 等），先生成迁移文件：
-`python manage.py makemigrations`
-
-3. 应用迁移：然后应用迁移到数据库：
-`python manage.py migrate`
-4. 检查迁移是否成功
-`python manage.py showmigrations`
-1. 访问 http://127.0.0.1:8000/index_content/ 接口以初始化索引。
-可以通过浏览器、Postman 或 curl 发起 POST 请求：
-curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit" （命令行操作）
-2. 之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能
-
 # 如果使用bge-en-icl embedding model
 1. 首先卸载当前的langchain相关包：
 `pip uninstall langchain langchain-community`
@@ -54,6 +38,26 @@ curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit" （命令�
 
 # 测试
 `python manage.py test_rag`
+
+# 数据库的数据被存储后，可以先按以下操作来：
+1. 生成迁移文件：如果修改了模型（例如 RedditContent，StackOverflowContent 等），先生成迁移文件：
+`python manage.py makemigrations`
+2. 应用迁移：然后应用迁移到数据库：
+`python manage.py migrate`
+3. 检查迁移是否成功
+`python manage.py showmigrations`
+
+# 运行服务器
+`python manage.py runserver`]
+
+# 初始化索引
+可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
+`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST，后续改成postman请求）
+
+# 选择指定模型，输入query进行RAG, 结合模型生成答案
+之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能：
+e.g. 比如在存储了测试数据后，我们可以提问："How to build a binary search tree?"，输入query后可以看到终端显示retrieved documents，以及
+结合retrieved documents生成对回答
 
 # 序列图
 预览包含 Mermaid 图表的 Markdown 文档：
