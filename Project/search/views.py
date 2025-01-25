@@ -45,16 +45,17 @@ def search(request):
 
     if request.method != "POST":
         return render(request, 'searchwithTemple.html')
-    if 'llm_model' in request.POST:
-        llm_model = request.POST.get('llm_model')
-        # 将选择的模型保存在 session 中
-        request.session['llm_model'] = llm_model
-        request.session.save() 
-        return render(request, 'searchwithTemple.html', {
-                'llm_model': llm_model  # 将模型传递给模板
-            })
+    # if 'llm_model' in request.POST:
+    #     llm_model = request.POST.get('llm_model')
+    #     # 将选择的模型保存在 session 中
+    #     request.session['llm_model'] = llm_model
+    #     request.session.save() 
+    #     return render(request, 'searchwithTemple.html', {
+    #             'llm_model': llm_model  # 将模型传递给模板
+    #         })
     search_query = request.POST.get('search_query')
     llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
+    source = request.POST.get('source')
     additional_option = request.POST.get('additional_option')
 
     recent_memory = MemoryService.get_recent_memory(session_id)
@@ -71,10 +72,10 @@ def search(request):
         index_service = IndexService()
         retrieved_docs = index_service.faiss_search(
             query=search_query,
-            source='reddit', # 搜索 Reddit 数据, 可以选择 'stackoverflow' 或 'rednote'
+            source=source, # 搜索 Reddit 数据, 可以选择 'stackoverflow' 或 'rednote'
             top_k=5
         )
-        # retrieved_docs = []
+        #retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
