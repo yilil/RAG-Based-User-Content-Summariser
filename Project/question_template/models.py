@@ -1,6 +1,7 @@
 from django.db import models
 
 class QuestionTemplate(models.Model):
+    title = models.CharField(max_length=255, blank=True, null=True)
     template_text = models.TextField()
     tags = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

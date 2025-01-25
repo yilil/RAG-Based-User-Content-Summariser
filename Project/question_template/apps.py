@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 
-
 class QuestionTemplateConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
     name = 'question_template'
+
+    def ready(self):
+        import question_template.signals  # 确保信号处理器被加载

@@ -182,6 +182,14 @@
       <button type="submit">Submit</button>
     </form>
 
+    <button id="dinner-button">今天晚饭吃什么</button>
+
+    <form id="dinner-form" style="display:none;" method="POST" action="{% url 'search' %}">
+        {% csrf_token %}
+        <input type="text" name="dinner_query" id="dinner-input" required autocomplete="off" />
+        <button type="submit">Submit</button>
+    </form>
+
     <!-- Loading indicator -->
     <div id="loading" class="loading">
       Processing your request
@@ -318,6 +326,21 @@
       const afterMatch = text.slice(index + query.length);
       return `${beforeMatch}<span class="highlight">${match}</span>${afterMatch}`;
     }
+
+    document.getElementById('dinner-button').addEventListener('click', function() {
+        fetch('/question_template/get_by_title/Dinner Idea/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('dinner-input').value = data.template_text;
+                document.getElementById('dinner-form').style.display = 'block';
+            });
+    });
+
+    document.getElementById('dinner-form').addEventListener('submit', function(event) {
+        event.preventDefault(); // 阻止表单的默认提交行为
+        document.getElementById('search-input').value = document.getElementById('dinner-input').value;
+        document.getElementById('search-form').submit(); // 提交搜索表单
+    });
   </script>
 </body>
 </html>

@@ -13,11 +13,15 @@ from question_template.models import QuestionTemplate
 
 def insert_example_data():
     data = {
+        'title': 'Example Title',
         'template_text': 'Example template text',
         'tags': 'example, test'
     }
     template = QuestionTemplate.create_template(data)
     print(f'Inserted template with ID: {template.id}')
+    print(f'Title: {template.title}')
+    print(f'Template Text: {template.template_text}')
+    print(f'Tags: {template.tags}')
 
 if __name__ == '__main__':
     insert_example_data()
