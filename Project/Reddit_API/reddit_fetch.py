@@ -1,5 +1,6 @@
 import praw
 import json
+import requests
 from prawcore.exceptions import NotFound, Forbidden, PrawcoreException
 
 def create_reddit_instance():

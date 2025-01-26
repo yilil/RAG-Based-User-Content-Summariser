@@ -1,6 +1,7 @@
 import logging
 import os
 from django.conf import settings
+from typing import List, Optional, Union, Dict
 
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
@@ -136,120 +137,139 @@ class IndexService:
         """
         
         try:
-            # 1. 构建基础查询
-            base_query = ContentIndex.objects.filter(embedding__isnull=False)
-
-            # 如果指定了source过滤
-            if source_filter:
-                if isinstance(source_filter, str):
-                    # 测试场景：简单字符串
-                    base_query = base_query.filter(source=source_filter)
-                else:
-                    # 爬虫场景：复杂过滤条件
-                    base_query = base_query.filter(**source_filter)
-
-            # 获取总记录数
-            total_records = base_query.count()
-            logger.info(f"Found {total_records} records to process")
-
-            # 分批处理
-            BATCH_SIZE = 1000
-            processed = 0
-            docs = []
-
-            while processed < total_records:
-                # 获取当前批次数据
-                batch = ContentIndex.objects.filter(
-                    embedding__isnull=False
-                ).order_by('id')[processed:processed + BATCH_SIZE]
-
-                for obj in batch:
-                    # 根据source和thread_id获取对应的完整内容记录
-                    content_obj = None
-                    if obj.source == 'reddit':
-                        content_obj = RedditContent.objects.filter(thread_id=obj.thread_id).first()
-                    elif obj.source == 'stackoverflow':
-                        content_obj = StackOverflowContent.objects.filter(thread_id=obj.thread_id).first()
-                    elif obj.source == 'rednote':
-                        content_obj = RednoteContent.objects.filter(thread_id=obj.thread_id).first()
-
-                    # 构建基础metadata（from BaseContent）
-                    metadata = {
-                        "id": obj.id,
-                        "source": obj.source,
-                        "content_type": obj.content_type,
-                        
-                        # Content relationship
-                        "thread_id": obj.thread_id,
-                        "thread_title": content_obj.thread_title if content_obj else None,
-                        "parent_id": content_obj.parent_id if content_obj else None,
-                        "url": content_obj.url if content_obj else None,
-                        
-                        # Author and comment identification
-                        "author_name": obj.author_name,
-                        "comment_id": content_obj.comment_id if content_obj else None,
-                        "commenter_name": content_obj.commenter_name if content_obj else None,
-                        
-                        # Timestamps
-                        "created_at": obj.created_at.isoformat(),
-                        "updated_at": obj.updated_at.isoformat(),
-                    }
-
-                    # 添加平台特有的字段
-                    if content_obj:
-                        if obj.source == 'reddit':
-                            metadata.update({
-                                "subreddit": content_obj.subreddit,
-                                "upvotes": content_obj.upvotes
-                            })
-                        elif obj.source == 'stackoverflow':
-                            metadata.update({
-                                "tags": content_obj.tags,
-                                "vote_score": content_obj.vote_score
-                            })
-                        elif obj.source == 'rednote':
-                            metadata.update({
-                                "tags": content_obj.tags,
-                                "likes": content_obj.likes
-                            })
-                        
-                        # 如果原始模型中有额外的metadata字段，也添加进来
-                        if content_obj.metadata:
-                            metadata.update(content_obj.metadata)
-
-                    # 2. 准备 LangChain 的 Document 列表
-                    #   每条记录 -> 一个 Document
-                    #   其中 embedding 需要通过 "embedding_function" 方式注入
-                    #   但在from_documents时, 会自动调用 self.embedding_model 来生成向量
-                    doc = Document(
-                        page_content=obj.content or "",
-                        metadata=metadata
-                    )
-                    docs.append(doc)
-
-                processed += BATCH_SIZE
-                logger.info(f"Processed {min(processed, total_records)}/{total_records} documents")
-
-            # 3. 使用 from_documents创建索引(会自动对doc.page_content调用embedding_model生成向量)
-            logger.info("Creating FAISS index...")
-            self.faiss_store = FAISS.from_documents(
-                docs,
-                self.embedding_model,
-                distance_strategy="cosine"
-            )
-
-            # 4. 保存到本地
-            logger.info(f"Saving FAISS index to {self.faiss_index_path}")
-            self.faiss_store.save_local(self.faiss_index_path)
-            
-            # 5. 验证索引
-            self._verify_index()
-            
+            records = self.get_filtered_records(source_filter)
+            docs = self.process_records_in_batches(records)
+            self.faiss_store = self.create_faiss_index(docs)
+            self.save_faiss_index()
+            self.verify_faiss_index()
             logger.info(f"FAISS index built and saved to {self.faiss_index_path}.")
-            
         except Exception as e:
             logger.error(f"Error building FAISS index: {str(e)}")
             raise
+
+    def get_filtered_records(self, source_filter: Optional[Union[str, Dict]] = None):
+        """
+        获取并过滤ContentIndex中的记录。
+        """
+        logger.info("Fetching filtered records from ContentIndex...")
+        base_query = ContentIndex.objects.filter(embedding__isnull=False)
+        
+        if source_filter:
+            if isinstance(source_filter, str):
+                # 测试场景：简单字符串
+                base_query = base_query.filter(source=source_filter)
+            elif isinstance(source_filter, dict):
+                # 爬虫场景：复杂过滤条件
+                base_query = base_query.filter(**source_filter)
+            else:
+                raise ValueError("source_filter must be either a string or a dictionary.")
+        
+        # 获取总记录数
+        total_records = base_query.count()
+        logger.info(f"Found {total_records} records to process")
+        return base_query.order_by('id')
+    
+    def process_records_in_batches(self, records_query):
+        """
+        以批量方式处理记录并转换为Document对象。
+        """
+        # 批处理大小
+        BATCH_SIZE = 1000
+        total_records = records_query.count()
+        processed = 0
+        docs: List[Document] = []
+
+        while processed < total_records:
+            # 获取当前批次数据
+            batch = records_query[processed:processed + BATCH_SIZE]
+            for obj in batch:
+                # 根据source和thread_id获取对应的完整内容记录
+                content_obj = self.get_content_object(obj.source, obj.thread_id)
+                # 构建基础metadata（from BaseContent）
+                metadata = self.build_metadata(obj, content_obj)
+                # 准备 LangChain 的 Document 列表
+                doc = Document(
+                    page_content=obj.content or "",
+                    metadata=metadata
+                )
+                docs.append(doc)
+            processed += BATCH_SIZE
+            logger.info(f"Processed {min(processed, total_records)}/{total_records} documents")
+        
+        return docs
+    
+    def get_content_object(self, source: str, thread_id: str):
+        """
+        根据source和thread_id获取对应的内容对象。
+        """
+        if source == 'reddit':
+            return RedditContent.objects.filter(thread_id=thread_id).first()
+        elif source == 'stackoverflow':
+            return StackOverflowContent.objects.filter(thread_id=thread_id).first()
+        elif source == 'rednote':
+            return RednoteContent.objects.filter(thread_id=thread_id).first()
+        else:
+            return None
+        
+    def build_metadata(self, obj, content_obj):
+        """
+        构建文档的元数据。
+        """
+        metadata = {
+            "id": obj.id,
+            "source": obj.source,
+            "content_type": obj.content_type,
+            "thread_id": obj.thread_id,
+            "thread_title": content_obj.thread_title if content_obj else None,
+            "parent_id": content_obj.parent_id if content_obj else None,
+            "url": content_obj.url if content_obj else None,
+            "author_name": obj.author_name,
+            "comment_id": content_obj.comment_id if content_obj else None,
+            "commenter_name": content_obj.commenter_name if content_obj else None,
+            "created_at": obj.created_at.isoformat(),
+            "updated_at": obj.updated_at.isoformat(),
+        }
+
+        if content_obj:
+            if obj.source == 'reddit':
+                metadata.update({
+                    "subreddit": content_obj.subreddit,
+                    "upvotes": content_obj.upvotes
+                })
+            elif obj.source == 'stackoverflow':
+                metadata.update({
+                    "tags": content_obj.tags,
+                    "vote_score": content_obj.vote_score
+                })
+            elif obj.source == 'rednote':
+                metadata.update({
+                    "tags": content_obj.tags,
+                    "likes": content_obj.likes
+                })
+            
+            if hasattr(content_obj, 'metadata') and content_obj.metadata:
+                metadata.update(content_obj.metadata)
+        
+        return metadata
+    
+    def create_faiss_index(self, docs: List[Document]):
+        """
+        使用Document列表创建FAISS索引。
+        """
+        logger.info("Creating FAISS index...")
+        return FAISS.from_documents(
+            docs,
+            self.embedding_model,
+            distance_strategy="cosine"
+        )
+
+    def save_faiss_index(self):
+        """
+        将FAISS索引保存到本地。
+        """
+        logger.info(f"Saving FAISS index to {self.faiss_index_path}")
+        self.faiss_store.save_local(self.faiss_index_path)
+
 
     def _verify_index(self):
         """
