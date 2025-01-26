@@ -149,18 +149,6 @@
 <body>
   <div class="search-container">
     <h2>Search</h2>
-    <form method="POST" action="{% url 'search' %}">
-        {% csrf_token %}
-        <label for="llm_model">Select LLM Model:</label>
-        <select id="llm_model" name="llm_model">
-          <option value="gemini-1.5-flash" {% if llm_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash</option>
-          <option value="gemini-1.0-pro" {% if llm_model == 'gemini-1.0-pro' %}selected{% endif %}>Gemini 1.0 Pro</option>
-          <option value="gemini-1.5-pro" {% if llm_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro</option>
-          <option value="gemini-2.0-flash-exp" {% if llm_model == 'gemini-2.0-flash-exp' %}selected{% endif %}>Gemini 2.0 Flash</option>
-        </select>
-        <button type="submit">Submit</button>
-    </form>
-  
     <form id="search-form" method="POST" action="{% url 'search' %}">  
       {% csrf_token %}
       <input
@@ -171,7 +159,35 @@
         required
         autocomplete="off"
       />
+      <select
+        name="llm_model"
+        id="llm-model-select"
+        required
+      >
+        <option value="gemini-1.5-flash" {% if llm_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash</option>
+        <option value="gemini-1.0-pro" {% if llm_model == 'gemini-1.0-pro' %}selected{% endif %}>Gemini 1.0 Pro</option>
+        <option value="gemini-1.5-pro" {% if llm_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro</option>
+        <option value="gemini-2.0-flash-exp" {% if llm_model == 'gemini-2.0-flash-exp' %}selected{% endif %}>Gemini 2.0 Flash</option>
+      </select>
+      <select
+        name="source"
+        id="source-select"
+        required
+      >
+        <option value="" disabled>Select source</option>
+        <option value="stackoverflow">Stack Overflow</option>
+        <option value="rednote">Rednote</option>
+        <option value="reddit" selected>Reddit</option>
+      </select>
       <button type="submit">Submit</button>
+    </form>
+
+    <button id="dinner-button">今天晚饭吃什么</button>
+
+    <form id="dinner-form" style="display:none;" method="POST" action="{% url 'search' %}">
+        {% csrf_token %}
+        <input type="text" name="dinner_query" id="dinner-input" required autocomplete="off" />
+        <button type="submit">Submit</button>
     </form>
 
     <!-- Loading indicator -->
@@ -310,6 +326,21 @@
       const afterMatch = text.slice(index + query.length);
       return `${beforeMatch}<span class="highlight">${match}</span>${afterMatch}`;
     }
+
+    document.getElementById('dinner-button').addEventListener('click', function() {
+        fetch('/question_template/get_by_title/Dinner Idea/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('dinner-input').value = data.template_text;
+                document.getElementById('dinner-form').style.display = 'block';
+            });
+    });
+
+    document.getElementById('dinner-form').addEventListener('submit', function(event) {
+        event.preventDefault(); // 阻止表单的默认提交行为
+        document.getElementById('search-input').value = document.getElementById('dinner-input').value;
+        document.getElementById('search-form').submit(); // 提交搜索表单
+    });
   </script>
 </body>
 </html>

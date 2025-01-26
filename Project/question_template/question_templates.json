@@ -1,0 +1,38 @@
+[
+    {
+        "title": "Dinner Idea",
+        "template_text": "I have __ these ingredients, I want to cook a dinner today, can you help me think about it?",
+        "tags": "food, cooking",
+        "use_count": 0
+    },
+    {
+        "title": "Learning Advice",
+        "template_text": "I want to learn __, can you give me some advice?",
+        "tags": "learning, advice",
+        "use_count": 0
+    },
+    {
+        "title": "Book Recommendations",
+        "template_text": "Please recommend some good books on __.",
+        "tags": "books, recommendation",
+        "use_count": 0
+    },
+    {
+        "title": "Travel Suggestions",
+        "template_text": "I plan to travel to __, do you have any suggestions?",
+        "tags": "travel, advice",
+        "use_count": 0
+    },
+    {
+        "title": "Latest Trends",
+        "template_text": "Can you tell me the latest trends about __?",
+        "tags": "trends, information",
+        "use_count": 0
+    },
+    {
+        "title": "Skill Improvement",
+        "template_text": "How can I improve my __ skills?",
+        "tags": "skills, improvement",
+        "use_count": 0
+    }
+]
