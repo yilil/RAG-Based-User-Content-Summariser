@@ -2,7 +2,7 @@
 # from langchain_community.vectorstores import FAISS
 # from langchain.embeddings import HuggingFaceEmbeddings
 
-# # 如果您需要从数据库拿文本，则需要导入相关模型，比如:
+# # 如果需要从数据库拿文本，则需要导入相关模型，比如:
 # # from myapp.models import MyDocument
 
 # class Command(BaseCommand):
@@ -17,7 +17,7 @@
 #         embedding_model = HuggingFaceEmbeddings(model_name="BAAI/bge-base-en")
         
 #         # 2. 从数据库或别的地方获取文本 (这里是简单示例)
-#         #   您可以换成实际的查询, 例如:
+#         #   可以换成实际的查询, 例如:
 #         # docs = MyDocument.objects.all()
 #         # texts = [doc.content for doc in docs]
 #         texts = ["Hello World", "Django is great", "FAISS indexing example"]
