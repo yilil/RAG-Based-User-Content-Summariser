@@ -1,69 +1,104 @@
 UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
 
-# Create a virtual environment
+# 1. 环境搭建
+1. Create a virtual environment
+
 ```python3 -m venv venv```
 
-# Activate the virtual environment
+2. Activate the virtual environment
+
 ```source venv/bin/activate  # macOS/Linux```
 
 ```venv\Scripts\activate     # Windows```
 
-# Install project dependencies
+3. Install project dependencies
+
 ```pip install -r requirements.txt```
 
-# To setup Gemini API Key
+# 2. To setup Gemini API Key
+1.
 ```python set_api_key.py # enter your key``` 
 
-then restart terminal and reactivate the virtual environment
+2. then restart terminal and reactivate the virtual environment
+
 ```venv\Scripts\Activate.ps1  # Windows```
 
-# langchain-google-genai Installation
+# 3. 额外库安装
+1. langchain-google-genai Installation
+
 ```pip install -U langchain-google-genai```
 
-# Install `scikit-learn` for Similarity Search
+2. Install `scikit-learn` for Similarity Search
+
 ```pip install scikit-learn```
 
-# Install Langchain community
-```pip install langchain-community```
+3. bge-en-icl embedding model
 
-# 如果使用bge-en-icl embedding model
-1. 首先卸载当前的langchain相关包：
-`pip uninstall langchain langchain-community`
-2. 然后安装新的依赖：
-`pip install sentence-transformers torch transformers`
-`pip install langchain langchain-community`
+```pip install sentence-transformers torch transformers```
 
-# 测试需要install faker
-`pip install faker`
+4. Install Langchain community
 
-# 测试
-`python manage.py test_rag`
+```pip install langchain langchain-community```
 
-# 数据库的数据被存储后，可以先按以下操作来：
-1. 生成迁移文件：如果修改了模型（例如 RedditContent，StackOverflowContent 等），先生成迁移文件：
-`python manage.py makemigrations`
+# 4. 测试与数据准备
+1. 安装 faker（随机生成测试数据）
+
+```pip install faker```
+
+2. 测试
+
+```python manage.py test_rag```
+
+此命令会执行：
+- 清空数据库
+- 生成测试数据（包括 Library A/B, Reddit 内容等）
+- 构建 Embeddings 并写入数据库
+- 建立 FAISS 索引
+- 最后做一系列测试查询
+
+# 5. 数据库迁移
+若修改了模型结构（例如 RedditContent, StackOverflowContent 等）：
+1. 生成迁移文件：
+
+```python manage.py makemigrations```
+
 2. 应用迁移：然后应用迁移到数据库：
-`python manage.py migrate`
+
+```python manage.py migrate```
+
 3. 检查迁移是否成功
-`python manage.py showmigrations`
 
-# 运行服务器
-`python manage.py runserver`]
+```python manage.py showmigrations```
 
-# 初始化索引
+# 6. 初始化索引
+1. 终端请求
+
 可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
 `curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST，后续改成postman请求）
 
-# 选择指定模型，输入query进行RAG, 结合模型生成答案
-之后就正常访问http://127.0.0.1:8000 即可输入query测试+使用RAG功能：
-e.g. 比如在存储了测试数据后，我们可以提问："How to build a binary search tree?"，输入query后可以看到终端显示retrieved documents，以及
-结合retrieved documents生成对回答
+2. 自定义管理命令 build_faiss
 
-# 序列图
+```python manage.py build_faiss```
+
+# 7. 运行服务器
+默认在 http://127.0.0.1:8000 提供服务
+```python manage.py runserver```
+
+# 8. 使用 RAG 进行查询
+1. 在浏览器访问 http://127.0.0.1:8000，即可打开搜索页面。
+2. 输入查询语句，如：
+
+```Which library is recommended the most in r/study?```
+
+3. 系统将调用后端：
+- 利用 FAISS 查找相似文档；
+- 结合retrieved documents进行回答；
+- 最终在网页上渲染回答及相关信息。
+
+# 9. 序列图参考
 预览包含 Mermaid 图表的 Markdown 文档：
 1. Install插件 "Markdown Preview Enhanced"
 2. 使用 Ctrl+K V 打开预览
-
 
 ```mermaid
 sequenceDiagram

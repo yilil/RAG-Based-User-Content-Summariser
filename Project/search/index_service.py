@@ -271,7 +271,7 @@ class IndexService:
         self.faiss_store.save_local(self.faiss_index_path)
 
 
-    def _verify_index(self):
+    def verify_faiss_index(self):
         """
         验证FAISS索引是否正确构建和可用
         """
@@ -330,9 +330,12 @@ class IndexService:
         """
         # 1. 获取原始搜索结果(增加获取更多结果以提高匹配质量)
         raw_results = self._get_raw_search_results(query, top_k * 5)
+        logger.debug(f"raw_results count: {len(raw_results)}")
+        for doc in raw_results:
+            logger.debug(f"Doc metadata: {doc.metadata}, Content: {doc.page_content[:100]}")
 
         # 2. 先按source过滤
-        filtered_by_source = [doc for doc in raw_results if doc.metadata['source'] == source]
+        filtered_by_source = [doc for doc in raw_results if doc.metadata.get('source') == source]
 
         # 3. 根据平台不同, 走不同的字段做过滤
         if filter_value:
