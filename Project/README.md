@@ -56,7 +56,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 - 建立 FAISS 索引
 - 最后做一系列测试查询
 
-# 5. 数据库迁移
+# 5. 数据库迁移(初始化数据库）
 若修改了模型结构（例如 RedditContent, StackOverflowContent 等）：
 1. 生成迁移文件：
 
