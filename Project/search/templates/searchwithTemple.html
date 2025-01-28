@@ -202,6 +202,17 @@
     </div>
     {% endif %}
 
+    {% if retrieved_docs %}
+    <div class="result">
+      <h3>Retrieved Documents:</h3>
+      <ul>
+        {% for doc in retrieved_docs %}
+        <li>{{ doc.page_content|truncatechars:200 }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
 
     <!-- Container for dropdown suggestions -->
     <div class="suggestions-list" id="suggestions-list">

@@ -43,8 +43,21 @@ def search(request):
         request.session.create()  # 创建新会话
         session_id = request.session.session_key
 
+    # 先给所有可能要返回到模板的变量设一个默认值
+    answer = ""
+    metadata = {}
+    retrieved_docs = []
+    # 给 llm_model 设置一个默认值（从 session 获取，不存在就用 'gemini-1.5-flash'）
+    llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
+
+    # 如果是GET请求，直接返回空内容或默认内容
     if request.method != "POST":
-        return render(request, 'searchwithTemple.html')
+        return render(request, 'searchwithTemple.html', {
+            'result': answer,
+            'metadata': metadata,
+            'llm_model': llm_model,
+            'retrieved_docs': retrieved_docs,  
+        })
     # if 'llm_model' in request.POST:
     #     llm_model = request.POST.get('llm_model')
     #     # 将选择的模型保存在 session 中
@@ -53,8 +66,9 @@ def search(request):
     #     return render(request, 'searchwithTemple.html', {
     #             'llm_model': llm_model  # 将模型传递给模板
     #         })
+
+    # 处理 POST 请求
     search_query = request.POST.get('search_query')
-    llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
     source = request.POST.get('source')
     additional_option = request.POST.get('additional_option')
 
@@ -62,7 +76,9 @@ def search(request):
 
     if not search_query:
         return render(request, 'searchwithTemple.html', {
-            'error': 'Please provide a search query'
+            'error': 'Please provide a search query',
+            'llm_model': llm_model,
+            'retrieved_docs': retrieved_docs,
         })
 
     logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {additional_option}")
@@ -100,7 +116,12 @@ def search(request):
         metadata = {}
 
     print(answer)
-    return render(request, 'searchwithTemple.html', {'result': answer, 'metadata': metadata, 'llm_model': llm_model})
+    return render(request, 'searchwithTemple.html', {
+        'result': answer,
+        'metadata': metadata,
+        'llm_model': llm_model,
+        'retrieved_docs': retrieved_docs,
+    })
 
 
 # Initialization of indexing and embeddings

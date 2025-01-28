@@ -32,6 +32,7 @@ class LangchainResponse:
 
 def parse_langchain_response(response):
     response_obj = LangchainResponse(response)
+    print("DEBUG: parsed_response =", response_obj.parsed_response)
     answer = response_obj.get_answer()
     metadata = response_obj.get_metadata()
     return answer, metadata

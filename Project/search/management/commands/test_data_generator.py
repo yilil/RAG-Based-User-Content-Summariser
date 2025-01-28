@@ -74,6 +74,7 @@ class TestDataGenerator:
         Creates two library scenarios under the 'study' subreddit:
           - Library A: 1 user with upvote=100
           - Library B: 100 users each with upvote=20
+        现扩展: Library C, D (不同 upvotes), 保证有足够条目
         """
         # Library A (single post with upvote=100)
         RedditContent.objects.create(
@@ -108,3 +109,44 @@ class TestDataGenerator:
                 subreddit='study',
                 upvotes=40
             )
+
+        # -------------------
+        # 3. 新增 Library C
+        # -------------------
+        for i in range(3):
+            RedditContent.objects.create(
+                source='reddit',
+                content_type='post',
+                thread_id=self.fake.uuid4(),
+                thread_title=f'Library C: Balanced upvotes example ({i+1}/3)',
+                author_name=self.fake.user_name(),
+                content=(
+                    f"This is a recommendation for 'Library C' post {i+1}, "
+                    "with 60 upvotes each. Good for quiet study!"
+                ),
+                created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
+                subreddit='study',
+                upvotes=60
+            )
+
+        # -------------------
+        # 4. 新增 Library D (随机 upvotes, 测试多样性)
+        # -------------------
+        # 假设Library D有3条记录, upvotes从10~90随机
+        for i in range(3):
+            random_up = self.fake.random_int(min=10, max=90)
+            RedditContent.objects.create(
+                source='reddit',
+                content_type='post',
+                thread_id=self.fake.uuid4(),
+                thread_title=f'Library D: random upvotes example ({i+1}/3)',
+                author_name=self.fake.user_name(),
+                content=(
+                    f"[D Post {i+1}] Testing random upvotes for 'Library D': {random_up}"
+                ),
+                created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
+                subreddit='study',
+                upvotes=random_up
+            )
+
+    
