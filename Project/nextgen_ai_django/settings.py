@@ -39,9 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'search',
-    'langchain_parser',
-    'prompt_sender',
-    'prompt_generator',
     'memory',
     'question_template',
 ]
