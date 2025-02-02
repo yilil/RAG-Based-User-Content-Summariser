@@ -19,14 +19,18 @@ const App: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [selectedModel, setSelectedModel] = useState("Gemini"); // Track selected model
 
+  // When starting a new chat, reset state appropriately.
   const handleNewChat = () => {
-    setShowPlatformSelection(true); // Show platform selection page
+    setActiveChatId(null);
+    setSelectedPlatform("");
+    setShowTopicSelection(false);
+    setShowPlatformSelection(true);
   };
 
   const handlePlatformSelect = (platform: string) => {
-    setSelectedPlatform(platform); // Save the selected platform
+    setSelectedPlatform(platform);
     setShowPlatformSelection(false);
-    setShowTopicSelection(true); // Show topic selection page
+    setShowTopicSelection(true);
   };
 
   const handleTopicSelect = (topic: string) => {
@@ -37,19 +41,33 @@ const App: React.FC = () => {
       topic,
       messages: [],
     };
-    setChats([...chats, newChat]); // Add new chat to state
-    setActiveChatId(newChatId); // Set the newly created chat as active
-    setShowTopicSelection(false); // Hide topic selection
+    setChats([...chats, newChat]);
+    setActiveChatId(newChatId);
+    setShowTopicSelection(false);
   };
 
   const handleSelectChat = (id: string) => {
-    setActiveChatId(id); // Set selected chat as active
+    setActiveChatId(id);
   };
 
   const handleModelChange = (model: string) => {
-    setSelectedModel(model); // Update the selected model
-    console.log(`Model switched to: ${model}`); // Debugging log
+    setSelectedModel(model);
+    console.log(`Model switched to: ${model}`);
   };
+
+  // Update messages for the active chat.
+  const handleUpdateChatMessages = (message: string) => {
+    if (!activeChatId) return;
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === activeChatId
+          ? { ...chat, messages: [...chat.messages, message] }
+          : chat
+      )
+    );
+  };
+
+  const activeChat = chats.find((chat) => chat.id === activeChatId);
 
   return (
     <div style={{ display: "flex" }}>
@@ -58,15 +76,13 @@ const App: React.FC = () => {
         activeChatId={activeChatId}
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
-        onModelChange={handleModelChange} // Pass model change handler
+        onModelChange={handleModelChange}
       />
 
-      {/* Show platform selection */}
       {showPlatformSelection && (
         <PlatformSelection onPlatformSelect={handlePlatformSelect} />
       )}
 
-      {/* Show topic selection */}
       {showTopicSelection && (
         <TopicSelection
           platform={selectedPlatform}
@@ -74,20 +90,16 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Main chat area (SummaryPage) */}
-      {!showPlatformSelection && !showTopicSelection && activeChatId && (
+      {/* When a chat is active, pass the entire chat object along with the callback */}
+      {!showPlatformSelection && !showTopicSelection && activeChat && (
         <SummaryPage
-          platform={
-            chats.find((chat) => chat.id === activeChatId)?.platform || "Unknown"
-          }
-          topic={
-            chats.find((chat) => chat.id === activeChatId)?.topic || "Unknown"
-          }
+          chat={activeChat}
+          selectedModel={selectedModel}
+          onUpdateMessages={handleUpdateChatMessages}
         />
       )}
 
-      {/* Default message when no active chat */}
-      {!showPlatformSelection && !showTopicSelection && !activeChatId && (
+      {!showPlatformSelection && !showTopicSelection && !activeChat && (
         <div style={{ flex: 1, padding: "20px" }}>
           <h2>No chat selected</h2>
         </div>
