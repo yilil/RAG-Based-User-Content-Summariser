@@ -70,7 +70,7 @@ class Command(BaseCommand):
             # 3. 构建索引
             self.stdout.write('Indexing content...')
             index_service = IndexService()
-            index_service.index_reddit_content()
+            index_service.index_platform_content('reddit')
             
             # 验证索引构建
             self._verify_index_creation()
@@ -165,7 +165,7 @@ class Command(BaseCommand):
         
         # 检查索引数量
         total_content = RedditContent.objects.count()
-        total_index = ContentIndex.objects.count()
+        total_index = ContentIndex.objects.count() # 这里相当于代表了索引&embedding的数量，因为ContentIndex的存入和embedding的构建存入是同步的
         
         self.stdout.write(f'- Total content: {total_content}')
         self.stdout.write(f'- Total index entries: {total_index}')

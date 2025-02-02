@@ -121,3 +121,18 @@ sequenceDiagram
     Views-->>User: render('searchwithTemple.html') and return results
 
 ```
+
+# 10，可视化数据库内容
+创建超级用户：
+```python manage.py createsuperuser```
+启动开发服务器并访问 Django Admin：
+```python manage.py runserver```
+```访问http://127.0.0.1:8000/admin```
+
+# 11，删除当前的索引库及索引 
+```rm -rf faiss_index/ ```
+
+# chromedriver下载：（爬虫时用到）
+找到合适的版本下载后，解压文件夹，添加文件夹到：
+```sudo mv chromedriver-mac-arm64.zip /usr/local/bin/```
+运行test_selenium.py文件确保能够正确打印“Page title is: Google”

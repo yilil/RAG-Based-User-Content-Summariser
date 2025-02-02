@@ -20,7 +20,6 @@ from search.models import (
 )
 from django.shortcuts import render
 from django.http import JsonResponse
-from crawler import fetch_and_save_rednote_content
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -125,81 +124,72 @@ def search(request):
 
 
 # Initialization of indexing and embeddings
-
 @require_POST
 def index_content(request):
     """
     初始化内容索引：
-    1. 为各平台内容生成embedding
-    2. 构建FAISS索引
+      1. 为各平台内容生成embedding（只对未出现在ContentIndex的记录才进行处理）
+      2. 构建FAISS索引（仅对当前内存中的faiss_store做保存与验证）
     """
     start_time = time.time()
     logger.info("Starting content indexing process")
 
-    index_service = IndexService()
-    source_filter = request.POST.get('source')
+    index_service = IndexService()  # 这是我们的核心索引服务
+    source_filter = request.POST.get('source')  # 可指定 'reddit' / 'stackoverflow' / 'rednote' / None
 
     try:
-        # 1. 生成embeddings和构建索引，避免重复操作
-        # 检查是否已经索引过
+        # 1. 如果没指定source，则对三个平台都做处理
         if not source_filter or source_filter == 'reddit':
-            logger.info("Indexing Reddit content...")
+            logger.info("Checking for new Reddit content to index...")
+            # 判断是否有尚未索引的 Reddit 数据 -> 由于ContentIndex objects的生成和embedding的构建是同时发生的
+            unindexed_reddit = RedditContent.objects.exclude(
+                content__in=ContentIndex.objects.filter(source='reddit').values('content')
+            )
+            if unindexed_reddit.exists():
+                logger.info(f"Found {unindexed_reddit.count()} new Reddit items to embed & index.")
+                # 调用 index_platform_content('reddit')
+                # 它会自动处理表中所有记录，但 `_index_content` 中会跳过已存在的，真正写入只影响未索引的
+                index_service.index_platform_content('reddit')
+            else:
+                logger.info("No new Reddit items to index.")
 
-            # 检查 Reddit 数据是否已经有索引，如果没有就进行索引
-            for content in RedditContent.objects.all():
-                # 检查是否已经索引
-                if not ContentIndex.objects.filter(content=content.content).exists():
-                    index_service.index_reddit_content()
-            
-        
         if not source_filter or source_filter == 'stackoverflow':
-            logger.info("Indexing StackOverflow content...")
-            
-            # 检查 StackOverflow 数据是否已经有索引
-            for content in StackOverflowContent.objects.all():
-                if not ContentIndex.objects.filter(content=content.content).exists():
-                    index_service.index_stackoverflow_content()
-            
-        if not source_filter or source_filter == 'rednote':
-            logger.info("Indexing rednote content...")
-            
-            # 检查 rednote 数据是否已经有索引
-            for content in RednoteContent.objects.all():
-                if not ContentIndex.objects.filter(content=content.content).exists():
-                    index_service.index_rednote_content()
+            logger.info("Checking for new StackOverflow content to index...")
+            unindexed_so = StackOverflowContent.objects.exclude(
+                content__in=ContentIndex.objects.filter(source='stackoverflow').values('content')
+            )
+            if unindexed_so.exists():
+                logger.info(f"Found {unindexed_so.count()} new StackOverflow items.")
+                index_service.index_platform_content('stackoverflow')
+            else:
+                logger.info("No new StackOverflow items to index.")
 
-        # 2. 构建对应数据的FAISS索引
-        logger.info("Building FAISS index...")
+        if not source_filter or source_filter == 'rednote':
+            logger.info("Checking for new Rednote content to index...")
+            unindexed_rednote = RednoteContent.objects.exclude(
+                content__in=ContentIndex.objects.filter(source='rednote').values('content')
+            )
+            if unindexed_rednote.exists():
+                logger.info(f"Found {unindexed_rednote.count()} new Rednote items.")
+                index_service.index_platform_content('rednote')
+            else:
+                logger.info("No new Rednote items to index.")
+
+        # 2. 构建对应数据的FAISS索引(实际上只是对内存索引做保存+验证)
+        logger.info("Saving current FAISS index to disk and verifying.")
         index_service.build_faiss_index(source_filter=source_filter)
 
         duration = time.time() - start_time
         logger.info(f"Indexing completed in {duration:.2f} seconds")
-
         return JsonResponse({
             "status": "success",
             "message": "Indexing completed successfully",
             "duration": round(duration, 2)
         })
-    
+
     except Exception as e:
         logger.error(f"Error during indexing: {str(e)}", exc_info=True)
         return JsonResponse({
             "status": "error",
             "message": str(e)
         }, status=500)
-    
-def crawl_and_save(request):
-    # 替换为小红书页面 URL
-    url = 'https://www.rednote.com/discovery/item/your_item_id'  # 替换为实际 URL
-    
-    # 模拟登录后的 headers，其中 Cookie 是实际的登录 Cookie
-    headers = {
-        'User-Agent': 'Chrome/91.0.4472.124',
-        'Cookie': 'your_valid_cookie_here',  # 请将其替换为您自己的 Cookie
-        'Referer': 'https://www.rednote.com'
-    }
-    
-    # 调用爬虫获取并保存内容
-    fetch_and_save_rednote_content(url, headers)
-    
-    return JsonResponse({"status": "success", "message": "Content fetched and saved successfully."})

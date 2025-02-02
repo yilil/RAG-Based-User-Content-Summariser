@@ -1,41 +1,45 @@
 import logging
 import os
-from django.conf import settings
 from typing import List, Optional, Union, Dict
-
-from langchain_community.vectorstores import FAISS
-from langchain.docstore.document import Document
-from .utils import get_embeddings
 from difflib import SequenceMatcher
 
+from django.conf import settings
+from langchain_community.vectorstores import FAISS
+from langchain.docstore.document import Document
+
+from .utils import get_embeddings
 from search.models import (
     RedditContent,
     StackOverflowContent,
     RednoteContent,
     ContentIndex
 )
-# Initialize logger
+
 logger = logging.getLogger(__name__)
 
 class IndexService:
     def __init__(self, faiss_index_path="faiss_index"):
-        # Embedding model
+        """
+        初始化 IndexService:
+          - embedding_model: 用于生成文本向量的模型
+          - faiss_index_path: 存放FAISS索引文件的路径
+          - faiss_store: 负责管理向量搜索的 FAISS 存储对象
+          - _result_processor: 内部类，用于处理检索结果的分组/合并
+        """
         self.embedding_model = get_embeddings()
-        # FAISS index path (folder to store index files)
         self.faiss_index_path = faiss_index_path
-        # LangChain FAISS vector store object
         self.faiss_store = None
-        self._result_processor = self._ResultProcessor()  # 使用内部类，前缀下划线表示私有
+        self._result_processor = self._ResultProcessor()
 
     class _ResultProcessor:
-        """IndexService 的内部帮助类，用于处理搜索结果"""
+        """
+        内部帮助类，用于搜索结果的分组和合并。
+        例如，在 Reddit 中，如果多条内容实际上是同一个物品的多次推荐，可进行合并、计算总upvotes等。
+        """
         def __init__(self, similarity_threshold=0.85):
             self.similarity_threshold = similarity_threshold
 
-        def group_similar_results(self, documents):
-            """
-            将推荐相同事物的内容分组，返回分组和未分组的所有结果
-            """
+        def group_similar_results(self, documents: List[Document]):
             content_groups = []
             processed_indices = set()
             
@@ -65,14 +69,11 @@ class IndexService:
             return content_groups
 
         def _is_same_item(self, content1, content2):
-            """判断是否在讨论同一个事物"""
-            # 相似度阈值
-
+            """简单判断是否在讨论同一个事物，可根据相似度阈值判断"""
             return SequenceMatcher(None, content1, content2).ratio() > self.similarity_threshold
 
         def get_final_results(self, content_groups, top_k):
-            """获取最终处理后的结果"""
-            # 按总upvotes排序
+            """按总upvotes降序排序并取 top_k，然后组装成新的 Document"""
             sorted_groups = sorted(
                 content_groups,
                 key=lambda x: x['total_upvotes'],
@@ -82,18 +83,15 @@ class IndexService:
             return [self._create_merged_document(group) for group in sorted_groups]
 
         def _create_merged_document(self, group):
-            """创建合并后的文档"""
-            
+            """将同一组内容合并为一个 Document"""
             main_doc = group['main_doc']
             docs = group['docs']
             
-            # 合并内容，添加推荐统计
             merged_content = (
                 f"{main_doc.page_content}\n\n"
                 f"Summary: {len(docs)} recommendations, "
                 f"{group['total_upvotes']} total upvotes"
             )
-            
             metadata = {
                 **main_doc.metadata,
                 'recommendation_count': len(docs),
@@ -101,412 +99,262 @@ class IndexService:
                 'source_contents': [doc.page_content for doc in docs]
             }
             
-            return Document(
-                page_content=merged_content,
-                metadata=metadata
-            )
+            return Document(page_content=merged_content, metadata=metadata)
 
-    # -----------------------------------------------------------
-    #  构建 FAISS 索引
-    # -----------------------------------------------------------
-
-    def build_faiss_index(self, source_filter=None):
+    # -------------------------------------------------------------------------
+    #  1) 为指定平台生成embedding, 存FAISS；并在DB中记录元数据(不存embedding)
+    # -------------------------------------------------------------------------
+    def index_platform_content(self, platform: str):
         """
-        1) 获取数据库中已embedding的记录, 支持按source过滤.
-        2) 将它们转换成LangChain文档(文本 + metadata + 向量).
-        3) 使用 FAISS.from_documents() 或 FAISS.from_texts() 创建索引.
-        4) 保存索引到本地 (self.faiss_index_path).
-
-        Args:
-            source_filter:
-                - str: 简单的source过滤 (如 'reddit') 
-                - dict: 复杂的过滤条件
-                例如: {
-                        'source': 'reddit',
-                        'content_type': ['post', 'comment'],
-                        'created_at__gte': datetime(2024, 1, 1)
-                    }
-        """
-        logger.info("Building FAISS index from ContentIndex data...")
-
-
-        # 读取 ContentIndex 中的记录（暂时是所有记录，之后需要结合具体query改成筛选后的记录： 
-        # example: 需要提取reddit部分：在metadata中存 source，使用Faiss的filter或post-filter方式提取需要的数据。
-        """
-        TO BE DONE: Data filtering according to specific queries
-        """
-        
-        try:
-            records = self.get_filtered_records(source_filter)
-            docs = self.process_records_in_batches(records)
-            self.faiss_store = self.create_faiss_index(docs)
-            self.save_faiss_index()
-            self.verify_faiss_index()
-            logger.info(f"FAISS index built and saved to {self.faiss_index_path}.")
-        except Exception as e:
-            logger.error(f"Error building FAISS index: {str(e)}")
-            raise
-
-    def get_filtered_records(self, source_filter: Optional[Union[str, Dict]] = None):
-        """
-        获取并过滤ContentIndex中的记录。
-        """
-        logger.info("Fetching filtered records from ContentIndex...")
-        base_query = ContentIndex.objects.filter(embedding__isnull=False)
-        
-        if source_filter:
-            if isinstance(source_filter, str):
-                # 测试场景：简单字符串
-                base_query = base_query.filter(source=source_filter)
-            elif isinstance(source_filter, dict):
-                # 爬虫场景：复杂过滤条件
-                base_query = base_query.filter(**source_filter)
-            else:
-                raise ValueError("source_filter must be either a string or a dictionary.")
-        
-        # 获取总记录数
-        total_records = base_query.count()
-        logger.info(f"Found {total_records} records to process")
-        return base_query.order_by('id')
-    
-    def process_records_in_batches(self, records_query):
-        """
-        以批量方式处理记录并转换为Document对象。
-        """
-        # 批处理大小
-        BATCH_SIZE = 1000
-        total_records = records_query.count()
-        processed = 0
-        docs: List[Document] = []
-
-        while processed < total_records:
-            # 获取当前批次数据
-            batch = records_query[processed:processed + BATCH_SIZE]
-            for obj in batch:
-                # 根据source和thread_id获取对应的完整内容记录
-                content_obj = self.get_content_object(obj.source, obj.thread_id)
-                # 构建基础metadata（from BaseContent）
-                metadata = self.build_metadata(obj, content_obj)
-                # 准备 LangChain 的 Document 列表
-                doc = Document(
-                    page_content=obj.content or "",
-                    metadata=metadata
-                )
-                docs.append(doc)
-            processed += BATCH_SIZE
-            logger.info(f"Processed {min(processed, total_records)}/{total_records} documents")
-        
-        return docs
-    
-    def get_content_object(self, source: str, thread_id: str):
-        """
-        根据source和thread_id获取对应的内容对象。
-        """
-        if source == 'reddit':
-            return RedditContent.objects.filter(thread_id=thread_id).first()
-        elif source == 'stackoverflow':
-            return StackOverflowContent.objects.filter(thread_id=thread_id).first()
-        elif source == 'rednote':
-            return RednoteContent.objects.filter(thread_id=thread_id).first()
-        else:
-            return None
-        
-    def build_metadata(self, obj, content_obj):
-        """
-        构建文档的元数据。
-        """
-        metadata = {
-            "id": obj.id,
-            "source": obj.source,
-            "content_type": obj.content_type,
-            "thread_id": obj.thread_id,
-            "thread_title": content_obj.thread_title if content_obj else None,
-            "parent_id": content_obj.parent_id if content_obj else None,
-            "url": content_obj.url if content_obj else None,
-            "author_name": obj.author_name,
-            "comment_id": content_obj.comment_id if content_obj else None,
-            "commenter_name": content_obj.commenter_name if content_obj else None,
-            "created_at": obj.created_at.isoformat(),
-            "updated_at": obj.updated_at.isoformat(),
-        }
-
-        if content_obj:
-            if obj.source == 'reddit':
-                metadata.update({
-                    "subreddit": content_obj.subreddit,
-                    "upvotes": content_obj.upvotes
-                })
-            elif obj.source == 'stackoverflow':
-                metadata.update({
-                    "tags": content_obj.tags,
-                    "vote_score": content_obj.vote_score
-                })
-            elif obj.source == 'rednote':
-                metadata.update({
-                    "tags": content_obj.tags,
-                    "likes": content_obj.likes
-                })
-            
-            if hasattr(content_obj, 'metadata') and content_obj.metadata:
-                metadata.update(content_obj.metadata)
-        
-        return metadata
-    
-    def create_faiss_index(self, docs: List[Document]):
-        """
-        使用Document列表创建FAISS索引。
-        """
-        logger.info("Creating FAISS index...")
-        return FAISS.from_documents(
-            docs,
-            self.embedding_model,
-            distance_strategy="cosine"
-        )
-
-    def save_faiss_index(self):
-        """
-        将FAISS索引保存到本地。
-        """
-        logger.info(f"Saving FAISS index to {self.faiss_index_path}")
-        self.faiss_store.save_local(self.faiss_index_path)
-
-
-    def verify_faiss_index(self):
-        """
-        验证FAISS索引是否正确构建和可用
-        """
-        try:
-            if not self.faiss_store:
-                raise ValueError("FAISS store not initialized")
-
-            # 1. 执行一个测试查询
-            test_query = "This is a test query"
-            results = self.faiss_store.similarity_search(test_query, k=1)
-
-            # 2. 验证返回结果
-            if not results:
-                raise ValueError("Index verification failed: No results returned")
-            
-            # 3. 验证返回结果的结构
-            if not hasattr(results[0], 'page_content') or not hasattr(results[0], 'metadata'):
-                raise ValueError("Index verification failed: Invalid result structure")
-
-            logger.info("Index verification successful")
-            
-        except Exception as e:
-            logger.error(f"Index verification failed: {str(e)}")
-            raise
-
-    # -----------------------------------------------------------
-    #  加载 FAISS 索引
-    # -----------------------------------------------------------
-    def load_faiss_index(self):
-        """
-        从本地目录加载 FAISS 索引到 self.faiss_store
-        """
-        logger.info(f"Loading FAISS index from {self.faiss_index_path} ...")
-
-        # 加载FAISS索引时，允许不安全的反序列化
-        self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model, allow_dangerous_deserialization=True)
-
-        logger.info("FAISS index loaded successfully.")
-
-    # -----------------------------------------------------------
-    #  使用 FAISS 搜索，优化搜索效率O(n) -> O(log(n))
-    # -----------------------------------------------------------
-    def faiss_search(self, query, source, top_k=5, filter_value=None):
-        """
-        通用的相似度搜索方法：
-            - query: 用户查询
-            - source: 平台，比如 'reddit'/'stackoverflow'/'rednote'
-            - top_k: 取多少条结果
-            - filter_value: 在reddit中表示subreddit; 在stackoverflow/rednote中表示tag
-        """
-        self._ensure_faiss_store_loaded()
-        logger.info(f"Performing FAISS similarity_search for query: {query}, platform={source}")
-        
-        """
-        TO BE DONE: 此处的搜索 & 排序的逻辑后续可以优化
-        """
-        # 1. 获取原始搜索结果(增加获取更多结果以提高匹配质量)
-        raw_results = self._get_raw_search_results(query, top_k * 5)
-        logger.debug(f"raw_results count: {len(raw_results)}")
-        for doc in raw_results:
-            logger.debug(f"Doc metadata: {doc.metadata}, Content: {doc.page_content[:100]}")
-
-        # 2. 先按source过滤
-        filtered_by_source = [doc for doc in raw_results if doc.metadata.get('source') == source]
-
-        # 3. 根据平台不同, 走不同的字段做过滤
-        if filter_value:
-            filtered_by_platform_field = self._filter_by_platform_field(filtered_by_source, source, filter_value)
-        else:
-            filtered_by_platform_field = filtered_by_source
-
-        if not filtered_by_platform_field:
-            return []
-
-        # 4. 对结果做分组/合并
-        content_groups = self._result_processor.group_similar_results(filtered_by_platform_field)
-
-        # 5. 排序并取top_k
-        final_results = self._result_processor.get_final_results(content_groups, top_k)
-        return final_results
-
-    def _ensure_faiss_store_loaded(self):
-        """
-        确保 FAISS store 已加载
-        """
-        if not self.faiss_store:
-            logger.warning("FAISS store not loaded. Attempting load now.")
-            self.load_faiss_index()
-
-    def _get_raw_search_results(self, query, k):
-        """获取原始搜索结果"""
-        return self.faiss_store.similarity_search(query, k=k)
-
-    def _filter_by_source(self, results, source):
-        """按平台过滤结果"""
-        return [doc for doc in results if doc.metadata['source'] == source]
-    
-    def _filter_by_platform_field(self, docs, source, filter_value):
-        """
-        根据不同source使用不同字段做过滤:
-          - reddit: metadata['subreddit']
-          - stackoverflow/rednote: metadata['tags'] 
-        """
-        if source == 'reddit':
-            return [
-                d for d in docs 
-                if d.metadata.get('subreddit') == filter_value
-            ]
-        elif source in ('stackoverflow', 'rednote'):
-            # 如果 tags 是字符串，需要改成是否包含 substring；如果是list，就判断是否在列表里
-            return [
-                d for d in docs
-                if filter_value in d.metadata.get('tags', [])
-            ]
-        else:
-            # 如果新平台没做适配，这里直接不滤
-            return docs
-
-
-    """
-    TO BE DONE: 代码复用性
-    """
-    def index_platform_content(self, platform):
-        """
-        通用的平台内容索引方法，替代原来的三个重复方法
+         为指定平台(如 'reddit') 生成 embedding, 并写入：
+          - Faiss 索引(调用 add_texts)
+          - ContentIndex 表(只写基本元数据，不含 embedding)
         """
         PLATFORM_MODEL_MAP = {
             'reddit': RedditContent,
             'stackoverflow': StackOverflowContent,
             'rednote': RednoteContent
         }
-        
         if platform not in PLATFORM_MODEL_MAP:
             raise ValueError(f"Unsupported platform: {platform}")
             
-        logger.info(f"Indexing {platform} content...")
-        model_class = PLATFORM_MODEL_MAP[platform]
+        logger.info(f"Indexing {platform} content into FAISS + DB metadata...")
+        model_class = PLATFORM_MODEL_MAP[platform] 
         
         try:
-            content_objects = model_class.objects.all()
+            content_objects = model_class.objects.all() # 获取数据库中某个平台的当前全部数据
             total = content_objects.count()
             processed = 0
-            batch_size = 32  # BGE推荐的批处理大小
-            
+            batch_size = 32
+
+            # 如果还没有初始化 faiss_store，则先初始化(仅当content_objects不为空)            
+            if not self.faiss_store:
+                # 确保有数据
+                if content_objects.exists():
+                    contents = [obj.content for obj in content_objects]
+                    embeddings = self._batch_create_embeddings(contents)
+                    # 在初始化时，给一个非空列表来创建 FAISS
+                    self.faiss_store = FAISS.from_texts(contents, self.embedding_model)
+                else:
+                    logger.warning("No content available to index for this platform.")
+                    return
+                
             while processed < total:
-                # 获取批次数据
                 batch = content_objects[processed:processed + batch_size]
                 
-                # 批量生成embeddings
+                # 生成embedding
                 contents = [obj.content for obj in batch]
                 embeddings = self._batch_create_embeddings(contents)
                 
-                # 保存embeddings
-                for content_obj, embedding in zip(batch, embeddings):
-                    self._index_content(content_obj, embedding, platform)
-                
+                for idx, obj in enumerate(batch):
+                    emb = embeddings[idx]
+
+                    # 构建写入 Faiss 的 metadatas，根据平台写入 subreddit / tags 等
+                    meta_dict = {
+                        "source": platform,
+                        "thread_id": obj.thread_id,
+                    }
+                    if platform == 'reddit':
+                        # 写 subreddit, upvotes(若需要)
+                        if hasattr(obj, 'subreddit'):
+                            meta_dict["subreddit"] = obj.subreddit
+                        if hasattr(obj, 'upvotes'):
+                            meta_dict["upvotes"] = obj.upvotes
+                    
+                    elif platform == 'stackoverflow':
+                        # 写 tags(若需要)
+                        if hasattr(obj, 'tags'):
+                            meta_dict["tags"] = obj.tags
+
+                    elif platform == 'rednote':
+                        if hasattr(obj, 'tags'):
+                            meta_dict["tags"] = obj.tags
+
+                    # 1) 将embedding添加到FAISS -> 
+                    self.faiss_store.add_texts(
+                        texts=[obj.content],
+                        metadatas=[meta_dict],
+                        embeddings=[emb]
+                    )
+                    # 2) 数据库写入元数据 (不写embedding)
+                    self._index_content(obj, platform)
+
                 processed += batch_size
                 logger.info(f"Progress: {min(processed, total)}/{total}")
-                
-            logger.info(f"Indexed {total} {platform} objects.")
-            
+
+            logger.info(f"Indexed {total} {platform} items.")
         except Exception as e:
             logger.error(f"Error indexing {platform} content: {str(e)}")
             raise
 
-    def _batch_create_embeddings(self, texts, batch_size=32):
+    def _index_content(self, content_obj, source: str): # 将
         """
-        批量生成 embeddings
+        内部函数：如数据库中无记录，则写一条ContentIndex到数据库中；仅存元数据，避免重复写入
         """
         try:
-            if not texts:
-                return []
-                
-            # 预处理文本
-            texts = [self._preprocess_text(text) for text in texts]
-            
-            # 批量生成
-            embeddings = []
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                batch_embeddings = self.embedding_model.embed_documents(batch)
-                embeddings.extend(batch_embeddings)
-                
-            return embeddings
+            # 避免重复：检查source+content是否已存在
+            if ContentIndex.objects.filter( 
+                source=source, 
+                content=content_obj.content
+            ).exists():
+                logger.debug(
+                    f"[DB] content already indexed (source={source}, content_id={content_obj.id}), skip."
+                )
+                return
+
+            # 创建DB记录 (不含embedding)
+            # Django 的 create() 方法相当于“实例化+save” -> 存入到数据库中
+            ContentIndex.objects.create( 
+                source=source,
+                thread_id=content_obj.thread_id,
+                content_type=content_obj.content_type,
+                author_name=content_obj.author_name,
+                content=content_obj.content,
+                created_at=content_obj.created_at
+            )
+            logger.info(f"[DB] Created record for content {content_obj.id} from {source}.")
         except Exception as e:
-            logger.error(f"Error in batch embedding creation: {str(e)}")
+            logger.error(f"[DB] Error indexing content {content_obj.id}: {str(e)}")
             raise
 
-    def _preprocess_text(self, text):
+    def _batch_create_embeddings(self, texts: List[str], batch_size=32):
         """
-        文本预处理
+        批量生成文本 embedding
+        """
+        if not texts:
+            return []
+        texts = [self._preprocess_text(t) for t in texts]
+        embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            batch_embeddings = self.embedding_model.embed_documents(batch)
+            embeddings.extend(batch_embeddings)
+        return embeddings
+
+    def _preprocess_text(self, text: str):
+        """
+        对文本做简单预处理
         """
         if not isinstance(text, str):
             text = str(text)
-        
         text = text.strip()
         if not text:
             return ""
         
-        # BGE模型的最大输入长度
-        max_length = 512  
+        max_length = 512
         if len(text) > max_length:
             text = text[:max_length]
-        
         return text
-    
-    def index_reddit_content(self):
-        return self.index_platform_content('reddit')
 
-    def index_stackoverflow_content(self):
-        return self.index_platform_content('stackoverflow')
-
-    def index_rednote_content(self):
-        return self.index_platform_content('rednote')
-
-    # 此函数中可能需要加入数据清洗部分，保证存入数据库中的是clean的（不包括针对具体query根据表头进行筛选的部分）
-    def _index_content(self, content, embedding, source): 
+    # -------------------------------------------------------------------------
+    #  2) 使用FAISS索引做相似搜索
+    # -------------------------------------------------------------------------
+    def faiss_search(self, query: str, source: str, top_k=5, filter_value=None):
         """
-        Internal method to index content and store the embedding.
+        执行相似搜索:
+          - query: 查询字符串
+          - source: 平台, 如 'reddit'/'stackoverflow'/'rednote'
+          - top_k: 返回几条
+          - filter_value: 如果是reddit表示subreddit; stackoverflow/rednote则表示tag
         """
+        self._ensure_faiss_store_loaded()
+        logger.info(f"Performing FAISS similarity_search: query={query}, platform={source}")
 
+        # 1. 原始搜索结果(多取一些, k*5)
+        raw_results = self._get_raw_search_results(query, top_k * 5)
+        logger.debug(f"Got {len(raw_results)} raw results from FAISS")
+
+        # 2. 先按source过滤
+        filtered_by_source = [doc for doc in raw_results if doc.metadata.get('source') == source]
+
+        # 3. 如果需要对特定 subreddit / tag 进行过滤
+        if filter_value:
+            filtered_by_platform_field = self._filter_by_platform_field(filtered_by_source, source, filter_value)
+        else:
+            filtered_by_platform_field = filtered_by_source
+        
+        if not filtered_by_platform_field:
+            return []
+
+        # 4. 分组/合并
+        content_groups = self._result_processor.group_similar_results(filtered_by_platform_field)
+
+        # 5. 排序并取 top_k
+        final_results = self._result_processor.get_final_results(content_groups, top_k)
+        return final_results
+
+    def _filter_by_platform_field(self, docs, source, filter_value):
+        """
+        对特定平台使用不同字段做过滤:
+          - reddit: subreddit
+          - stackoverflow/rednote: tags
+        """
+        if source == 'reddit':
+            return [d for d in docs if d.metadata.get('subreddit') == filter_value]
+        elif source in ('stackoverflow', 'rednote'):
+            # 如果tags是字符串，需要判断是否包含; 如果是list，就判断是否在list里
+            return [d for d in docs if filter_value in d.metadata.get('tags', [])]
+        else:
+            return docs
+
+    def _ensure_faiss_store_loaded(self):
+        """
+        确保faiss_store已经加载。如果还没加载，尝试从本地索引文件读取
+        """
+        if not self.faiss_store:
+            logger.warning("FAISS store not loaded; loading from local file if exists.")
+            self.load_faiss_index()
+
+    def _get_raw_search_results(self, query, k):
+        """
+        获取原始搜索结果
+        """
+        return self.faiss_store.similarity_search(query, k=k) if self.faiss_store else []
+
+    # -------------------------------------------------------------------------
+    #  3) 管理FAISS索引: 构建/保存/加载
+    # -------------------------------------------------------------------------
+    def build_faiss_index(self, source_filter=None): # 这里将faiss-store中生成的索引保存在本地
+        """
+        不再从数据库读取embedding构建索引，这里可以只做
+        “对内存中的faiss_store进行save + verify” 的工作
+        """
+        logger.info("build_faiss_index: Saving current in-memory Faiss index & verifying.")
+        if not self.faiss_store:
+            logger.warning("No in-memory FAISS store found, nothing to build.")
+            return
+        self.save_faiss_index()
+        self.verify_faiss_index()
+        logger.info("FAISS index build & verify completed.")
+
+    def save_faiss_index(self):
+        if not self.faiss_store:
+            logger.warning("No FAISS store to save.")
+            return
+        logger.info(f"Saving FAISS index to {self.faiss_index_path}...")
+        self.faiss_store.save_local(self.faiss_index_path)
+        logger.info("FAISS index saved successfully.")
+
+    def verify_faiss_index(self):
+        """
+        简单的查询测试，判断索引文件是否可用
+        """
+        if not self.faiss_store:
+            raise ValueError("No FAISS store loaded, cannot verify.")
+        test_query = "test query"
+        results = self.faiss_store.similarity_search(test_query, k=1)
+        if not results:
+            raise ValueError("Index verification failed: no results returned for test query.")
+        logger.info("Index verification successful.")
+
+    def load_faiss_index(self):
+        """
+        从本地文件加载FAISS索引
+        """
+        logger.info(f"Loading FAISS index from {self.faiss_index_path}...")
         try:
-            from search.models import ContentIndex  # Sample: define a ContentIndex model to store embeddings
-            content_index = ContentIndex(
-                source=source,
-                thread_id=content.thread_id,
-                content_type=content.content_type,
-                author_name=content.author_name,
-                content=content.content,
-                created_at=content.created_at,
-                updated_at=content.updated_at,
-                embedding=embedding  # store the embedding as a JSON or Array
-            )
-            content_index.save()
-            logger.info(f"Indexed content {content.id} from {source}.")
+            self.faiss_store = FAISS.load_local(self.faiss_index_path, self.embedding_model, allow_dangerous_deserialization=True)
+            logger.info("FAISS index loaded successfully.")
         except Exception as e:
-            logger.error(f"Error indexing content {content.id}: {str(e)}")
-            raise
+            logger.warning(f"Failed to load local FAISS index: {e}")
+            self.faiss_store = None

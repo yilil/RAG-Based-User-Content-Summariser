@@ -10,8 +10,6 @@ class ContentIndex(models.Model):
     author_name = models.CharField(max_length=150)
     content = models.TextField() 
     
-    embedding = models.JSONField() 
-    
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
 
