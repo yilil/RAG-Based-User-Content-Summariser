@@ -22,8 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectChat,
   onModelChange,
 }) => {
-  // Set default to the first model in the new list
-  const [selectedModel, setSelectedModel] = useState("gemini 1.5 flash");
+  const [selectedModel, setSelectedModel] = useState("Gemini"); // Default model
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newModel = e.target.value;
@@ -49,10 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             border: "1px solid #ccc",
           }}
         >
-          <option value="gemini 1.5 flash">gemini 1.5 flash</option>
-          <option value="gemini 1.0 pro">gemini 1.0 pro</option>
-          <option value="gemini 1.5 pro">gemini 1.5 pro</option>
-          <option value="gemini 2.0 flash exp">gemini 2.0 flash exp</option>
+          <option value="Gemini">Gemini</option>
+          <option value="GPT-4">GPT-4</option>
+          <option value="Claude">Claude</option>
         </select>
       </div>
 

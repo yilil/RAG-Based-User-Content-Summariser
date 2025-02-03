@@ -1,124 +1,40 @@
-import React, { useState, useRef } from "react";
-import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
-
-type Chat = {
-  id: string;
-  platform: string;
-  topic: string;
-  messages: string[];
-};
+import React, { useState } from "react";
 
 interface SummaryPageProps {
-  chat: Chat;
-  selectedModel: string;
-  onUpdateMessages: (message: string) => void;
+  platform: string;
+  topic: string;
 }
 
-const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdateMessages }) => {
+const SummaryPage: React.FC<SummaryPageProps> = ({ platform, topic }) => {
   const [searchText, setSearchText] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showTemplates, setShowTemplates] = useState(false);
-  
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchText(e.target.value);
-  };
-
-  const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    
-    // Save the user question to chat history
-    onUpdateMessages(`User: ${searchText}`);
-    
-    try {
-      const response = await fetch("http://127.0.0.1:8000/search/", {  // Updated URL here
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          search_query: searchText,
-          llm_model: selectedModel,
-          source: chat.platform,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data = await response.json();
-      setResult(data.result);
-      
-      // Save the bot's response to chat history
-      onUpdateMessages(`Bot: ${data.result}`);
-      console.log("Received data:", data);
-    } catch (err: any) {
-      console.error("Error fetching search result:", err);
-      setError("Failed to fetch result");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // When a template is selected, update the search text, remove underscores,
-  // focus the input, and set the caret to where underscores were.
-  const handleTemplateSelect = (template: string) => {
-    const match = template.match(/_+/);
-    let caretPosition = 0;
-    if (match && match.index !== undefined) {
-      caretPosition = match.index;
-    }
-    const cleanedTemplate = template.replace(/_+/, "");
-    setSearchText(cleanedTemplate);
-    setShowTemplates(false);
-    
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.setSelectionRange(caretPosition, caretPosition);
-      }
-    }, 0);
+    setSearchText(e.target.value); // Update the search text state
   };
 
   return (
-    <div style={{ padding: "20px", flex: 1, position: "relative" }}>
+    <div
+      style={{
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        flex: 1,
+      }}
+    >
       <h2>
-        Summary for {chat.platform} - {chat.topic}
+        Summary for {platform} - {topic}
       </h2>
-      
-      {/* Display Chat History */}
-      <div
-        style={{
-          marginBottom: "20px",
-          border: "1px solid #ddd",
-          padding: "10px",
-          borderRadius: "8px",
-          maxHeight: "200px",
-          overflowY: "auto",
-        }}
-      >
-        <h3>Chat History:</h3>
-        {chat.messages.map((msg, index) => (
-          <p key={index} style={{ margin: "5px 0" }}>{msg}</p>
-        ))}
-      </div>
 
-      {/* Search Bar Form */}
-      <form onSubmit={handleSearchSubmit} style={{ margin: "20px 0", position: "relative" }}>
+      {/* Search Bar */}
+      <div style={{ margin: "20px 0" }}>
         <input
-          ref={inputRef}
           type="text"
-          placeholder="Enter your question..."
+          placeholder="Search in summary..."
           value={searchText}
           onChange={handleSearchChange}
-          onFocus={() => setShowTemplates(true)}
-          onBlur={() => setTimeout(() => setShowTemplates(false), 150)}
           style={{
             width: "300px",
             padding: "10px",
@@ -126,45 +42,31 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
             border: "1px solid #ccc",
           }}
         />
-        <button
-          type="submit"
-          style={{
-            marginLeft: "10px",
-            padding: "10px 20px",
-            borderRadius: "5px",
-            border: "none",
-            backgroundColor: "#188a8d",
-            color: "white",
-            cursor: "pointer",
-          }}
-        >
-          Search
-        </button>
-        {showTemplates && (
-          <QuestionTemplates
-            platform={chat.platform}
-            topic={chat.topic}
-            onTemplateSelect={handleTemplateSelect}
-          />
-        )}
-      </form>
+      </div>
 
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {result && (
-        <div
-          style={{
-            padding: "20px",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-            textAlign: "left",
-            backgroundColor: "#f9f9f9",
-          }}
-        >
-          <h3>Result:</h3>
-          <p>{result}</p>
-        </div>
-      )}
+      {/* Display Search Input (For Debugging/Testing) */}
+      <p>Searching for: {searchText}</p>
+
+      {/* Example Summary Content */}
+      <div
+        style={{
+          padding: "20px",
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          width: "80%",
+          textAlign: "left",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        <h3>Summary:</h3>
+        <ul>
+          <li>INFO1110 - Easy to learn</li>
+          <li>COMP2123 - Intermediate, algorithms focused</li>
+          <li>INFO1113 - Hands-on, practical projects</li>
+          <li>COMP2017 - Systems programming</li>
+          <li>SOFT2201 - Object-oriented design</li>
+        </ul>
+      </div>
     </div>
   );
 };
