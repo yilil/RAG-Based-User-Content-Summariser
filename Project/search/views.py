@@ -46,10 +46,10 @@ def search(request):
     answer = ""
     metadata = {}
     retrieved_docs = []
-    # 给 llm_model 设置一个默认值（从 session 获取，不存在就用 'gemini-1.5-flash'）
+    # 给 llm_model 设置一个默认值（从 session 获取, 不存在就用 'gemini-1.5-flash'）
     llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
 
-    # 如果是GET请求，直接返回空内容或默认内容
+    # 如果是GET请求, 直接返回空内容或默认内容
     if request.method != "POST":
         return render(request, 'searchwithTemple.html', {
             'result': answer,
@@ -138,7 +138,7 @@ def index_content(request):
     source_filter = request.POST.get('source')  # 可指定 'reddit' / 'stackoverflow' / 'rednote' / None
 
     try:
-        # 1. 如果没指定source，则对三个平台都做处理
+        # 1. 如果没指定source, 则对三个平台都做处理
         if not source_filter or source_filter == 'reddit':
             logger.info("Checking for new Reddit content to index...")
             # 判断是否有尚未索引的 Reddit 数据 -> 由于ContentIndex objects的生成和embedding的构建是同时发生的
@@ -148,7 +148,7 @@ def index_content(request):
             if unindexed_reddit.exists():
                 logger.info(f"Found {unindexed_reddit.count()} new Reddit items to embed & index.")
                 # 调用 index_platform_content('reddit')
-                # 它会自动处理表中所有记录，但 `_index_content` 中会跳过已存在的，真正写入只影响未索引的
+                # 它会自动处理表中所有记录, 但 `_index_content` 中会跳过已存在的, 真正写入只影响未索引的
                 index_service.index_platform_content('reddit')
             else:
                 logger.info("No new Reddit items to index.")

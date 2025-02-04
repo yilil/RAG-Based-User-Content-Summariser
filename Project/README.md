@@ -74,7 +74,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 1. 终端请求
 
 可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
-`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST，后续改成postman请求）
+`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST, 后续改成postman请求）
 
 2. 自定义管理命令 build_faiss
 
@@ -85,8 +85,8 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 ```python manage.py runserver```
 
 # 8. 使用 RAG 进行查询
-1. 在浏览器访问 http://127.0.0.1:8000，即可打开搜索页面。
-2. 输入查询语句，如：
+1. 在浏览器访问 http://127.0.0.1:8000, 即可打开搜索页面。
+2. 输入查询语句, 如：
 
 ```Which library is recommended the most in r/study?```
 
@@ -122,17 +122,17 @@ sequenceDiagram
 
 ```
 
-# 10，可视化数据库内容
+# 10, 可视化数据库内容
 创建超级用户：
 ```python manage.py createsuperuser```
 启动开发服务器并访问 Django Admin：
 ```python manage.py runserver```
 ```访问http://127.0.0.1:8000/admin```
 
-# 11，删除当前的索引库及索引 
+# 11, 删除当前的索引库及索引 
 ```rm -rf faiss_index/ ```
 
 # chromedriver下载：（爬虫时用到）
-找到合适的版本下载后，解压文件夹，添加文件夹到：
+找到合适的版本下载后, 解压文件夹, 添加文件夹到：
 ```sudo mv chromedriver-mac-arm64.zip /usr/local/bin/```
 运行test_selenium.py文件确保能够正确打印“Page title is: Google”

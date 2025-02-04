@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 def crawl_rednote_page(url, cookies=None):
     """
-    使用 Selenium 爬取某个小红书页面，将结果存入 RednoteContent 表中。
+    使用 Selenium 爬取某个小红书页面, 将结果存入 RednoteContent 表中。
     :param url: 小红书页面 URL
-    :param cookies: 若需要登录，可注入 cookie
+    :param cookies: 若需要登录, 可注入 cookie
     :return: 存入数据库的新数据列表
     """
     driver = webdriver.Chrome()
@@ -42,7 +42,7 @@ def crawl_rednote_page(url, cookies=None):
         driver.get(url)
         time.sleep(2)  # 等待页面加载
 
-        # 等待帖子元素出现，最长等待10秒
+        # 等待帖子元素出现, 最长等待10秒
         try:
             post_links = WebDriverWait(driver, 10).until(
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.cover.ld.mask"))
@@ -89,7 +89,7 @@ def crawl_rednote_page(url, cookies=None):
                 created_time = parse_xiaohongshu_date(date_element)
                 likes = parse_likes_count(likes_str)
                 
-                # 存入数据库，保持与原来的 RednoteContent 结构一致
+                # 存入数据库, 保持与原来的 RednoteContent 结构一致
                 # 验证数据
                 if validate_post_data(title, content, author):
                     obj = RednoteContent.objects.create(
@@ -120,12 +120,12 @@ def crawl_rednote_page(url, cookies=None):
 
 def parse_xiaohongshu_date(date_text):
     """
-    解析小红书日期格式，处理两种情况：
+    解析小红书日期格式, 处理两种情况：
     1. "XX-XX 地区" (具体日期)
     2. "X 天前 地区" (相对日期)
     """
     try:
-        # 如果日期文本包含 "编辑于"，先去除该前缀
+        # 如果日期文本包含 "编辑于", 先去除该前缀
         if date_text.startswith("编辑于"):
             date_text = date_text.replace("编辑于", "").strip()
 
@@ -170,7 +170,7 @@ def parse_likes_count(likes_str):
     """解析小红书点赞数格式"""
     try:
         if '万' in likes_str:
-            # 处理带"万"的数字，如"1.5万"
+            # 处理带"万"的数字, 如"1.5万"
             number = float(likes_str.replace('万', ''))
             return int(number * 10000)
         else:

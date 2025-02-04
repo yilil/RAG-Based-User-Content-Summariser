@@ -24,7 +24,7 @@ class IndexService:
           - embedding_model: 用于生成文本向量的模型
           - faiss_index_path: 存放FAISS索引文件的路径
           - faiss_store: 负责管理向量搜索的 FAISS 存储对象
-          - _result_processor: 内部类，用于处理检索结果的分组/合并
+          - _result_processor: 内部类, 用于处理检索结果的分组/合并
         """
         self.embedding_model = get_embeddings()
         self.faiss_index_path = faiss_index_path
@@ -33,8 +33,8 @@ class IndexService:
 
     class _ResultProcessor:
         """
-        内部帮助类，用于搜索结果的分组和合并。
-        例如，在 Reddit 中，如果多条内容实际上是同一个物品的多次推荐，可进行合并、计算总upvotes等。
+        内部帮助类, 用于搜索结果的分组和合并。
+        例如, 在 Reddit 中, 如果多条内容实际上是同一个物品的多次推荐, 可进行合并、计算总upvotes等。
         """
         def __init__(self, similarity_threshold=0.85):
             self.similarity_threshold = similarity_threshold
@@ -69,11 +69,11 @@ class IndexService:
             return content_groups
 
         def _is_same_item(self, content1, content2):
-            """简单判断是否在讨论同一个事物，可根据相似度阈值判断"""
+            """简单判断是否在讨论同一个事物, 可根据相似度阈值判断"""
             return SequenceMatcher(None, content1, content2).ratio() > self.similarity_threshold
 
         def get_final_results(self, content_groups, top_k):
-            """按总upvotes降序排序并取 top_k，然后组装成新的 Document"""
+            """按总upvotes降序排序并取 top_k, 然后组装成新的 Document"""
             sorted_groups = sorted(
                 content_groups,
                 key=lambda x: x['total_upvotes'],
@@ -108,7 +108,7 @@ class IndexService:
         """
          为指定平台(如 'reddit') 生成 embedding, 并写入：
           - Faiss 索引(调用 add_texts)
-          - ContentIndex 表(只写基本元数据，不含 embedding)
+          - ContentIndex 表(只写基本元数据, 不含 embedding)
         """
         PLATFORM_MODEL_MAP = {
             'reddit': RedditContent,
@@ -127,13 +127,13 @@ class IndexService:
             processed = 0
             batch_size = 32
 
-            # 如果还没有初始化 faiss_store，则先初始化(仅当content_objects不为空)            
+            # 如果还没有初始化 faiss_store, 则先初始化(仅当content_objects不为空)            
             if not self.faiss_store:
                 # 确保有数据
                 if content_objects.exists():
                     contents = [obj.content for obj in content_objects]
                     embeddings = self._batch_create_embeddings(contents)
-                    # 在初始化时，给一个非空列表来创建 FAISS
+                    # 在初始化时, 给一个非空列表来创建 FAISS
                     self.faiss_store = FAISS.from_texts(contents, self.embedding_model)
                 else:
                     logger.warning("No content available to index for this platform.")
@@ -149,7 +149,7 @@ class IndexService:
                 for idx, obj in enumerate(batch):
                     emb = embeddings[idx]
 
-                    # 构建写入 Faiss 的 metadatas，根据平台写入 subreddit / tags 等
+                    # 构建写入 Faiss 的 metadatas, 根据平台写入 subreddit / tags 等
                     meta_dict = {
                         "source": platform,
                         "thread_id": obj.thread_id,
@@ -187,9 +187,9 @@ class IndexService:
             logger.error(f"Error indexing {platform} content: {str(e)}")
             raise
 
-    def _index_content(self, content_obj, source: str): # 将
+    def _index_content(self, content_obj, source: str): 
         """
-        内部函数：如数据库中无记录，则写一条ContentIndex到数据库中；仅存元数据，避免重复写入
+        内部函数：如数据库中无记录, 则写一条ContentIndex到数据库中；仅存元数据, 避免重复写入
         """
         try:
             # 避免重复：检查source+content是否已存在
@@ -292,14 +292,14 @@ class IndexService:
         if source == 'reddit':
             return [d for d in docs if d.metadata.get('subreddit') == filter_value]
         elif source in ('stackoverflow', 'rednote'):
-            # 如果tags是字符串，需要判断是否包含; 如果是list，就判断是否在list里
+            # 如果tags是字符串, 需要判断是否包含; 如果是list, 就判断是否在list里
             return [d for d in docs if filter_value in d.metadata.get('tags', [])]
         else:
             return docs
 
     def _ensure_faiss_store_loaded(self):
         """
-        确保faiss_store已经加载。如果还没加载，尝试从本地索引文件读取
+        确保faiss_store已经加载。如果还没加载, 尝试从本地索引文件读取
         """
         if not self.faiss_store:
             logger.warning("FAISS store not loaded; loading from local file if exists.")
@@ -316,7 +316,7 @@ class IndexService:
     # -------------------------------------------------------------------------
     def build_faiss_index(self, source_filter=None): # 这里将faiss-store中生成的索引保存在本地
         """
-        不再从数据库读取embedding构建索引，这里可以只做
+        不再从数据库读取embedding构建索引, 这里可以只做
         “对内存中的faiss_store进行save + verify” 的工作
         """
         logger.info("build_faiss_index: Saving current in-memory Faiss index & verifying.")
@@ -337,7 +337,7 @@ class IndexService:
 
     def verify_faiss_index(self):
         """
-        简单的查询测试，判断索引文件是否可用
+        简单的查询测试, 判断索引文件是否可用
         """
         if not self.faiss_store:
             raise ValueError("No FAISS store loaded, cannot verify.")

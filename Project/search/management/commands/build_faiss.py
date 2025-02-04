@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         """
-        如果您想在命令行接受额外参数(例如 --source=reddit)，
+        如果您想在命令行接受额外参数(例如 --source=reddit), 
         可以在此处添加解析逻辑。
         """
         parser.add_argument(
