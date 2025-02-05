@@ -4,12 +4,12 @@ from concurrent.futures import ThreadPoolExecutor
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from langchain_parser import parse_langchain_response
-from prompt_generator import generate_prompt
-from prompt_sender import send_prompt_to_gemini
-from memory.service import MemoryService
-from search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
-from search.index_service.base import IndexService
+from search_process.langchain_parser import parse_langchain_response
+from search_process.prompt_generator import generate_prompt
+from search_process.prompt_sender import send_prompt_to_gemini
+from django_apps.memory.service import MemoryService
+from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
+from django_apps.search.index_service.base import IndexService
 
 # Initialize logger
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@
 
 import logging
 from typing import List
-from search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
+from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from .faiss_manager import FaissManager
 
 logger = logging.getLogger(__name__)
