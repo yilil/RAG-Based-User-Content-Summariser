@@ -58,3 +58,5 @@ beautifulsoup4>=4.9.3
 html5lib>=1.1
 selenium==4.28.1
 
+# 大模型api相关
+openai==1.61.0

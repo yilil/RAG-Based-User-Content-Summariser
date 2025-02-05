@@ -7,28 +7,38 @@ class LangchainResponse:
 
     def parse_response(self, response):
         try:
-            # 将 GenerateContentResponse 对象转换为字典
+            # 尝试将 GenerateContentResponse 对象转换为字典
             response_dict = response.to_dict()
-            # 将字典转换为 JSON 字符串
             response_json = json.dumps(response_dict)
-            # 解析 JSON 字符串
             parsed_response = json.loads(response_json)
         except (json.JSONDecodeError, AttributeError):
-            parsed_response = {"error": "Invalid JSON response"}
+            try:
+                parsed_response = json.loads(response)
+            except (json.JSONDecodeError, TypeError):
+                parsed_response = {"error": "Invalid JSON response"}
         return parsed_response
 
     def get_answer(self):
         # 从解析后的响应中提取答案
-        candidates = self.parsed_response.get("candidates", [])
-        if candidates:
-            content_parts = candidates[0].get("content", {}).get("parts", [])
-            if content_parts:
-                return content_parts[0].get("text", "No answer found")
+        if "candidates" in self.parsed_response:
+            candidates = self.parsed_response.get("candidates", [])
+            if candidates:
+                content_parts = candidates[0].get("content", {}).get("parts", [])
+                if content_parts:
+                    return content_parts[0].get("text", "No answer found")
+        elif "choices" in self.parsed_response:
+            choices = self.parsed_response.get("choices", [])
+            if choices:
+                message = choices[0].get("message", {})
+                return message.get("content", "No answer found")
         return "No answer found"
 
     def get_metadata(self):
-        # 从解析后的响应中提取元数据
-        return self.parsed_response.get("usage_metadata", {})
+        if "usage_metadata" in self.parsed_response:
+            return self.parsed_response.get("usage_metadata", {})
+        elif "usage" in self.parsed_response:
+            return self.parsed_response.get("usage", {})
+        return {}
 
 def parse_langchain_response(response):
     response_obj = LangchainResponse(response)
