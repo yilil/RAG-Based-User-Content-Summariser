@@ -36,8 +36,7 @@ def search(request):
     answer = ""
     metadata = {}
     retrieved_docs = []
-    # 给 llm_model 设置一个默认值(从 session 获取, 不存在就用 'gemini-1.5-flash')
-    llm_model = request.session.get('llm_model', 'gemini-1.5-flash')
+    llm_model = ""
 
     # 如果是GET请求, 直接返回空内容或默认内容
     if request.method != "POST":
@@ -47,19 +46,12 @@ def search(request):
             'llm_model': llm_model,
             'retrieved_docs': retrieved_docs,  
         })
-    # if 'llm_model' in request.POST:
-    #     llm_model = request.POST.get('llm_model')
-    #     # 将选择的模型保存在 session 中
-    #     request.session['llm_model'] = llm_model
-    #     request.session.save() 
-    #     return render(request, 'searchwithTemple.html', {
-    #             'llm_model': llm_model  # 将模型传递给模板
-    #         })
 
     # 处理 POST 请求
     search_query = request.POST.get('search_query')
     platform = request.POST.get('source')
     filter_value = request.POST.get('filter_value', None)
+    llm_model = request.POST.get('llm_model', llm_model)
 
     recent_memory = MemoryService.get_recent_memory(session_id)
 
