@@ -1,4 +1,4 @@
-UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
+UI Design Figma Link(Dev mode)：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
 
 # 1. 环境搭建
 1. Create a virtual environment
@@ -41,7 +41,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 ```pip install langchain langchain-community```
 
 # 4. 测试与数据准备
-1. 安装 faker（随机生成测试数据）
+1. 安装 faker(随机生成测试数据)
 
 ```pip install faker```
 
@@ -51,13 +51,13 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 
 此命令会执行：
 - 清空数据库
-- 生成测试数据（包括 Library A/B, Reddit 内容等）
+- 生成测试数据(包括 Library A/B, Reddit 内容等)
 - 构建 Embeddings 并写入数据库
 - 建立 FAISS 索引
 - 最后做一系列测试查询
 
-# 5. 数据库迁移(初始化数据库）
-若修改了模型结构（例如 RedditContent, StackOverflowContent 等）：
+# 5. 数据库迁移(初始化数据库)
+若修改了模型结构(例如 RedditContent, StackOverflowContent 等)：
 1. 生成迁移文件：
 
 ```python manage.py makemigrations```
@@ -74,7 +74,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 1. 终端请求
 
 可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
-`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST, 后续改成postman请求）
+`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` (目前还是用的终端输入以上POST, 后续改成postman请求)
 
 2. 自定义管理命令 build_faiss
 
@@ -132,7 +132,7 @@ sequenceDiagram
 # 11, 删除当前的索引库及索引 
 ```rm -rf faiss_index/ ```
 
-# chromedriver下载：（爬虫时用到）
+# chromedriver下载：(爬虫时用到)
 找到合适的版本下载后, 解压文件夹, 添加文件夹到：
 ```sudo mv chromedriver-mac-arm64.zip /usr/local/bin/```
 运行test_selenium.py文件确保能够正确打印“Page title is: Google”

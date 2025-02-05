@@ -20,7 +20,7 @@ class Command(BaseCommand):
         url = options["url"]
         self.stdout.write(f"Starting to crawl {url}")
 
-        #爬虫登陆需要的cookies（暂时是个人账号的）
+        #爬虫登陆需要的cookies(暂时是个人账号的)
         cookies = [
     {
         "name": "abRequestId",

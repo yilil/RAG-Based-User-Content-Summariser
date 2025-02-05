@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from search.index_service import IndexService
+from search.index_service.base import IndexService
 from search.management.commands.test_data_generator import TestDataGenerator
 import time
 import logging
@@ -49,36 +49,45 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         count = options['count']
-        platform = options['platform']
+        platform_option = options['platform']
         start_time = time.time()
 
         try:
-            # 清空数据库
+            # 1. 清空数据库
             self._clean_database()
             
-            # 生成测试数据
+            # 2. 生成测试数据
             self.stdout.write('Generating test data...')
             generator = TestDataGenerator()
+            # 示例中目前仅生成 Reddit 相关的测试数据；
+            # 如果平台为 'all' 或指定为 'reddit'，则生成 Reddit 数据。
+            if platform_option in ['all', 'reddit']:
+                generator.generate_reddit_data()
+                generator.generate_library_ranking_data()
+            # 若有其他平台数据生成方法，可在此处添加相应调用
             
-            # 1. 生成基础测试数据
-            generator.generate_reddit_data()
-            generator.generate_library_ranking_data()
-
-            # 2. 验证数据生成
+            # 3. 验证数据生成
             self._verify_test_data()
             
-            # 3. 构建索引
-            self.stdout.write('Indexing content...')
-            index_service = IndexService()
-            index_service.index_platform_content('reddit')
+            # 4. 对于需要 Index 的平台，逐一构建索引
+            if platform_option == 'all':
+                platforms_to_index = ['reddit', 'stackoverflow', 'rednote']
+            else:
+                platforms_to_index = [platform_option]
             
-            # 验证索引构建
+            for plat in platforms_to_index:
+                self.stdout.write(f'Indexing content for platform: {plat}...')
+                index_service = IndexService(platform=plat)
+                index_service.index_platform_content()
+                index_service.build_faiss_index()
+            
+            # 5. 验证索引构建
             self._verify_index_creation()
             
-            # 4. 构建 FAISS 索引
-            index_service.build_faiss_index(source_filter='reddit')
-
-            # 5. 执行特定测试用例
+            # 6. 执行特定测试用例
+            # 这里的测试用例仅针对第一个平台（例如，如果选择 'all', 默认测试 Reddit）
+            test_platform = platforms_to_index[0]
+            index_service = IndexService(platform=test_platform)
             test_cases = [
                 {
                     'query': 'How to implement binary search tree in r/programming?',
@@ -101,38 +110,31 @@ class Command(BaseCommand):
                     'description': 'Library ranking scenario check'
                 },
             ]
-
+            
             self.stdout.write('\nRunning semantic search tests...')
-
             for test_case in test_cases:
                 self.stdout.write(f"\n=== Test: {test_case['description']} ===")
                 self.stdout.write(f"Query: {test_case['query']}")
                 
                 results = index_service.faiss_search(
                     query=test_case['query'],
-                    source='reddit',
                     top_k=1,
                     filter_value=test_case['subreddit']
                 )
                 
-                # 验证结果相关性
-                # 如果结果都在 test_case['subreddit'] 里面, 我们就认为匹配  
                 relevant_results = [
                     doc for doc in results 
                     if doc.metadata.get('subreddit') == test_case['subreddit']
                 ]
                 
-                # 输出测试结果统计
                 self.stdout.write(f'Relevance Rate: {len(relevant_results)}/{len(results)} results matched expected type')
-                
-                # 详细结果分析
                 for i, doc in enumerate(results, 1):
                     self.stdout.write(f'\nResult {i}:')
                     self.stdout.write(f'Content: {doc.page_content[:150]}...')
                     self.stdout.write(f'Subreddit: {doc.metadata["subreddit"]}')
                     is_relevant = (doc.metadata.get('subreddit') == test_case['subreddit'])
                     self.stdout.write(f'Relevant: {"Y" if is_relevant else "N"}')
-
+            
             duration = time.time() - start_time
             self.stdout.write(f'\nAll tests completed in {duration:.2f} seconds')
 

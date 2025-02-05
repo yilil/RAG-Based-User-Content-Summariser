@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from search.index_service import IndexService
+from search.index_service.base import IndexService
 
 
 class Command(BaseCommand):
