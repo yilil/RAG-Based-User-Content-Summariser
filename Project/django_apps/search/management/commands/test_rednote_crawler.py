@@ -1,6 +1,6 @@
 # search/management/commands/test_rednote_crawler.py
 from django.core.management.base import BaseCommand
-from search.crawler import crawl_rednote_page
+from django_apps.search.crawler import crawl_rednote_page
 import logging
 
 logger = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException, StaleElementReferenceEx
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # 处理时区
 
-from search.models import RednoteContent
+from django_apps.search.models import RednoteContent
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from faker import Faker
 from django.utils import timezone
-from search.models import RedditContent, StackOverflowContent, RednoteContent
+from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent
 
 class TestDataGenerator:
     def __init__(self):

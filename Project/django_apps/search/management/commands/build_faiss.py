@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from search.index_service.base import IndexService
+from django_apps.search.index_service.base import IndexService
 
 
 class Command(BaseCommand):
@@ -19,18 +19,18 @@ class Command(BaseCommand):
         parser.add_argument(
             '--source',
             type=str,
-            default=None,
+            default=all,
             help='Filter records by source (e.g. reddit, stackoverflow, rednote). '
                  'If omitted, index all sources.'
         )
 
     def handle(self, *args, **options):
-        source_filter = options.get('source')  # e.g. 'reddit'
-        service = IndexService()
+        platform = options.get('source', "all")
+        service = IndexService(platform=platform)
 
         # 根据 source_filter 构建对应记录的索引
-        service.build_faiss_index(source_filter=source_filter)
+        service.build_faiss_index()
 
         self.stdout.write(self.style.SUCCESS(
-            f"FAISS index built successfully! (source_filter={source_filter})"
+            f"FAISS index built successfully! (platform={platform})" if platform else "FAISS index built successfully!"
         ))

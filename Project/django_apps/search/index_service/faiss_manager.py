@@ -14,7 +14,7 @@ class FaissManager:
         :param platform: 平台标识(reddit, stackoverflow, rednote)，用于确定子目录
         """
         self.embedding_model = embedding_model
-        self.platform = platform.lower()
+        self.platform = platform.lower() if isinstance(platform, str) else "all"
         self.index_dir = os.path.join(base_index_dir, self.platform)
         # 检查目录是否存在，不存在则自动创建
         if not os.path.exists(self.index_dir):

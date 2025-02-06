@@ -16,6 +16,7 @@ class ContentIndex(models.Model):
     class Meta:
         db_table = 'content_index' 
         unique_together = ['source', 'content']
+        app_label = 'search'
 
 class BaseContent(models.Model):
     """

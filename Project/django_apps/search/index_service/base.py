@@ -15,7 +15,7 @@ class IndexService:
       2. 执行检索，返回经过 ResultProcessor 处理后的 Document 列表
     """
     def __init__(self, platform: str, base_index_dir="faiss_index"):
-        self.platform = platform.lower()
+        self.platform = platform
         self.embedding_model = get_embeddings()
         self.faiss_manager = FaissManager(self.embedding_model, base_index_dir=base_index_dir, platform=self.platform)
         self.indexer = Indexer(self.embedding_model, self.faiss_manager)

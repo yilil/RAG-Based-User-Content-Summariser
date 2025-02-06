@@ -1,9 +1,9 @@
 from django.core.management.base import BaseCommand
-from search.index_service.base import IndexService
-from search.management.commands.test_data_generator import TestDataGenerator
+from django_apps.search.index_service.base import IndexService
+from django_apps.search.management.commands.test_data_generator import TestDataGenerator
 import time
 import logging
-from search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
+from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django.db import connection
 
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ class Command(BaseCommand):
     
     def _verify_test_data(self):
         """验证测试数据是否正确生成"""
-        from search.models import RedditContent
+        from django_apps.search.models import RedditContent
         
         self.stdout.write('\nVerifying test data generation:')
         
@@ -161,7 +161,7 @@ class Command(BaseCommand):
 
     def _verify_index_creation(self):
         """验证索引是否正确创建"""
-        from search.models import ContentIndex
+        from django_apps.search.models import ContentIndex
         
         self.stdout.write('\nVerifying index creation:')
         
