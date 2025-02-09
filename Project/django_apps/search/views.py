@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from search_process.langchain_parser import parse_langchain_response
 from search_process.prompt_generator import generate_prompt
-from search_process.prompt_sender import send_prompt_to_gemini
+from search_process.prompt_sender import send_prompt
 from django_apps.memory.service import MemoryService
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django_apps.search.index_service.base import IndexService
@@ -66,27 +66,25 @@ def search(request):
 
     try:
         #1. FAISS搜索
-        if not platform:
-            platform = 'reddit'
-        index_service = IndexService(platform=platform)
-        retrieved_docs = index_service.faiss_search(
-            query=search_query,
-            top_k=5
-        )
-        #retrieved_docs = []
+        # if not platform:
+        #     platform = 'reddit'
+        # index_service = IndexService(platform=platform)
+        # retrieved_docs = index_service.faiss_search(
+        #     query=search_query,
+        #     top_k=5
+        # )
+        retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
         prompt = generate_prompt(search_query, retrieved_docs, recent_memory)
 
-        # 3. 异步发送prompt并获取响应
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            future = executor.submit(
-                send_prompt_to_gemini, 
-                prompt, 
-                llm_model
-            )
-            response = future.result()
+        future = executor.submit(
+            send_prompt, 
+            prompt, 
+            llm_model
+        )
+        response = future.result()
 
         answer, metadata = parse_langchain_response(response)
         MemoryService.add_to_memory(session_id, search_query, answer)

@@ -82,3 +82,13 @@ def send_prompt_to_chatgpt(prompt, model_name="gpt-3.5-turbo"):
     except Exception as e:
         print(f"Error: {e}")
         return f"Error: {e}"
+
+def send_prompt(prompt, model_name):
+    if model_name.startswith("gemini"):
+        return send_prompt_to_gemini(prompt, model_name)
+    elif model_name.startswith("deepseek"):
+        return send_prompt_to_deepseek(prompt, model_name)
+    elif model_name.startswith("gpt"):
+        return send_prompt_to_chatgpt(prompt, model_name)
+    else:
+        return f"Error: Unsupported model name {model_name}"
