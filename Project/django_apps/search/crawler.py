@@ -1,4 +1,5 @@
 # search/crawler.py
+import re
 import time
 import logging
 from django.utils import timezone
@@ -25,7 +26,7 @@ def crawl_rednote_page(url, cookies=None):
     try:
 
         # 设置我们想要爬取的笔记数量上限
-        MAX_POSTS = 5
+        MAX_POSTS = 10
 
         # 设置cookies和打开页面
         driver.get("https://www.xiaohongshu.com/explore")
@@ -42,9 +43,9 @@ def crawl_rednote_page(url, cookies=None):
         driver.get(url)
         time.sleep(2)  # 等待页面加载
 
-        # 等待帖子元素出现, 最长等待10秒
+        # 等待帖子元素出现, 最长等待30秒
         try:
-            post_links = WebDriverWait(driver, 10).until(
+            post_links = WebDriverWait(driver, 30).until(
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.cover.ld.mask"))
             )
         except TimeoutException:
@@ -65,6 +66,8 @@ def crawl_rednote_page(url, cookies=None):
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.title"))
                 )
+                
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.username")))
 
                 author = driver.find_element(By.CSS_SELECTOR, "span.username").get_attribute("innerText").strip()
                 logger.info(f"Extracted author: {author}")
@@ -117,53 +120,155 @@ def crawl_rednote_page(url, cookies=None):
     
     return new_items
 
-
 def parse_xiaohongshu_date(date_text):
     """
-    解析小红书日期格式, 处理两种情况：
-    1. "XX-XX 地区" (具体日期)
-    2. "X 天前 地区" (相对日期)
+    解析小红书日期格式，支持以下几种常见情况：
+      1) "编辑于" 前缀 (会去掉)
+      2) 关键词: "昨天"、"今天"、"前天" + 可选的 "HH:MM"
+          例如 "昨天 01:01 澳大利亚"
+      3) "X 天前" + 可选 "HH:MM"
+      4) 完整年月日: "YYYY-MM-DD" + 可选 "HH:MM"
+      5) 月日: "MM-DD" + 可选 "HH:MM" (年份默认当前年)
+      6) 可在最后带上地区 (日本、美国、澳大利亚等)
+    
+    若无法识别，就用当前时间(上海时区)作为后备。
     """
     try:
-        # 如果日期文本包含 "编辑于", 先去除该前缀
+        # 先去掉 "编辑于" 前缀
         if date_text.startswith("编辑于"):
             date_text = date_text.replace("编辑于", "").strip()
 
-        # 将处理后的文本分割成各个部分
-        parts = date_text.split()
-        
-        # 处理"X天前"的情况
-        if '天前' in date_text:
-            days_ago = int(parts[0])
-            current_time = datetime.now()
-            created_date = current_time - timedelta(days=days_ago)
-        
-        # 处理具体日期的情况 "MM-DD 地区"
-        else:
-            date_str = parts[0]  # 获取日期部分
-            current_year = datetime.now().year
-            created_date = datetime.strptime(f"{current_year}-{date_str}", "%Y-%m-%d")
-        
-        # 根据地区设置时区
+        # 时区映射表
         timezone_mapping = {
             "澳大利亚": "Australia/Sydney",
-            "美国": "America/New_York",
-            "英国": "Europe/London",
-            "日本": "Asia/Tokyo"
-            # 可以添加更多地区的映射
+            "美国":    "America/New_York",
+            "英国":    "Europe/London",
+            "日本":    "Asia/Tokyo",
+            # 可以添加更多地区
         }
-        
-        location = parts[-1]
-        timezone = timezone_mapping.get(location, "Asia/Shanghai")  # 默认使用中国时区
-        
-        # 设置时区
-        created_at = created_date.replace(tzinfo=ZoneInfo(timezone))
-        
-        return created_at
-    
+
+        # 默认时区
+        tzname = "Asia/Shanghai"
+
+        # 拆分单词，看看末尾是不是地区
+        parts = date_text.split()
+        if not parts:
+            # 如果拆开后啥都没有，就直接返回当前时间
+            raise ValueError("Empty date_text after trimming '编辑于'")
+
+        last_part = parts[-1]
+        if last_part in timezone_mapping:
+            tzname = timezone_mapping[last_part]
+            # 去掉末尾的地区部分，剩下的才是日期时间字符串
+            parts = parts[:-1]
+
+        # 重新拼回纯日期时间部分
+        date_str = " ".join(parts)
+
+        # 当前日期时间，用于做“天前”、“昨天”等计算基准
+        now = datetime.now()
+
+        # --- 1) 处理“昨天/今天/前天 + HH:MM” ---
+        #    e.g. "昨天 01:01"
+        #    定义一个正则匹配三种关键词 + 可选的时间
+        #    (?P<daykey>昨天|今天|前天) 可以捕捉具体是哪一个
+        #    (?:\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}))?  表示可选的小时:分钟
+        match_special = re.match(
+            r'^(?P<daykey>昨天|今天|前天)(?:\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}))?$',
+            date_str
+        )
+        if match_special:
+            daykey  = match_special.group('daykey')
+            hour    = match_special.group('hour')
+            minute  = match_special.group('minute')
+
+            if daykey == '今天':
+                days_offset = 0
+            elif daykey == '昨天':
+                days_offset = 1
+            else:  # 前天
+                days_offset = 2
+            
+            created_date = now - timedelta(days=days_offset)
+
+            # 如果匹配到了具体小时分钟，就设置时间
+            if hour and minute:
+                created_date = created_date.replace(
+                    hour=int(hour),
+                    minute=int(minute),
+                    second=0,
+                    microsecond=0
+                )
+
+            created_at = created_date.replace(tzinfo=ZoneInfo(tzname))
+            return created_at
+
+        # --- 2) 处理 "X 天前 + 可选 HH:MM" ---
+        #    e.g. "5 天前", "5 天前 01:01"
+        match_days_ago = re.match(
+            r'^(?P<days>\d+)\s*天前(?:\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}))?$',
+            date_str
+        )
+        if match_days_ago:
+            days   = int(match_days_ago.group('days'))
+            hour   = match_days_ago.group('hour')
+            minute = match_days_ago.group('minute')
+
+            created_date = now - timedelta(days=days)
+            if hour and minute:
+                created_date = created_date.replace(
+                    hour=int(hour),
+                    minute=int(minute),
+                    second=0,
+                    microsecond=0
+                )
+            created_at = created_date.replace(tzinfo=ZoneInfo(tzname))
+            return created_at
+
+        # --- 3) 处理 "YYYY-MM-DD + 可选 HH:MM" ---
+        #    e.g. "2024-08-15", "2024-08-15 13:05"
+        match_full_date = re.match(
+            r'^(?P<ymd>\d{4}-\d{2}-\d{2})(?:\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}))?$',
+            date_str
+        )
+        if match_full_date:
+            ymd = match_full_date.group('ymd')
+            hour = match_full_date.group('hour')
+            minute = match_full_date.group('minute')
+
+            created_date = datetime.strptime(ymd, "%Y-%m-%d")
+            if hour and minute:
+                created_date = created_date.replace(hour=int(hour), minute=int(minute))
+
+            created_at = created_date.replace(tzinfo=ZoneInfo(tzname))
+            return created_at
+
+        # --- 4) 处理 "MM-DD + 可选 HH:MM" (没写年份，用当前年) ---
+        #    e.g. "08-15", "08-15 09:25"
+        match_md = re.match(
+            r'^(?P<md>\d{1,2}-\d{1,2})(?:\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}))?$',
+            date_str
+        )
+        if match_md:
+            md = match_md.group('md')
+            hour = match_md.group('hour')
+            minute = match_md.group('minute')
+
+            current_year = now.year
+            created_date = datetime.strptime(f"{current_year}-{md}", "%Y-%m-%d")
+            if hour and minute:
+                created_date = created_date.replace(hour=int(hour), minute=int(minute))
+
+            created_at = created_date.replace(tzinfo=ZoneInfo(tzname))
+            return created_at
+
+        # 若都不匹配，则走后备
+        raise ValueError(f"Unrecognized date format: {date_str}")
+
     except Exception as e:
         logger.warning(f"Failed to parse date '{date_text}': {e}")
-        return datetime.now(tz=ZoneInfo("Asia/Shanghai"))  # 返回当前时间作为后备
+        # 无法识别则返回当前时间(上海时区)
+        return datetime.now(tz=ZoneInfo("Asia/Shanghai"))
 
 
 def parse_likes_count(likes_str):

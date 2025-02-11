@@ -21,20 +21,26 @@ class IndexService:
         self.indexer = Indexer(self.embedding_model, self.faiss_manager)
         self.result_processor = ResultProcessor()
 
-    def index_platform_content(self):
-        self.indexer.index_platform_content(self.platform)
+    def index_platform_content(self, unindexed=None):
+        """
+        对给定平台执行内容索引。支持传入一个未索引的 QuerySet (unindexed)，
+        如果不传则默认对该平台所有内容做索引。
 
-    def build_faiss_index(self):
-        if not self.faiss_manager.faiss_store:
-            # 没有内存中的索引时，尝试加载本地索引
-            self.faiss_manager.load_index()
-            if not self.faiss_manager.faiss_store:
-                # 如果仍然没有，说明需要先构建
-                logger.info("No FAISS index found in memory; please run index_platform_content first.")
-                return
-        self.faiss_manager.save_index()
-        self.faiss_manager.verify_index()
+        流程:
+        1) 先从磁盘加载已有索引(若存在), 保存在 self.faiss_manager.faiss_store 中
+        2) 调用 indexer.index_platform_content(...) 将 unindexed 数据向量化并合并到内存索引
+        3）保存到磁盘, 写回本地。
+        """
+        # 1) 先尝试加载已有索引(如果磁盘上有, 会合并到 self.faiss_manager.faiss_store)
+        self.faiss_manager.load_index()
 
+        # 2) 只对 unindexed 中的记录做 embedding, 并写入数据库的 ContentIndex
+        #    如果 unindexed=None, 则内部会处理整张表(视情况而定)
+        self.indexer.index_platform_content(
+            platform=self.platform,
+            unindexed_queryset=unindexed
+        )
+    
     def faiss_search(self, query: str, top_k=5, filter_value=None):
         """
         搜索前确保 FAISS 索引已加载，否则尝试加载本地索引。

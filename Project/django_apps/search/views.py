@@ -66,14 +66,14 @@ def search(request):
 
     try:
         #1. FAISS搜索
-        # if not platform:
-        #     platform = 'reddit'
-        # index_service = IndexService(platform=platform)
-        # retrieved_docs = index_service.faiss_search(
-        #     query=search_query,
-        #     top_k=5
-        # )
-        retrieved_docs = []
+        if not platform:
+            platform = 'reddit'
+        index_service = IndexService(platform=platform)
+        retrieved_docs = index_service.faiss_search(
+            query=search_query,
+            top_k=10
+        )
+        # retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
@@ -107,67 +107,62 @@ def search(request):
 @require_POST
 def index_content(request):
     """
-    初始化内容索引：
-      1. 为各平台内容生成embedding(只对未出现在ContentIndex的记录才进行处理)
-      2. 构建FAISS索引(仅对当前内存中的faiss_store做保存与验证)
+    初始化内容索引（增量索引版本）：
+      1. 对每个平台，先从磁盘加载已有索引
+      2. 找出数据库中新的记录（不在ContentIndex的）
+      3. 仅对新记录做embedding并写入内存索引
+      4. 保存合并后的索引到本地磁盘
     """
     start_time = time.time()
-    logger.info("Starting content indexing process")
+    logger.info("Starting content indexing process (incremental).")
 
     source_filter = request.POST.get('source')
     if not source_filter:
-        # 如果未指定，则对所有平台处理。此处逐个平台构建索引。
         platforms = ['reddit', 'stackoverflow', 'rednote']
     else:
         platforms = [source_filter]
 
     try:
         for platform in platforms:
-            if platform == 'reddit':
-                logger.info("Checking for new Reddit content to index...")
-                unindexed = RedditContent.objects.exclude(
-                    content__in=ContentIndex.objects.filter(source='reddit').values('content')
-                )
-                if unindexed.exists():
-                    logger.info(f"Found {unindexed.count()} new Reddit items to index.")
-                    index_service = IndexService(platform='reddit')
-                    index_service.index_platform_content()
-                else:
-                    logger.info("No new Reddit items to index.")
-            elif platform == 'stackoverflow':
-                logger.info("Checking for new StackOverflow content to index...")
-                unindexed = StackOverflowContent.objects.exclude(
-                    content__in=ContentIndex.objects.filter(source='stackoverflow').values('content')
-                )
-                if unindexed.exists():
-                    logger.info(f"Found {unindexed.count()} new StackOverflow items.")
-                    index_service = IndexService(platform='stackoverflow')
-                    index_service.index_platform_content()
-                else:
-                    logger.info("No new StackOverflow items to index.")
-            elif platform == 'rednote':
-                logger.info("Checking for new Rednote content to index...")
-                unindexed = RednoteContent.objects.exclude(
-                    content__in=ContentIndex.objects.filter(source='rednote').values('content')
-                )
-                if unindexed.exists():
-                    logger.info(f"Found {unindexed.count()} new Rednote items.")
-                    index_service = IndexService(platform='rednote')
-                    index_service.index_platform_content()
-                else:
-                    logger.info("No new Rednote items to index.")
+            logger.info(f"Processing platform: {platform}")
+            if platform not in ['reddit', 'stackoverflow', 'rednote']:
+                logger.warning(f"Unknown platform: {platform}, skip.")
+                continue
 
-        # 构建 FAISS 索引，依次保存各平台的索引
-        for platform in platforms:
-            logger.info(f"Saving FAISS index for {platform} to disk and verifying.")
+            # 创建对应的 IndexService
             index_service = IndexService(platform=platform)
-            index_service.build_faiss_index()
+            # 先尝试加载已有索引到内存，合并已有向量
+            index_service.faiss_manager.load_index()
+
+            # 根据平台获取“未索引的”新内容
+            if platform == 'reddit':
+                model_cls = RedditContent
+            elif platform == 'stackoverflow':
+                model_cls = StackOverflowContent
+            else:  # 'rednote'
+                model_cls = RednoteContent
+
+            # *** 目前是根据source + content两个字段判断是否重复，之后写简化逻辑
+            unindexed = model_cls.objects.exclude(
+                content__in=ContentIndex.objects.filter(source=platform).values('content')
+            )
+            count_unindexed = unindexed.count()
+
+            if count_unindexed > 0:
+                logger.info(f"Found {count_unindexed} new {platform} items to index.")
+                # 调用 index_platform_content() 内部会：
+                # 1) 仅对 unindexed 数据做 embedding + add_texts
+                # 2) 将其写入 ContentIndex
+                # 3) 调用 save_index() 再写回磁盘
+                index_service.index_platform_content(unindexed=unindexed)
+            else:
+                logger.info(f"No new {platform} items to index.")
 
         duration = time.time() - start_time
-        logger.info(f"Indexing completed in {duration:.2f} seconds")
+        logger.info(f"Indexing completed in {duration:.2f} seconds.")
         return JsonResponse({
             "status": "success",
-            "message": "Indexing completed successfully",
+            "message": "Incremental indexing completed successfully",
             "duration": round(duration, 2)
         })
 
@@ -177,3 +172,4 @@ def index_content(request):
             "status": "error",
             "message": str(e)
         }, status=500)
+        

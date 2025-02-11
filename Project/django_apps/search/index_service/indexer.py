@@ -19,13 +19,18 @@ class Indexer:
         self.faiss_manager = faiss_manager
         self.batch_size = batch_size
 
-    def index_platform_content(self, platform: str):
+    def index_platform_content(self, platform: str,  unindexed_queryset=None):
         if platform not in self.PLATFORM_MODEL_MAP:
             raise ValueError(f"Unsupported platform: {platform}")
 
         logger.info(f"Indexing {platform} content into FAISS + DB metadata...")
         model_class = self.PLATFORM_MODEL_MAP[platform]
-        content_objects = model_class.objects.all()
+        # 获取需要被indexing + 存入 的所有新数据
+        if not unindexed_queryset:
+            # 如果没有传入特定未索引数据，就依然走原先的全表逻辑
+            content_objects = model_class.objects.all()
+        else:
+            content_objects = unindexed_queryset
         total = content_objects.count()
         processed = 0
 
@@ -57,16 +62,24 @@ class Indexer:
                 elif platform in ('stackoverflow', 'rednote'):
                     if hasattr(obj, 'tags'):
                         meta_dict["tags"] = obj.tags
+                    if hasattr(obj, 'likes'):
+                        meta_dict["likes"] = obj.likes
 
                 self.faiss_manager.add_texts(texts=[obj.content],
                                               metadatas=[meta_dict],
                                               embeddings=[emb])
+
                 self._index_content(obj, platform)
 
             processed += self.batch_size
             logger.info(f"Progress: {min(processed, total)}/{total}")
 
         logger.info(f"Indexed {total} {platform} items.")
+
+        # 在这里把索引保存到磁盘
+        self.faiss_manager.save_index()
+        logger.info("FAISS index saved to disk after indexing.")
+
 
     def _index_content(self, content_obj, source: str):
         try:
