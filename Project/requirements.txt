@@ -60,3 +60,6 @@ selenium==4.28.1
 
 # 大模型api相关
 openai==1.61.0
+
+# 结果处理相关
+markdown==3.7.0
