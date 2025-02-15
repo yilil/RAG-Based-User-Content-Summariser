@@ -73,7 +73,7 @@ def search(request):
             query=search_query,
             top_k=10
         )
-        # retrieved_docs = []
+        #retrieved_docs = []
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt

@@ -1,4 +1,5 @@
 import json
+import markdown
 
 class LangchainResponse:
     def __init__(self, response):
@@ -25,12 +26,16 @@ class LangchainResponse:
             if candidates:
                 content_parts = candidates[0].get("content", {}).get("parts", [])
                 if content_parts:
-                    return content_parts[0].get("text", "No answer found")
+                    data = content_parts[0].get("text", "No answer found")
+                    html_content = markdown.markdown(data, extensions=['fenced_code'])
+                    return html_content
         elif "choices" in self.parsed_response:
             choices = self.parsed_response.get("choices", [])
             if choices:
                 message = choices[0].get("message", {})
-                return message.get("content", "No answer found")
+                data = message.get("content", "No answer found")
+                html_content = markdown.markdown(data, extensions=['fenced_code'])
+                return html_content
         return "No answer found"
 
     def get_metadata(self):

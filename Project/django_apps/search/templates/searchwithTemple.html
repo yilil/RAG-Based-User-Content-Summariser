@@ -202,8 +202,8 @@
 
     {% if result %}
     <div class="result">
-      <h3>Results:</h3>
-      <p>{{ result }}</p>
+        <h3>Results:</h3>
+        <p>{{ result | safe }}</p>  <!-- 允许渲染HTML -->
     </div>
     {% endif %}
 

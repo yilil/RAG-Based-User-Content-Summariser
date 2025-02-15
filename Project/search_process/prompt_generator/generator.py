@@ -21,17 +21,24 @@ def generate_prompt(query, retrieved_docs, recent_memory):
     if retrieved_docs:
         prompt = (
             f"**User Query**: {query}\n\n"
-            f"{recent_memory_str}"
-            f"Below are the relevant documents retrieved via RAG:\n{combined_docs_str}"
-            "Please review these documents and provide a concise answer to the user.\n"
+            f"Below are the current 5 chat history with user:\n{recent_memory_str}"
+            f"Below are the relevant documents retrieved via RAG, use it if you need:\n{combined_docs_str}"
+            "Please review these documents and provide a concise answer to the user if the documents have useful information.\n"
             "If the provided documents do not contain sufficient information, please indicate that.\n"
+            "If the current question is determined to be one with a definite answer, such as 23 + 1 = 24,"
+            "then the first sentence should directly answer the question before providing detailed explanations.\n"
+            "The reply should be well-formed. Use MarkDown syntax to visually enhance the reply, "
+            "such as the precise sentences of the answer or the boldness of each subheading, or the emphasis on important content.\n"
         )
     else:
         prompt = (
             f"**User Query**: {query}\n\n"
-            f"{recent_memory_str}"
+            f"Below are the current 5 chat history with user:\n{recent_memory_str}"
             "No relevant documents were retrieved. Please attempt to answer based on your general knowledge.\n"
-            "Every time you try to change a line, use a new line to separate the previous line.\n"
+            "If the current question is determined to be one with a definite answer, such as 23 + 1 = 24,"
+            "then the first sentence should directly answer the question before providing detailed explanations.\n"
+            "The reply should be well-formed. Use MarkDown syntax to visually enhance the reply, "
+            "such as the precise sentences of the answer or the boldness of each subheading, or the emphasis on important content.\n"
         )
     
     return prompt
