@@ -12,7 +12,7 @@ def set_env_variable(var_value):
     if system == "Windows":
         command = f"setx GEMINI_API_KEY \"{var_value}\""
         os.system(command)
-        print("GEMINI_API_KEY has been set successfully on Windows!")
+        print("GEMINI_API_KEY has been set successfully!")
         print("Note: Please restart your terminal or application to apply the changes.")
 
     elif system in ["Linux", "Darwin"]:

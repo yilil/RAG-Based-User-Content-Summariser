@@ -19,18 +19,23 @@ class Command(BaseCommand):
         parser.add_argument(
             '--source',
             type=str,
-            default=all,
+            default="reddit",
             help='Filter records by source (e.g. reddit, stackoverflow, rednote). '
-                 'If omitted, index all sources.'
+                 'If omitted, index reddit source.'
         )
 
     def handle(self, *args, **options):
-        platform = options.get('source', "all")
+        platform = options.get('source', "reddit")
+        
+        # 验证平台参数
+        valid_platforms = ['reddit', 'stackoverflow', 'rednote', 'all']
+        if platform not in valid_platforms:
+            self.stderr.write(f"Invalid platform: {platform}. Must be one of {valid_platforms}")
+            return
+            
         service = IndexService(platform=platform)
-
-        # 根据 source_filter 构建对应记录的索引
-        service.build_faiss_index()
+        service.index_platform_content()
 
         self.stdout.write(self.style.SUCCESS(
-            f"FAISS index built successfully! (platform={platform})" if platform else "FAISS index built successfully!"
+            f"FAISS index built successfully! (platform={platform})"
         ))

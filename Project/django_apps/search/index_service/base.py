@@ -61,7 +61,9 @@ class IndexService:
             elif self.platform in ('stackoverflow', 'rednote'):
                 filtered_results = [doc for doc in filtered_results if filter_value in doc.metadata.get('tags', [])]
 
-        # 通过 ResultProcessor 对结果进行分组、合并、排序
-        content_groups = self.result_processor.group_similar_results(filtered_results)
-        final_results = self.result_processor.get_final_results(content_groups, top_k)
-        return final_results
+        # 使用新的推荐处理逻辑
+        return self.result_processor.process_recommendations(
+            documents=filtered_results,
+            query=query,
+            top_k=top_k
+        )

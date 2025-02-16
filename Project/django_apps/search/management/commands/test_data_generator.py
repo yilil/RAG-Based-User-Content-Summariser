@@ -111,7 +111,7 @@ class TestDataGenerator:
             )
 
         # -------------------
-        # 3. 新增 Library C
+        # 3. Library C
         # -------------------
         for i in range(3):
             RedditContent.objects.create(
@@ -130,7 +130,7 @@ class TestDataGenerator:
             )
 
         # -------------------
-        # 4. 新增 Library D (随机 upvotes, 测试多样性)
+        # 4. Library D (随机 upvotes, 测试多样性)
         # -------------------
         # 假设Library D有3条记录, upvotes从10~90随机
         for i in range(3):
@@ -147,6 +147,53 @@ class TestDataGenerator:
                 created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
                 subreddit='study',
                 upvotes=random_up
+            )
+
+    def generate_fruit_recommendation_data(self):
+        """
+        生成果汁推荐测试数据
+        """
+        test_recommendations = [
+            {
+                'title': 'Best Fruit Juice Rankings',
+                'content': 'Fresh juice recommendations: apple juice (5 stars) - crisp and sweet, '
+                          'pear juice (4 stars) - mild and refreshing, '
+                          'orange juice (3 stars) - classic choice',
+                'upvotes': 200
+            },
+            {
+                'title': 'Summer Juice Review',
+                'content': 'Best summer juices: apple juice (4 stars) - perfect for hot days, '
+                          'pear juice (4 stars) - light and refreshing, '
+                          'grape juice (5 stars) - rich and sweet',
+                'upvotes': 200
+            },
+            {
+                'title': 'Healthy Juice Guide',
+                'content': 'My favorite fresh juices: apple juice (4 stars) - great antioxidants, '
+                          'grape juice (5 stars) - full of nutrients, '
+                          'orange juice (4 stars) - vitamin C boost',
+                'upvotes': 150
+            },
+            {
+                'title': 'Grape Juice Special',
+                'content': 'Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars). '
+                          'Perfect for both adults and kids.',
+                'upvotes': 150
+            }
+        ]
+
+        for rec in test_recommendations:
+            RedditContent.objects.create(
+                source='reddit',
+                content_type='post',
+                thread_id=self.fake.uuid4(),
+                thread_title=rec['title'],
+                author_name=self.fake.user_name(),
+                content=rec['content'],
+                created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
+                subreddit='food',
+                upvotes=rec['upvotes']
             )
 
     
