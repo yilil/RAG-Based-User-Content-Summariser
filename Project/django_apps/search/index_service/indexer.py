@@ -25,6 +25,17 @@ class Indexer:
 
         logger.info(f"Indexing {platform} content into FAISS + DB metadata...")
         model_class = self.PLATFORM_MODEL_MAP[platform]
+
+        # 获取所有文本，包括已有的和新的
+        all_texts = [obj.content for obj in model_class.objects.all()]
+        
+        # 初始化 FAISS store 和 BM25
+        if not self.faiss_manager.faiss_store:
+            self.faiss_manager.initialize_store(all_texts)
+        else:
+            # 更新 BM25
+            self.faiss_manager.initialize_bm25(all_texts)
+
         # 获取需要被indexing + 存入 的所有新数据
         if not unindexed_queryset:
             # 如果没有传入特定未索引数据，就依然走原先的全表逻辑
@@ -37,11 +48,6 @@ class Indexer:
         if total == 0:
             logger.warning("No content available to index for this platform.")
             return
-
-        # 初始化 FAISS store 如果还没有
-        if not self.faiss_manager.faiss_store:
-            texts = [obj.content for obj in content_objects]
-            self.faiss_manager.initialize_store(texts)
 
         while processed < total:
             batch = content_objects[processed:processed + self.batch_size]
@@ -69,7 +75,7 @@ class Indexer:
                                               metadatas=[meta_dict],
                                               embeddings=[emb])
 
-                self._index_content(obj, platform)
+                self._index_content(obj, platform) 
 
             processed += self.batch_size
             logger.info(f"Progress: {min(processed, total)}/{total}")

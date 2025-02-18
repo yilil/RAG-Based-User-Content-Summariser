@@ -10,6 +10,7 @@ from search_process.prompt_sender import send_prompt
 from django_apps.memory.service import MemoryService
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django_apps.search.index_service.base import IndexService
+from django_apps.search.index_service.hybrid_retriever import HybridRetriever
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -17,12 +18,18 @@ logger = logging.getLogger(__name__)
 # Initialize ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=5)
 
+# Initialize the shared index_service
+index_service = IndexService(platform="rednote")  # Declare a global variable to hold the shared instance
+
 def search(request):
     """
     处理搜索请求：
     1. 使用FAISS进行相似文档检索
     2. 调用Gemini处理搜索结果
     """
+
+    global index_service
+
     logger.info("Received search request")
     logger.debug(f"Request method: {request.method}")
     logger.debug(f"POST data: {request.POST}")
@@ -68,12 +75,23 @@ def search(request):
         #1. FAISS搜索
         if not platform:
             platform = 'reddit'
-        index_service = IndexService(platform=platform)
-        retrieved_docs = index_service.faiss_search(
-            query=search_query,
-            top_k=10
+        # 更新平台并确保加载了对应的索引
+        index_service.platform = platform
+        index_service.faiss_manager.load_index()  # 这会同时初始化FAISS和BM25
+
+        # 初始化 HybridRetriever
+        hybrid_retriever = HybridRetriever(
+            faiss_manager=index_service.faiss_manager,
+            embedding_model=index_service.embedding_model,
+            bm25_weight=0.3,  # 可调整的参数
+            embedding_weight=0.4,  # 可调整的参数
+            vote_weight=0.3  # 可调整的参数
         )
-        #retrieved_docs = []
+
+        # 获取最终的 top_k retrieved_documents
+        retrieved_docs = []
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
+
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
@@ -113,6 +131,9 @@ def index_content(request):
       3. 仅对新记录做embedding并写入内存索引
       4. 保存合并后的索引到本地磁盘
     """
+
+    global index_service
+
     start_time = time.time()
     logger.info("Starting content indexing process (incremental).")
 
@@ -129,8 +150,8 @@ def index_content(request):
                 logger.warning(f"Unknown platform: {platform}, skip.")
                 continue
 
-            # 创建对应的 IndexService
-            index_service = IndexService(platform=platform)
+            # 更新平台
+            index_service.platform = platform
             # 先尝试加载已有索引到内存，合并已有向量
             index_service.faiss_manager.load_index()
 
@@ -147,6 +168,13 @@ def index_content(request):
                 content__in=ContentIndex.objects.filter(source=platform).values('content')
             )
             count_unindexed = unindexed.count()
+
+            # 新加的几行： 获取所有内容用于初始化/更新BM25
+            all_texts = list(model_cls.objects.values_list('content', flat=True))
+            
+            if all_texts:
+                # 确保BM25被初始化
+                index_service.faiss_manager.initialize_bm25(all_texts)
 
             if count_unindexed > 0:
                 logger.info(f"Found {count_unindexed} new {platform} items to index.")

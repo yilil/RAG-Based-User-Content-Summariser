@@ -39,7 +39,7 @@ class ResultProcessor:
 
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
         """使用大模型处理推荐类查询"""
-        # 根据查询类型选择权重
+        # 根据查询类型选择权重, 还需要针对具体的推荐类query进行调整
         if "best rated" in query.lower():
             self.weights = self.rating_weights
         elif "most popular" in query.lower():
@@ -50,7 +50,7 @@ class ResultProcessor:
         # 1. 构建提示词
         prompt = self._build_extraction_prompt(documents, query)
         
-        # 2. 调用大模型提取和计算
+        ##### 检查处理逻辑 -> 2. 调用大模型提取和计算
         try:
             response = self._call_llm_for_extraction(prompt)
             recommendations = json.loads(response)
@@ -66,7 +66,7 @@ class ResultProcessor:
             
         except Exception as e:
             logger.error(f"处理推荐时出错: {e}")
-            return []
+            return [] # 如果出错就会返回空文档，作为no retrieved documents的类型来处理
 
     def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
         """构建大模型提取信息的提示词"""
@@ -75,14 +75,15 @@ class ResultProcessor:
         for doc in documents:
             content = doc.page_content
             upvotes = doc.metadata.get('upvotes', 0)
+
+            # 如果内容已存在，更新点赞数
             if content in unique_posts:
-                # 如果内容已存在，更新点赞数
                 unique_posts[content]['count'] += 1
                 unique_posts[content]['total_upvotes'] += upvotes
             else:
                 unique_posts[content] = {
                     'count': 1,
-                    'total_upvotes': upvotes
+                    'total_upvotes': upvotes,
                 }
         
         # 构建去重后的帖子文本
@@ -90,7 +91,7 @@ class ResultProcessor:
         for content, stats in unique_posts.items():
             posts_text += (
                 f"Post (Total Occurrences: {stats['count']}, "
-                f"Total Upvotes: {stats['total_upvotes']}):\n"
+                f"Total Upvotes: {stats['total_upvotes']}, "
                 f"{content}\n\n"
             )
         
