@@ -1,1 +1,0 @@
-from .sender import send_prompt_to_gemini

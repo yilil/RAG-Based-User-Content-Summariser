@@ -1,4 +1,4 @@
-UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
+UI Design Figma Link(Dev mode)：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
 
 # 1. 环境搭建
 1. Create a virtual environment
@@ -41,7 +41,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 ```pip install langchain langchain-community```
 
 # 4. 测试与数据准备
-1. 安装 faker（随机生成测试数据）
+1. 安装 faker(随机生成测试数据)
 
 ```pip install faker```
 
@@ -51,13 +51,13 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 
 此命令会执行：
 - 清空数据库
-- 生成测试数据（包括 Library A/B, Reddit 内容等）
+- 生成测试数据(包括 Library A/B, Reddit 内容等)
 - 构建 Embeddings 并写入数据库
 - 建立 FAISS 索引
 - 最后做一系列测试查询
 
-# 5. 数据库迁移(初始化数据库）
-若修改了模型结构（例如 RedditContent, StackOverflowContent 等）：
+# 5. 数据库迁移(初始化数据库)
+若修改了模型结构(例如 RedditContent, StackOverflowContent 等)：
 1. 生成迁移文件：
 
 ```python manage.py makemigrations```
@@ -74,7 +74,7 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 1. 终端请求
 
 可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
-`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` （目前还是用的终端输入以上POST，后续改成postman请求）
+`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` (目前还是用的终端输入以上POST, 后续改成postman请求)
 
 2. 自定义管理命令 build_faiss
 
@@ -85,8 +85,8 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 ```python manage.py runserver```
 
 # 8. 使用 RAG 进行查询
-1. 在浏览器访问 http://127.0.0.1:8000，即可打开搜索页面。
-2. 输入查询语句，如：
+1. 在浏览器访问 http://127.0.0.1:8000, 即可打开搜索页面。
+2. 输入查询语句, 如：
 
 ```Which library is recommended the most in r/study?```
 
@@ -99,40 +99,72 @@ UI Design Figma Link（Dev mode）：https://www.figma.com/design/1BZN661uSi2y4F
 预览包含 Mermaid 图表的 Markdown 文档：
 1. Install插件 "Markdown Preview Enhanced"
 2. 使用 Ctrl+K V 打开预览
-
 ```mermaid
 sequenceDiagram
+    %% 主要角色定义
     actor User
-    participant Views as search/views.py<br>def search()
-    participant IS as search/index_service.py<br>class IndexService
-    participant FAISS as search/index_service.py<br>self.faiss_store
-    participant BGE as search/utils.py<br>HuggingFaceEmbeddings
-    participant GS as search/gemini_sample.py<br>def process_search_query()
+    participant Views as SearchView
+    participant Memory as MemoryService
+    participant Index as IndexService
+    participant FAISS as FaissManager
+    participant Embed as EmbeddingModel
+    participant LLM as GeminiAI
+    participant DB as Database
 
-    User->>Views: HTTP POST /search/
-    Views->>IS: faiss_search(query, top_k=5)
-    Note over IS: index_service.py: def faiss_search()
-    IS->>FAISS: similarity_search(query)
-    Note over FAISS: internally calls<br>HuggingFaceEmbeddings<br>to embed the query
-    FAISS-->>IS: returns similar Documents
-    IS->>GS: process_search_query(query, docs)
-    Note over GS: gemini_sample.py: def process_search_query()
-    GS-->>Views: processed/merged results
-    Views-->>User: render('searchwithTemple.html') and return results
+    %% 搜索流程
+    rect rgb(200, 220, 255)
+        Note over User,DB: Search Flow
+        User->>Views: POST /search/ with query
+        Views->>Memory: get_recent_memory(session_id)
+        Memory-->>Views: recent chat history
+        
+        Views->>Index: faiss_search(query, platform)
+        Index->>Embed: embed_query(query)
+        Embed-->>Index: query_vector
+        
+        Index->>FAISS: similarity_search(query_vector)
+        FAISS->>DB: get metadata for matches
+        DB-->>FAISS: document metadata
+        FAISS-->>Index: similar documents
+        
+        Index->>LLM: process_search_query(query, docs, chat_history)
+        LLM-->>Index: generated response
+        
+        Index-->>Views: {answer, metadata, docs}
+        Views->>Memory: add_to_memory(user_query, ai_response)
+        Views-->>User: render response with template
+    end
 
+    %% 索引构建流程
+    rect rgb(220, 200, 255)
+        Note over User,DB: Index Building Flow
+        User->>Index: build_faiss_index(platform)
+        Index->>DB: get_unindexed_content()
+        DB-->>Index: content_objects
+        
+        loop For each batch
+            Index->>Embed: embed_documents(texts)
+            Embed-->>Index: document_vectors
+            Index->>FAISS: add_embeddings(vectors, metadata)
+            Index->>DB: update_index_status()
+        end
+        
+        Index->>FAISS: save_index()
+        FAISS-->>Index: index saved
+        Index-->>User: index build complete
+    end
 ```
-
-# 10，可视化数据库内容
+# 10, 可视化数据库内容
 创建超级用户：
 ```python manage.py createsuperuser```
 启动开发服务器并访问 Django Admin：
 ```python manage.py runserver```
 ```访问http://127.0.0.1:8000/admin```
 
-# 11，删除当前的索引库及索引 
+# 11, 删除当前的索引库及索引 
 ```rm -rf faiss_index/ ```
 
-# chromedriver下载：（爬虫时用到）
-找到合适的版本下载后，解压文件夹，添加文件夹到：
+# chromedriver下载：(爬虫时用到)
+找到合适的版本下载后, 解压文件夹, 添加文件夹到：
 ```sudo mv chromedriver-mac-arm64.zip /usr/local/bin/```
 运行test_selenium.py文件确保能够正确打印“Page title is: Google”

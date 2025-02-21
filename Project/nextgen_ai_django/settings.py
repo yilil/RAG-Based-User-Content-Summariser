@@ -38,9 +38,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'search',
-    'memory',
-    'question_template',
+    'django_apps.search',
+    'django_apps.memory',
+    'django_apps.question_template',
+]
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
 ]
 
 MIDDLEWARE = [
