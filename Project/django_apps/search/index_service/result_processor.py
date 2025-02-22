@@ -9,16 +9,26 @@ import math
 import json
 import logging
 from django.conf import settings
+from .rating_processor import RatingProcessor
 
 logger = logging.getLogger(__name__)
 
 class ResultProcessor:
     def __init__(self):
+        self.rating_processor = RatingProcessor()
+        
+        # 情感到评分的映射
+        self.sentiment_to_rating = {
+            'positive': 5.0,  # 正面评价 -> 5分
+            'neutral': 3.0,   # 中性评价 -> 3分
+            'negative': 1.0   # 负面评价 -> 1分
+        }
+        
         # 默认权重配置（综合排序）
         self.default_weights = {
-            'rating': 0.4,      # 评分权重：用户评分最重要
-            'upvotes': 0.35,    # 点赞权重：社区认可度次之
-            'mentions': 0.25    # 提及次数权重：被推荐的频率
+            'rating': 0.4,      # 评分权重（包括数值评分和情感转换评分）
+            'upvotes': 0.35,    # 点赞权重
+            'mentions': 0.25    # 提及次数权重
         }
         
         # 评分优先的权重配置
@@ -37,27 +47,60 @@ class ResultProcessor:
         
         self.weights = self.default_weights  # 初始使用默认权重
 
-    def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
-        """使用大模型处理推荐类查询"""
-        # 根据查询类型选择权重, 还需要针对具体的推荐类query进行调整
-        if "best rated" in query.lower():
-            self.weights = self.rating_weights
-        elif "most popular" in query.lower():
-            self.weights = self.popularity_weights
-        else:
-            self.weights = self.default_weights
-            
-        # 1. 构建提示词
-        prompt = self._build_extraction_prompt(documents, query)
-        
-        ##### 检查处理逻辑 -> 2. 调用大模型提取和计算
+    def _extract_or_convert_rating(self, content: str, metadata: Dict) -> float:
+        """将评论内容转换为评分"""
         try:
-            response = self._call_llm_for_extraction(prompt)
-            recommendations = json.loads(response)
+            # 直接分析情感
+            sentiment_counts = self.rating_processor.analyze_sentiment(content)
             
-            # 3. 排序并格式化结果
+            # 获取主导情感（计数最高的）
+            dominant_sentiment = max(sentiment_counts.items(), key=lambda x: x[1])[0]
+            
+            # 将情感转换为评分
+            return self.sentiment_to_rating[dominant_sentiment]
+            
+        except Exception as e:
+            logger.error(f"评分转换失败: {str(e)}")
+            return 3.0  # 出错时返回中性评分
+
+    def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
+        """处理推荐类查询"""
+        try:
+            # 1. 使用原有的LLM提取基础信息
+            prompt = self._build_extraction_prompt(documents, query)
+            response = self._call_llm_for_extraction(prompt)
+            base_recommendations = json.loads(response)
+            
+            # 2. 处理每个推荐项
+            for item in base_recommendations:
+                reviews = item.get('reviews', [])
+                ratings = []
+                
+                # 处理每条评论
+                for review in reviews:
+                    content = review.get('content', '')
+                    # 获取评分或转换情感为评分
+                    rating = self._extract_or_convert_rating(content, review)
+                    ratings.append(rating)
+                    # 更新评论中的评分
+                    review['rating'] = rating
+                
+                # 计算平均评分
+                avg_rating = sum(ratings) / len(ratings) if ratings else 3.0
+                
+                # 更新推荐项
+                item.update({
+                    'avg_rating': round(avg_rating, 2),
+                    'score': (
+                        self.weights['rating'] * (avg_rating / 5.0) +
+                        self.weights['upvotes'] * (item['total_upvotes'] / 1000) +
+                        self.weights['mentions'] * (item['mentions'] / 10)
+                    )
+                })
+            
+            # 3. 排序
             sorted_items = sorted(
-                recommendations,
+                base_recommendations,
                 key=lambda x: x['score'],
                 reverse=True
             )[:top_k]
@@ -66,7 +109,7 @@ class ResultProcessor:
             
         except Exception as e:
             logger.error(f"处理推荐时出错: {e}")
-            return [] # 如果出错就会返回空文档，作为no retrieved documents的类型来处理
+            return []
 
     def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
         """构建大模型提取信息的提示词"""
@@ -95,7 +138,7 @@ class ResultProcessor:
                 f"{content}\n\n"
             )
         
-        prompt = f"""Please analyze these juice recommendations with exact calculations:
+        prompt = f"""Please analyze these recommendations with exact calculations:
 
 Input Posts:
 {posts_text}
@@ -138,9 +181,9 @@ Output Format:
         "score": calculated_score,
         "reviews": [
             {{
-                "rating": 5, 
-                "upvotes": 200,
-                "content": "review text"
+                "content": "评论内容",
+                "rating": 情感分析得分,
+                "upvotes": 点赞数
             }}
         ]
     }}
@@ -209,17 +252,17 @@ Double-check all calculations before responding."""
                 "score": 0.775,
                 "reviews": [
                     {
-                        "stars": 5,
+                        "rating": 5.0,  
                         "upvotes": 150,
                         "content": "a"
                     },
                     {
-                        "stars": 5,
+                        "rating": 5.0,
                         "upvotes": 200,
                         "content": "b"
                     },
                     {
-                        "stars": 5,
+                        "rating": 5.0,
                         "upvotes": 150,
                         "content": "c"
                     }
@@ -228,7 +271,7 @@ Double-check all calculations before responding."""
             {
                 "name": "apple juice",
                 "total_upvotes": 550,
-                "avg_rating": 4.33,
+                "avg_rating": 3.0,
                 "mentions": 3,
                 "score": 0.720,
                 "reviews": [
@@ -253,26 +296,27 @@ Double-check all calculations before responding."""
         return json.dumps(mock_data, indent=2)
 
     def _format_results(self, items: List[Dict]) -> List[Document]:
-        """格式化处理结果为 Document 对象"""
+        """格式化结果为Document对象"""
         results = []
         for i, item in enumerate(items, 1):
             # 创建格式化的内容字符串
             content = (
                 f"{i}. {item['name'].title()} Juice\n"
-                f"   Rating: {item['avg_rating']:.1f} stars ({item['mentions']} reviews)\n"
-                f"   Popularity: {item['total_upvotes']} upvotes\n"
-                f"   Score: {item['score']:.3f}\n\n"
-                f"   Reviews:\n"
+                f"   情感评分: {item['avg_rating']:.1f} ({item['mentions']} 条评论)\n"
+                f"   点赞数: {item['total_upvotes']}\n"
+                f"   综合得分: {item['score']:.3f}\n\n"
+                f"   评论详情:\n"
             )
             
             # 添加评论
             for review in item['reviews']:
+                sentiment_text = "好评" if review['rating'] >= 4 else "中评" if review['rating'] >= 2 else "差评"
                 content += (
                     f"   - {review['content']}\n"
-                    f"     ({review['rating']} stars, {review['upvotes']} upvotes)\n"
+                    f"     ({sentiment_text}, {review['upvotes']} 点赞)\n"
                 )
             
-            # 创建 Document 对象
+            # 创建Document对象
             doc = Document(
                 page_content=content,
                 metadata={
