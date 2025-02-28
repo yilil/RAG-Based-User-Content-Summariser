@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from django.shortcuts import render
@@ -7,6 +8,7 @@ from django.views.decorators.http import require_POST
 from search_process.langchain_parser import parse_langchain_response
 from search_process.prompt_generator import generate_prompt
 from search_process.prompt_sender import send_prompt
+from search_process.query_classification.classification import classify_query
 from django_apps.memory.service import MemoryService
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django_apps.search.index_service.base import IndexService
@@ -90,12 +92,13 @@ def search(request):
 
         # 获取最终的 top_k retrieved_documents
         retrieved_docs = []
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
+        #retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
-        prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform)
+        classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
+        prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform, classification)
 
         future = executor.submit(
             send_prompt, 

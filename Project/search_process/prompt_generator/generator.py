@@ -1,4 +1,4 @@
-def generate_prompt(query, retrieved_docs, recent_memory, platform):
+def generate_prompt(query, retrieved_docs, recent_memory, platform, classification):
     prompt = []
 
     if platform == "reddit":
