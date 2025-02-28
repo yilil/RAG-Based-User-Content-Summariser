@@ -92,7 +92,7 @@ def search(request):
 
         # 获取最终的 top_k retrieved_documents
         retrieved_docs = []
-        #retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 

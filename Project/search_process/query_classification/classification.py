@@ -4,7 +4,7 @@ from search_process.langchain_parser.parser import parse_langchain_response
 def classify_query(query, model_name):
     prompt = []
     prompt.append(f"## User Query:\n{query}\n\n")
-    prompt.append("You need to judge the user's query and categorize the question with following categories, not answer the question but categorize it")
+    prompt.append("You need to judge the user's query and categorize the question with following categories, not answer the question but categorize it.\n")
     prompt.append("""1. Recommendation class
 2. Knowledge interpretation) class
 3. Opinion Discussion
