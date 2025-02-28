@@ -95,7 +95,7 @@ def search(request):
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
-        prompt = generate_prompt(search_query, retrieved_docs, recent_memory)
+        prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform)
 
         future = executor.submit(
             send_prompt, 
