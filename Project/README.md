@@ -1,4 +1,6 @@
 UI Design Figma Link(Dev mode)：https://www.figma.com/design/1BZN661uSi2y4FKDcd4RgZ/NextGen-AI-(Prototype)?node-id=0-1&m=dev
+预览流程图：
+```dot -Tpng diagram.dot -o diagram.png```
 
 # 1. 环境搭建
 1. Create a virtual environment
@@ -167,4 +169,7 @@ sequenceDiagram
 # chromedriver下载：(爬虫时用到)
 找到合适的版本下载后, 解压文件夹, 添加文件夹到：
 ```sudo mv chromedriver-mac-arm64.zip /usr/local/bin/```
-运行test_selenium.py文件确保能够正确打印“Page title is: Google”
+运行test_selenium.py文件确保能够正确打印"Page title is: Google"
+
+SEARCH_DEFAULT_TOP_K = 10
+SEARCH_TEST_TOP_K = 5

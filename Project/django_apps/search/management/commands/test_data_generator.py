@@ -151,36 +151,76 @@ class TestDataGenerator:
 
     def generate_fruit_recommendation_data(self):
         """
-        生成果汁推荐测试数据
+        生成果汁推荐测试数据，包含边界测试用例
         """
         test_recommendations = [
+            # 相关文档 - 高质量
             {
                 'title': 'Best Fruit Juice Rankings',
                 'content': 'Fresh juice recommendations: apple juice (5 stars) - crisp and sweet, '
                           'pear juice (4 stars) - mild and refreshing, '
                           'orange juice (3 stars) - classic choice',
-                'upvotes': 200
+                'upvotes': 200,
+                'subreddit': 'food'
             },
             {
                 'title': 'Summer Juice Review',
                 'content': 'Best summer juices: apple juice (4 stars) - perfect for hot days, '
                           'pear juice (4 stars) - light and refreshing, '
                           'grape juice (5 stars) - rich and sweet',
-                'upvotes': 200
+                'upvotes': 200,
+                'subreddit': 'food'
             },
+            
+            # 相关文档 - 中等质量
             {
                 'title': 'Healthy Juice Guide',
                 'content': 'My favorite fresh juices: apple juice (4 stars) - great antioxidants, '
                           'grape juice (5 stars) - full of nutrients, '
                           'orange juice (4 stars) - vitamin C boost',
-                'upvotes': 150
+                'upvotes': 150,
+                'subreddit': 'food'
             },
             {
                 'title': 'Grape Juice Special',
                 'content': 'Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars). '
                           'Perfect for both adults and kids.',
-                'upvotes': 150
-            }
+                'upvotes': 150,
+                'subreddit': 'food'
+            },
+            
+            # 相关文档 - 低质量/争议
+            {
+                'title': 'Controversial Juice Review',
+                'content': 'Mixed feelings about these juices: apple juice (2 stars) - too sweet, '
+                          'grape juice (1 star) - artificial taste, '
+                          'orange juice (3 stars) - just okay',
+                'upvotes': 50,
+                'subreddit': 'food'
+            },
+            
+            # 部分相关文档
+            {
+                'title': 'Beverage Discussion',
+                'content': 'Talking about drinks in general. Some juice mentions: apple juice is okay. '
+                          'Also coffee and tea are great.',
+                'upvotes': 100,
+                'subreddit': 'food'
+            },
+            
+            # 无关文档
+            {
+                'title': 'Coffee Reviews',
+                'content': 'Best coffee brands and brewing methods. No juice content here.',
+                'upvotes': 300,
+                'subreddit': 'food'
+            },
+            {
+                'title': 'Tea Appreciation',
+                'content': 'Different types of tea and their benefits.',
+                'upvotes': 250,
+                'subreddit': 'food'
+            },
         ]
 
         for rec in test_recommendations:
@@ -192,7 +232,7 @@ class TestDataGenerator:
                 author_name=self.fake.user_name(),
                 content=rec['content'],
                 created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
-                subreddit='food',
+                subreddit=rec['subreddit'],
                 upvotes=rec['upvotes']
             )
 

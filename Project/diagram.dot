@@ -1,0 +1,79 @@
+digraph Flowchart {
+  rankdir=TB;
+  node [style=filled, fontname=Helvetica, margin=0.3];
+  
+  // Input with all 8 documents
+  Input [label="Input Query: 'Recommend fruit juices'\n\nInitial Data (8 documents):\n
+1. Best Fruit Juice Rankings (200 upvotes)\n   Content: 'Fresh juice recommendations: apple juice (5 stars) - crisp and sweet,\n            pear juice (4 stars) - mild and refreshing,\n            orange juice (3 stars) - classic choice'\n
+2. Summer Juice Review (200 upvotes)\n   Content: 'Best summer juices: apple juice (4 stars) - perfect for hot days,\n            pear juice (4 stars) - light and refreshing,\n            grape juice (5 stars) - rich and sweet'\n
+3. Healthy Juice Guide (150 upvotes)\n   Content: 'My favorite fresh juices: apple juice (4 stars) - great antioxidants,\n            grape juice (5 stars) - full of nutrients,\n            orange juice (4 stars) - vitamin C boost'\n
+4. Grape Juice Special (150 upvotes)\n   Content: 'Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars).\n            Perfect for both adults and kids.'\n
+5. Controversial Juice Review (50 upvotes)\n   Content: 'Mixed feelings about these juices: apple juice (2 stars) - too sweet,\n            grape juice (1 star) - artificial taste,\n            orange juice (3 stars) - just okay'\n
+6. Beverage Discussion (100 upvotes)\n   Content: 'Talking about drinks in general. Some juice mentions: apple juice is okay.\n            Also coffee and tea are great.'\n
+7. Coffee Reviews (300 upvotes)\n   Content: 'Best coffee brands and brewing methods. No juice content here.'\n
+8. Tea Appreciation (250 upvotes)\n   Content: 'Different types of tea and their benefits.'", 
+   shape=box, fillcolor=lightblue];
+
+  // Hybrid Retrieval System
+  subgraph cluster_hybrid {
+    label="Hybrid Retrieval System";
+    style=filled;
+    fillcolor=lightgreen;
+    
+    BM25 [label="BM25 Text Search (0.3)\n\nScores for all documents:\n1. Best Fruit Juice Rankings: 0.95\n2. Summer Juice Review: 0.92\n3. Healthy Juice Guide: 0.88\n4. Grape Juice Special: 0.85\n5. Controversial Juice Review: 0.82\n6. Beverage Discussion: 0.45\n7. Coffee Reviews: 0.15\n8. Tea Appreciation: 0.10", shape=box];
+    
+    Embedding [label="Embedding Similarity (0.4)\n\nScores for all documents:\n1. Best Fruit Juice Rankings: 0.94\n2. Summer Juice Review: 0.91\n3. Healthy Juice Guide: 0.87\n4. Grape Juice Special: 0.84\n5. Controversial Juice Review: 0.80\n6. Beverage Discussion: 0.40\n7. Coffee Reviews: 0.20\n8. Tea Appreciation: 0.15", shape=box];
+    
+    Social [label="Social Score (0.3)\n\nNormalized scores:\n1. Coffee Reviews: 1.00 (300 upvotes)\n2. Tea Appreciation: 0.83 (250 upvotes)\n3. Best Fruit Juice Rankings: 0.67 (200 upvotes)\n4. Summer Juice Review: 0.67 (200 upvotes)\n5. Healthy Juice Guide: 0.50 (150 upvotes)\n6. Grape Juice Special: 0.50 (150 upvotes)\n7. Beverage Discussion: 0.33 (100 upvotes)\n8. Controversial Review: 0.17 (50 upvotes)", shape=box];
+  }
+
+  // Combined Scores
+  Combine [label="Combined Hybrid Scores\n\nFinal scores (weighted average):\n1. Best Fruit Juice Rankings: 0.86\n2. Summer Juice Review: 0.84\n3. Healthy Juice Guide: 0.76\n4. Grape Juice Special: 0.74\n5. Controversial Review: 0.62\n6. Coffee Reviews: 0.45\n7. Beverage Discussion: 0.40\n8. Tea Appreciation: 0.36\n\nTop 5 selected for next stage", shape=box, fillcolor=lightgreen];
+
+  // Content Processing
+  subgraph cluster_content {
+    label="Content Processing (Top 5 only)";
+    style=filled;
+    fillcolor=orange;
+    
+    Extract [label="Extract Juice Information\n\nJuices mentioned in top 5 docs:\n1. Apple Juice: 3 mentions (docs 1,2,3)\n2. Grape Juice: 3 mentions (docs 2,3,4)\n3. Orange Juice: 2 mentions (docs 1,3)\n4. Pear Juice: 2 mentions (docs 1,2)", shape=box];
+    
+    LLM [label="Sentiment Analysis per Juice\n\nApple Juice:\n- Doc1: 5 stars (crisp and sweet)\n- Doc2: 4 stars (perfect for hot days)\n- Doc3: 4 stars (great antioxidants)\nAvg: 4.33\n\nGrape Juice:\n- Doc2: 5 stars (rich and sweet)\n- Doc3: 5 stars (full of nutrients)\n- Doc4: 5 stars (natural sweetness)\nAvg: 5.0\n\nOrange Juice:\n- Doc1: 3 stars (classic choice)\n- Doc3: 4 stars (vitamin C boost)\nAvg: 3.5\n\nPear Juice:\n- Doc1: 4 stars (mild and refreshing)\n- Doc2: 4 stars (light and refreshing)\nAvg: 4.0", shape=box];
+  }
+
+  // Final Score Calculation
+  subgraph cluster_final {
+    label="Final Score Calculation";
+    style=filled;
+    fillcolor=plum;
+    
+    Final_Score [label="Calculate Final Scores\n\nGrape Juice:\n0.4*(5.0/5.0) + 0.35*(500/500) + 0.25*(3/3) = 1.000\n\nApple Juice:\n0.4*(4.33/5.0) + 0.35*(550/500) + 0.25*(3/3) = 0.947\n\nPear Juice:\n0.4*(4.0/5.0) + 0.35*(400/500) + 0.25*(2/3) = 0.767\n\nOrange Juice:\n0.4*(3.5/5.0) + 0.35*(350/500) + 0.25*(2/3) = 0.697", shape=box];
+  }
+
+  // Result Processing
+  subgraph cluster_result {
+    label="Result Processing";
+    style=filled;
+    fillcolor=lightcoral;
+    
+    Format [label="Final Ranked Results:\n\n1. Grape Juice\n   Rating: 5.0 (3 reviews)\n   Upvotes: 500\n   Score: 1.000\n\n2. Apple Juice\n   Rating: 4.33 (3 reviews)\n   Upvotes: 550\n   Score: 0.947\n\n3. Pear Juice\n   Rating: 4.0 (2 reviews)\n   Upvotes: 400\n   Score: 0.767\n\n4. Orange Juice\n   Rating: 3.5 (2 reviews)\n   Upvotes: 350\n   Score: 0.697", shape=box];
+  }
+
+  // Connections
+  Input -> BM25;
+  Input -> Embedding;
+  Input -> Social;
+  
+  BM25 -> Combine;
+  Embedding -> Combine;
+  Social -> Combine;
+  
+  Combine -> Extract;
+  Extract -> LLM;
+  LLM -> Final_Score;
+  Final_Score -> Format;
+  
+  Format -> Output;
+  
+  Output [label="Return top 4 ranked juices", shape=ellipse, fillcolor=lightblue];
+}
