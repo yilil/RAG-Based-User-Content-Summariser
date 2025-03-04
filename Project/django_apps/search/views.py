@@ -86,8 +86,8 @@ def search(request):
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
             bm25_weight=0.3,  # 可调整的参数
-            embedding_weight=0.4,  # 可调整的参数
-            vote_weight=0.3  # 可调整的参数
+            embedding_weight=0.7,  # 可调整的参数
+            vote_weight=0  # 可调整的参数
         )
 
         # 获取最终的 top_k retrieved_documents
@@ -166,7 +166,7 @@ def index_content(request):
             else:  # 'rednote'
                 model_cls = RednoteContent
 
-            # *** 目前是根据source + content两个字段判断是否重复，之后写简化逻辑
+            # *** 目前是根据source + content两个字段判断是否重复，之后写简化逻辑，所有在contentindex中的数据都是已经被indexed过的，因为存入+index同步
             unindexed = model_cls.objects.exclude(
                 content__in=ContentIndex.objects.filter(source=platform).values('content')
             )

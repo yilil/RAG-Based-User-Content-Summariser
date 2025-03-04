@@ -4,6 +4,7 @@ import logging
 from typing import List
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from .faiss_manager import FaissManager
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +27,26 @@ class Indexer:
         logger.info(f"Indexing {platform} content into FAISS + DB metadata...")
         model_class = self.PLATFORM_MODEL_MAP[platform]
 
+        # 如果没有未被indexed数据，return即可
+        if not unindexed_queryset:
+            return 
+
         # 获取所有文本，包括已有的和新的
         all_texts = [obj.content for obj in model_class.objects.all()]
         
         # 初始化 FAISS store 和 BM25
         if not self.faiss_manager.faiss_store:
             self.faiss_manager.initialize_store(all_texts)
-        else:
+        #else:
             # 更新 BM25
-            self.faiss_manager.initialize_bm25(all_texts)
+        #    self.faiss_manager.initialize_bm25(all_texts)
 
         # 获取需要被indexing + 存入 的所有新数据
-        if not unindexed_queryset:
+        #if not unindexed_queryset:
             # 如果没有传入特定未索引数据，就依然走原先的全表逻辑
-            content_objects = model_class.objects.all()
-        else:
-            content_objects = unindexed_queryset
+        #   content_objects = model_class.objects.all()
+        #else:
+        content_objects = unindexed_queryset
         total = content_objects.count()
         processed = 0
 
@@ -124,3 +129,55 @@ class Indexer:
             return ""
         max_length = 512
         return text[:max_length] if len(text) > max_length else text
+    
+    def index_crawled_item(self, db_obj, raw_text: str):
+        """对爬虫抓到的一条记录 db_obj + 文本 raw_text 做embedding并写入FAISS, 并给db_obj设置embedding_key"""
+        if db_obj.embedding_key:
+            logger.info(f"[index_crawled_item] {db_obj} has embedding_key={db_obj.embedding_key}, skip.")
+            return
+        
+        embeddings = self._batch_create_embeddings([raw_text])
+        emb = embeddings[0]
+        meta_dict = {
+            "source": db_obj.source,
+            "thread_id": db_obj.thread_id,
+            "content_type": db_obj.content_type,
+            "author_name": db_obj.author_name,
+            "id": f"{db_obj.source}_{db_obj.id}"
+        }
+        # 其他字段
+        if db_obj.source == 'reddit':
+            meta_dict["upvotes"] = getattr(db_obj, 'upvotes', 0)
+        elif db_obj.source == 'stackoverflow':
+            meta_dict["vote_score"] = getattr(db_obj, 'vote_score', 0)
+        elif db_obj.source == 'rednote':
+            meta_dict["likes"] = getattr(db_obj, 'likes', 0)
+        
+        # FAISS
+        self.faiss_manager.add_texts(
+            texts=[raw_text],
+            metadatas=[meta_dict],
+            embeddings=[emb]
+        )
+        # create embedding_key -> 需要改逻辑
+        if not db_obj.embedding_key:
+            key = generate_embedding_key(db_obj)
+            db_obj.embedding_key = key
+        db_obj.save()
+        self.faiss_manager.save_index()
+
+        # 暂时逻辑是：同时写入ContentIndex数据 -> 可视化被indexing的所有数据(以近去掉content字段)
+        ContentIndex.objects.create(
+            source=db_obj.source,
+            content_type=db_obj.content_type,
+            thread_id=db_obj.thread_id,
+            author_name=db_obj.author_name,
+            created_at=db_obj.created_at
+        )
+
+        logger.info(f"Embedded item => {db_obj}")
+
+
+def generate_embedding_key(obj):
+    # 纯UUID
+    return uuid.uuid4().hex

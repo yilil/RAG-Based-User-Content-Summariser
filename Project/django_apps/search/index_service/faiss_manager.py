@@ -8,6 +8,11 @@ from rank_bm25 import BM25Okapi
 from typing import List
 from .text_preprocessor import TextPreprocessor  # 引入文本预处理
 
+# 这里是混合检索中用到的类型
+from langchain.docstore.document import Document
+from langchain_community.vectorstores import FAISS
+from rank_bm25 import BM25Okapi
+
 logger = logging.getLogger(__name__)
 
 class FaissManager:
@@ -26,6 +31,7 @@ class FaissManager:
             os.makedirs(self.index_dir, exist_ok=True)
         self.faiss_store = None
         self.bm25 = None
+        self.all_texts = []  # 用于保存初始化BM25时的文本
         self.preprocessor = TextPreprocessor()  # 实例化预处理类
 
     def initialize_bm25(self, texts: List[str]):
@@ -34,11 +40,12 @@ class FaissManager:
             logger.warning("Attempting to initialize BM25 with empty texts")
             return
         
-        logger.info(f"Initializing BM25 with {len(texts)} texts")
-        self.texts = texts  # 保存原始文本
+        # 如果没有被initialize BM25库才去initialize
+        logger.info("Initializing BM25 with texts...")
+        self.all_texts = texts  # 保存下来，后面search_bm25要用
         tokenized_docs = [self.preprocessor.preprocess_text(doc) for doc in texts]
         self.bm25 = BM25Okapi(tokenized_docs)
-        logger.info("BM25 initialized successfully.")
+        logger.info("BM25 initialized.")
 
     def initialize_store(self, texts: list):
         """从文本列表初始化 FAISS 索引"""
@@ -66,21 +73,37 @@ class FaissManager:
     def load_index(self):
         logger.info(f"Loading FAISS index from {self.index_dir} ...")
         try:
-            self.faiss_store = FAISS.load_local(self.index_dir, self.embedding_model, allow_dangerous_deserialization=True)
+            self.faiss_store = FAISS.load_local(
+                self.index_dir, 
+                self.embedding_model, 
+                allow_dangerous_deserialization=True
+            )
             logger.info("FAISS index loaded successfully.")
 
-            #   不确定是否要添加 -> 重要：加载完FAISS后，从数据库重新获取文本并初始化BM25
-            from django_apps.search.models import ContentIndex
-            texts = list(ContentIndex.objects.filter(source=self.platform).values_list('content', flat=True))
-            if texts:
-                logger.info(f"Found {len(texts)} texts for BM25 initialization")
-                self.initialize_bm25(texts)
+            # 从 FAISS 中取出所有文档
+            all_docs = self._get_all_docs_from_faiss()
+            all_texts = [doc.page_content for doc in all_docs]
+            if all_texts:
+                self.initialize_bm25(all_texts)
             else:
-                logger.warning("No texts found for BM25 initialization")  
-
+                logger.warning("No docs loaded from FAISS; BM25 not initialized.")
         except Exception as e:
             logger.warning(f"Failed to load local FAISS index: {e}")
             self.faiss_store = None
+
+    def _get_all_docs_from_faiss(self):
+        """从self.faiss_store取出所有文档。若文档量大要小心性能。"""
+        if not self.faiss_store:
+            return []
+        # LangChain's FAISS store 有时可以通过一下方式获取全部 docs
+        # 1) 你可以做一个 large similarity_search("", k=999999)
+        #    或者如果 store 有 docs attribute 直接拿
+        try:
+            ############ 用一个超大的k -> 逻辑可能需要修改，但暂时是用这种方式来提取embedding库中的所有documents
+            docs = self.faiss_store.similarity_search("", k=999999)
+            return docs
+        except:
+            return []
 
     def verify_index(self):
         if not self.faiss_store:
@@ -98,12 +121,32 @@ class FaissManager:
             raise ValueError("BM25 has not been initialized.")
         tokenized_query = self.preprocessor.preprocess_text(query)
         scores = self.bm25.get_scores(tokenized_query)
-        return sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+
+         # 得到前 top_k 的文档索引
+        top_indexes = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+
+        # 把它们转成 Document 对象
+        doc_results = []
+        for i in top_indexes:
+            doc_text = self.all_texts[i]
+            bm25_score = scores[i]
+            # 构造一个 Document
+            doc_obj = Document(
+                page_content=doc_text,
+                metadata={
+                    'bm25_score': bm25_score,
+                    'id': i,
+                    # 你也可以加更多字段
+                }
+            )
+            doc_results.append(doc_obj)
+        return doc_results
     
 
     def search(self, query: str, k: int):
         """综合 FAISS 和 BM25 搜索"""
         if self.faiss_store:
+            # 这里的 similarity_search 返回 List[Document]
             return self.faiss_store.similarity_search(query, k)
         else:
             return self.search_bm25(query, k)

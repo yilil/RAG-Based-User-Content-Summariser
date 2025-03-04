@@ -12,10 +12,20 @@ from selenium.common.exceptions import TimeoutException, StaleElementReferenceEx
 from selenium.webdriver import ActionChains
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # 处理时区
+import uuid
 
 from django_apps.search.models import RednoteContent
+from django_apps.search.index_service.base import IndexService  # 用于embedding
 
 logger = logging.getLogger(__name__)
+
+####################
+# 全局 index_service
+index_service = IndexService(platform="rednote")
+# 强制加载现有索引, 让embedding+bm25能正常工作
+index_service.faiss_manager.load_index()
+logger.info("Global IndexService for rednote loaded in crawler.")
+####################
 
 def crawl_rednote_page(url, cookies=None):
     """
@@ -24,6 +34,8 @@ def crawl_rednote_page(url, cookies=None):
     :param cookies: 若需要登录, 可注入 cookie
     :return: 存入数据库的新数据列表
     """
+    global index_service
+
     driver = webdriver.Chrome()
     try:
 
@@ -81,8 +93,8 @@ def crawl_rednote_page(url, cookies=None):
                 title = driver.find_element(By.CSS_SELECTOR, "div.title").get_attribute("innerText").strip()
                 logger.info(f"Extracted title: {title}")
 
-                content = driver.find_element(By.CSS_SELECTOR, "div.note-content").get_attribute("innerText").strip()
-                logger.info(f"Extracted content: {content}")
+                content_text = driver.find_element(By.CSS_SELECTOR, "div.note-content").get_attribute("innerText").strip()
+                logger.info(f"Extracted content: {content_text}")
 
                 
 
@@ -99,19 +111,46 @@ def crawl_rednote_page(url, cookies=None):
                 
                 # 存入数据库, 保持与原来的 RednoteContent 结构一致
                 # 验证数据
-                if validate_post_data(title, content, author):
-                    obj = RednoteContent.objects.create(
-                        source="rednote",
-                        content_type="note",
-                        thread_id=driver.current_url.split('/')[-1],
-                        thread_title=title,
-                        author_name=author,
-                        content=content,
-                        created_at=created_time,
-                        tags=tags,
-                        likes=likes
-                    )
-                    new_items.append(obj)
+                if validate_post_data(title, content_text, author):
+                    thread_id_val = driver.current_url.split('/')[-1]
+                    # 检查数据库是否已有
+                    existing = RednoteContent.objects.filter(source="rednote", thread_id=thread_id_val).first()
+                    if existing:
+                    # 说明这条数据已存在
+
+                        # 如果不需要被更新 -> （后续逻辑改成：根据每个帖子的内容 & 点赞数等生成一个独特的embedding key，所以这里判断条件也需要改）
+                        if existing.embedding_key: 
+                            # embedding已经做过 => 跳过
+                            logger.info(f"thread_id={thread_id_val} found, already embedded => skip.")
+                            driver.back()
+                            time.sleep(1)
+                            continue
+                        else:
+                            # update meta
+                            existing.thread_title = title
+                            existing.author_name = author
+                            existing.created_at = created_time
+                            existing.tags = tags
+                            existing.likes = likes
+                            existing.save()
+                            db_obj = existing
+                    else:
+                        # 新建
+                        db_obj = RednoteContent.objects.create(
+                            source="rednote",
+                            content_type="note",
+                            thread_id=thread_id_val,
+                            thread_title=title,
+                            author_name=author,
+                            created_at=created_time,
+                            tags=tags,
+                            likes=likes,
+                            embedding_key=None  # 还没embedding
+                        )
+                        new_items.append(db_obj)
+                    
+                    # 立刻embedding, 只要embedding_key为空 => indexer.index_crawled_item
+                    index_service.indexer.index_crawled_item(db_obj, content_text)
                 
                 driver.back()
                 time.sleep(1)
@@ -122,6 +161,9 @@ def crawl_rednote_page(url, cookies=None):
                 
     finally:
         driver.quit()
+
+    # 再次确认BM25 & embedding 库更被新到最新状态
+    index_service.faiss_manager.load_index()
     
     return new_items
 
@@ -394,7 +436,7 @@ def parse_likes_count(likes_str):
         return 0
 
 
-def validate_post_data(title, content, author):
-    if not all([title, content, author]):
+def validate_post_data(title, content_text, author):
+    if not all([title, content_text, author]):
         raise ValueError("Missing required post data")
     return True

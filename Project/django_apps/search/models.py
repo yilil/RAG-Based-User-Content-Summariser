@@ -8,14 +8,14 @@ class ContentIndex(models.Model):
     content_type = models.CharField(max_length=50)  
     thread_id = models.CharField(max_length=100)  
     author_name = models.CharField(max_length=150)
-    content = models.TextField() 
+    # content = models.TextField() 
     
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'content_index' 
-        unique_together = ['source', 'content']
+        # unique_together = ['source', 'thread_id']
         app_label = 'search'
 
 class BaseContent(models.Model):
@@ -37,8 +37,8 @@ class BaseContent(models.Model):
     comment_id = models.CharField(max_length=100, null=True, blank=True)
     commenter_name = models.CharField(max_length=150, null=True, blank=True)
     
-    # Content
-    content = models.TextField()
+    # Content 目前不在sqlite3中存储content
+    # content = models.TextField()
     
     # Timestamps
     created_at = models.DateTimeField()
@@ -63,6 +63,9 @@ class RedditContent(BaseContent):
     subreddit = models.CharField(max_length=100)
     upvotes = models.IntegerField(default=0)
 
+    # 新增 embedding_key 字段 – 可以是字符串，也可以是UUID
+    embedding_key = models.CharField(max_length=100, null=True, blank=True)
+
     class Meta(BaseContent.Meta):
         db_table = 'reddit_content'
 
@@ -77,6 +80,9 @@ class StackOverflowContent(BaseContent):
     def tags_list(self):
         return [tag.strip() for tag in (self.tags or '').split(',') if tag.strip()]
     
+    # 新增 embedding_key 字段 – 可以是字符串，也可以是UUID
+    embedding_key = models.CharField(max_length=100, null=True, blank=True)
+    
     class Meta(BaseContent.Meta):
         db_table = 'stackoverflow_content'
 
@@ -87,6 +93,9 @@ class RednoteContent(BaseContent):
     # channels = models.CharField(max_length=100)
     tags = models.CharField(max_length=500, null=True, blank=True)
     likes = models.IntegerField(default=0)
+
+    # 新增 embedding_key 字段 – 可以是字符串，也可以是UUID
+    embedding_key = models.CharField(max_length=100, null=True, blank=True)
 
     @property
     def tags_list(self):

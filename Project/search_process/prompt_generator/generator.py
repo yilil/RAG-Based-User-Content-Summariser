@@ -39,6 +39,7 @@ def generate_prompt(query, retrieved_docs, recent_memory, platform, classificati
     
     combined_docs_str = "".join(doc_texts)
 
+    #  need to be changed later -> do RAG process only when enough highly related documents are retrieved 
     if retrieved_docs:
         prompt.append(
             "## Relevant Documents\n"+

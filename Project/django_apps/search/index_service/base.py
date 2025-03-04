@@ -34,8 +34,7 @@ class IndexService:
         2) 调用 indexer.index_platform_content(...) 将 unindexed 数据向量化并合并到内存索引
         3）保存到磁盘, 写回本地。
         """
-        # 1) 先尝试加载已有索引(如果磁盘上有, 会合并到 self.faiss_manager.faiss_store)
-        self.faiss_manager.load_index()
+        # 1) 已经加载了已有索引(如果磁盘上有, 会合并到 self.faiss_manager.faiss_store)
 
         # 2) 只对 unindexed 中的记录做 embedding, 并写入数据库的 ContentIndex
         #    如果 unindexed=None, 则内部会处理整张表(视情况而定)
@@ -44,6 +43,7 @@ class IndexService:
             unindexed_queryset=unindexed
         )
     
+    ### 目前没有用
     def faiss_search(self, query: str, top_k=5, filter_value=None):
         """
         搜索前确保 FAISS 索引已加载，否则尝试加载本地索引。
@@ -57,15 +57,15 @@ class IndexService:
             logger.error("FAISS index is not available.")
             return []
         
-        if not self.faiss_manager.bm25:
-            logger.error("BM25 is not initialized, attempting to initialize...")
-            from django_apps.search.models import ContentIndex
-            texts = list(ContentIndex.objects.filter(source=self.platform).values_list('content', flat=True))
-            if texts:
-                self.faiss_manager.initialize_bm25(texts)
+        #if not self.faiss_manager.bm25:
+        #    logger.error("BM25 is not initialized, attempting to initialize...")
+        #    from django_apps.search.models import ContentIndex
+        #    texts = list(ContentIndex.objects.filter(source=self.platform).values_list('content', flat=True))
+        #    if texts:
+        #        self.faiss_manager.initialize_bm25(texts)
 
          # 2. 执行向量相似度搜索（基于embedding）
-        raw_results = self.faiss_manager.search(query, k=top_k * 5)
+        raw_results = self.faiss_manager.search(query, k=top_k * 10)
 
 
        # 3. 按 source 以及 filter_value 做过滤
