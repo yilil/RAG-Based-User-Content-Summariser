@@ -10,9 +10,9 @@ def classify_query(query, model_name):
 3. Opinion Discussion
 4. Operation instruction and tutorial method class
 5. Specific scenarios
-6. Information and real-time dynamic class""")
-    prompt.append("Just answer the order of the category, for example, if the user's query is a recommendation class, you should answer 1")
-    prompt.append("Your answer should be a number from 1 to 6 and no other content is needed, don't include markdown syntax etc.") 
+6. Information and real-time dynamic class\n""")
+    prompt.append("Just answer the order of the category, for example, if the user's query is a recommendation class, you should answer 1\n")
+    prompt.append("Your answer should be a number from 1 to 6 and no other content is needed, don't include markdown syntax etc.\n") 
     prompt = "".join(prompt)
 
     if model_name.startswith("gemini"):
@@ -24,5 +24,6 @@ def classify_query(query, model_name):
     else:
         return f"Error: Unsupported model name {model_name}"
     
+    print(response)
     answer, metadata = parse_langchain_response(response)
     return answer

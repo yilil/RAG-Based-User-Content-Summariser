@@ -7,7 +7,7 @@ def generate_prompt(query, retrieved_docs, recent_memory, platform, classificati
             "You are a Reddit community information expert, able to provide comprehensive and culturally appropriate answers by analyzing Reddit's historical discussions and combining the collective wisdom of different subreddits."+
             "Your answer must be based on the content of the Reddit post provided.\n"
         )
-    elif platform == "stackoverfstackoverflowlow":
+    elif platform == "stackoverflow":
         prompt.append(
             "## Role \n"+
             "You are an experienced technical consultant, and your task is to provide professional, accurate, and detailed answers based on programming questions posed by users, combined with relevant information retrieved from Stack Overflow.\n"

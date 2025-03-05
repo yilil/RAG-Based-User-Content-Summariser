@@ -1,0 +1,25 @@
+[
+    {"id": 1, "question": "What books would you recommend for learning deep learning?", "category": "1"},
+    {"id": 2, "question": "Can you suggest some good restaurants in New York?", "category": "1"},
+    {"id": 3, "question": "Which laptop should I buy for programming in 2024?", "category": "1"},
+
+    {"id": 4, "question": "Can you explain how quantum computing works?", "category": "2"},
+    {"id": 5, "question": "What is the difference between supervised and unsupervised learning?", "category": "2"},
+    {"id": 6, "question": "How does blockchain technology ensure security?", "category": "2"},
+
+    {"id": 7, "question": "Do you think artificial intelligence will replace human jobs?", "category": "3"},
+    {"id": 8, "question": "What are your thoughts on the future of cryptocurrency?", "category": "3"},
+    {"id": 9, "question": "Is remote work better than working in an office?", "category": "3"},
+
+    {"id": 10, "question": "How do I install Python on Windows?", "category": "4"},
+    {"id": 11, "question": "Can you guide me through setting up a web server with Nginx?", "category": "4"},
+    {"id": 12, "question": "What are the steps to create a React application?", "category": "4"},
+
+    {"id": 13, "question": "I forgot my email password, how can I recover it?", "category": "5"},
+    {"id": 14, "question": "What should I do if my phone screen is cracked?", "category": "5"},
+    {"id": 15, "question": "How can I fix a leaking kitchen faucet?", "category": "5"},
+
+    {"id": 16, "question": "What is the latest update on the stock market today?", "category": "6"},
+    {"id": 17, "question": "Today's weather in Brisbane is?", "category": "6"},
+    {"id": 18, "question": "What are the current COVID-19 travel restrictions in the US?", "category": "6"}
+]
