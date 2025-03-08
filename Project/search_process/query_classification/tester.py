@@ -38,6 +38,7 @@ def test(model_name):
 
     classifications = []
     for item in data:
+        sleep(5)
         question = item["question"]
         ground_truth = item["category"]
         response = classify_query(question, model_name)
@@ -93,4 +94,4 @@ def test(model_name):
 
 if __name__ == "__main__":
     #python -m search_process.query_classification.tester
-    test("gemini-1.5-pro")
+    test("deepseek-1.0")

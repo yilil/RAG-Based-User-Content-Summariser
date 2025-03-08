@@ -36,7 +36,10 @@ class LangchainResponse:
                 data = message.get("content", "No answer found")
                 html_content = markdown.markdown(data, extensions=['fenced_code'])
                 return html_content
-        return "No answer found"
+        print("DEBUG: parsed_response =", self.parsed_response)
+        print("DEBUG: candidates =", self.parsed_response.get("candidates"))
+        print("DEBUG: choices =", self.parsed_response.get("choices"))
+        return "No answer found!"
 
     def get_metadata(self):
         if "usage_metadata" in self.parsed_response:
