@@ -1,12 +1,10 @@
 import React from "react";
 
 interface PlatformSelectionProps {
-  onPlatformSelect: (platform: string) => void; // Callback to handle platform selection
+  onPlatformSelect: (platform: string) => void;
 }
 
-const PlatformSelection: React.FC<PlatformSelectionProps> = ({
-  onPlatformSelect,
-}) => {
+const PlatformSelection: React.FC<PlatformSelectionProps> = ({ onPlatformSelect }) => {
   return (
     <div
       style={{
@@ -21,9 +19,7 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({
     >
       <h1>Choose a Platform to Search</h1>
       <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
-        {/* Platform buttons */}
         <button
-          className="btn purple"
           onClick={() => onPlatformSelect("Stack Overflow")}
           style={{
             backgroundColor: "#d4c2ff",
@@ -36,7 +32,6 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({
           Stack Overflow
         </button>
         <button
-          className="btn teal"
           onClick={() => onPlatformSelect("Reddit")}
           style={{
             backgroundColor: "#99e2db",
@@ -49,7 +44,6 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({
           Reddit
         </button>
         <button
-          className="btn pink"
           onClick={() => onPlatformSelect("Red Note")}
           style={{
             backgroundColor: "#f3badc",

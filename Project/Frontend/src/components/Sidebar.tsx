@@ -12,7 +12,7 @@ interface SidebarProps {
   activeChatId: string | null;
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
-  onModelChange: (model: string) => void; // Callback for model selection
+  onModelChange: (model: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -22,17 +22,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectChat,
   onModelChange,
 }) => {
-  const [selectedModel, setSelectedModel] = useState("Gemini"); // Default model
+  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newModel = e.target.value;
-    setSelectedModel(newModel); // Update local state
-    onModelChange(newModel); // Notify parent component
+    setSelectedModel(newModel);
+    onModelChange(newModel);
   };
 
   return (
     <div style={{ width: "250px", backgroundColor: "#f0f0f0", padding: "20px" }}>
-      {/* Model Selection Dropdown */}
+      {/* Model Selection */}
       <div style={{ marginBottom: "20px" }}>
         <label htmlFor="model-select" style={{ fontWeight: "bold" }}>
           Model:
@@ -48,9 +48,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             border: "1px solid #ccc",
           }}
         >
-          <option value="Gemini">Gemini</option>
-          <option value="GPT-4">GPT-4</option>
-          <option value="Claude">Claude</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          <option value="gemini-1.0-pro">gemini-1.0-pro</option>
+          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+          <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
         </select>
       </div>
 

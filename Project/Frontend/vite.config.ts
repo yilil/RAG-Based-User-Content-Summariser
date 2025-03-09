@@ -1,7 +1,12 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-})
+  base: '/static/', // 配置资源的基础路径，Django 静态文件路径
+  build: {
+    manifest: true, // 确保生成 manifest.json
+    outDir: 'static', // 输出到 static 目录下
+    rollupOptions: {
+      input: './index.html', // 指定入口文件
+    },
+  },
+});

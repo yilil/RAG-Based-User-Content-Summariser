@@ -116,12 +116,17 @@ def search(request):
         metadata = {}
 
     print(answer)
-    return render(request, 'searchwithTemple.html', {
-        'result': answer,
-        'metadata': metadata,
-        'llm_model': llm_model,
-        'retrieved_docs': retrieved_docs,
-    })
+    # return render(request, 'searchwithTemple.html', {
+    #     'result': answer,
+    #     'metadata': metadata,
+    #     'llm_model': llm_model,
+    #     'retrieved_docs': retrieved_docs,
+    # })
+    return JsonResponse({
+            'result': answer,
+            'metadata': metadata,
+            'llm_model': llm_model
+        })
 
 
 # Initialization of indexing and embeddings

@@ -1,22 +1,17 @@
 import React from "react";
 
 interface TopicSelectionProps {
-  platform: string; // Platform selected
-  onTopicSelect: (topic: string) => void; // Callback to handle topic selection
+  platform: string;
+  onTopicSelect: (topic: string) => void;
 }
 
-const TopicSelection: React.FC<TopicSelectionProps> = ({
-  platform,
-  onTopicSelect,
-}) => {
-  // Topics for each platform
+const TopicSelection: React.FC<TopicSelectionProps> = ({ platform, onTopicSelect }) => {
   const topics: { [key: string]: string[] } = {
     "Stack Overflow": ["JavaScript", "React", "CSS", "TypeScript"],
     Reddit: ["Academic", "Community", "Career"],
     "Red Note": ["Travel", "Food", "Fashion"],
   };
 
-  // Check if platform exists in topics
   const topicList = topics[platform];
 
   return (
@@ -33,7 +28,6 @@ const TopicSelection: React.FC<TopicSelectionProps> = ({
     >
       <h2>Select a Topic on {platform}</h2>
       <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
-        {/* If platform exists in topics, display its topics */}
         {topicList ? (
           topicList.map((topic) => (
             <button
@@ -51,7 +45,6 @@ const TopicSelection: React.FC<TopicSelectionProps> = ({
             </button>
           ))
         ) : (
-          // Fallback if platform is invalid
           <p>No topics available for this platform.</p>
         )}
       </div>
