@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import json
 from concurrent.futures import ThreadPoolExecutor
 from django.shortcuts import render
 from django.http import JsonResponse
@@ -29,7 +30,10 @@ def search(request):
     1. 使用FAISS进行相似文档检索
     2. 调用Gemini处理搜索结果
     """
-
+    print("Request Method:", request.method)
+    print("Request Headers:", request.headers)
+    print("Request Body:", request.body)
+    print("如山峰般的返回")
     global index_service
 
     logger.info("Received search request")
@@ -47,29 +51,21 @@ def search(request):
     retrieved_docs = []
     llm_model = ""
 
-    # 如果是GET请求, 直接返回空内容或默认内容
-    if request.method != "POST":
-        return render(request, 'searchwithTemple.html', {
-            'result': answer,
-            'metadata': metadata,
-            'llm_model': llm_model,
-            'retrieved_docs': retrieved_docs,  
-        })
-
     # 处理 POST 请求
-    search_query = request.POST.get('search_query')
-    platform = request.POST.get('source')
-    filter_value = request.POST.get('filter_value', None)
-    llm_model = request.POST.get('llm_model', llm_model)
+    data = json.loads(request.body.decode('utf-8'))
+    search_query = data.get('search_query')
+    platform = data.get('source')
+    filter_value = data.get('filter_value', None)
+    llm_model = data.get('llm_model', llm_model)
 
     recent_memory = MemoryService.get_recent_memory(session_id)
 
     if not search_query:
-        return render(request, 'searchwithTemple.html', {
-            'error': 'Please provide a search query',
-            'llm_model': llm_model,
-            'retrieved_docs': retrieved_docs,
-        })
+        return JsonResponse({
+                'result': answer,
+                'metadata': metadata,
+                'llm_model': llm_model
+            })
 
     logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {filter_value}")
 
@@ -116,12 +112,6 @@ def search(request):
         metadata = {}
 
     print(answer)
-    # return render(request, 'searchwithTemple.html', {
-    #     'result': answer,
-    #     'metadata': metadata,
-    #     'llm_model': llm_model,
-    #     'retrieved_docs': retrieved_docs,
-    # })
     return JsonResponse({
             'result': answer,
             'metadata': metadata,
