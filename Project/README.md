@@ -173,3 +173,8 @@ sequenceDiagram
 
 SEARCH_DEFAULT_TOP_K = 10
 SEARCH_TEST_TOP_K = 5
+
+# 项目启动步骤
+后端: ```python manage.py runserver```
+前端: ```cd Frontend```到Frontend文件夹使用 ```npm run dev```启动前端服务器
+使用前端服务器提供的URL：“http://localhost:5173/static/”访问
