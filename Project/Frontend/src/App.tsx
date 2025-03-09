@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import PlatformSelection from './pages/PlatformSelection';
-import TopicSelection from './pages/TopicSelection';
 import SummaryPage from './pages/SummaryPage';
 
 type Chat = {
   id: string;
   platform: string;
-  topic: string;
+  topic: string;   // Will now be selected directly in SummaryPage
   messages: string[];
 };
 
@@ -17,32 +16,29 @@ const App: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
   const [showPlatformSelection, setShowPlatformSelection] = useState(true);
-  const [showTopicSelection, setShowTopicSelection] = useState(false);
+
+  // Remove showTopicSelection logic
 
   const handleNewChat = () => {
     setActiveChatId(null);
     setSelectedPlatform("");
-    setShowTopicSelection(false);
     setShowPlatformSelection(true);
   };
 
+  // Once user picks a platform, create a chat with empty topic
   const handlePlatformSelect = (platform: string) => {
     setSelectedPlatform(platform);
     setShowPlatformSelection(false);
-    setShowTopicSelection(true);
-  };
 
-  const handleTopicSelect = (topic: string) => {
     const newChatId = Math.random().toString(36).substring(2, 15);
     const newChat: Chat = {
       id: newChatId,
-      platform: selectedPlatform,
-      topic: topic,
+      platform: platform,
+      topic: "",   // empty topic
       messages: [],
     };
-    setChats(prev => [...prev, newChat]);
+    setChats([...chats, newChat]);
     setActiveChatId(newChatId);
-    setShowTopicSelection(false);
   };
 
   const handleSelectChat = (id: string) => {
@@ -53,10 +49,14 @@ const App: React.FC = () => {
     setSelectedModel(model);
   };
 
+  // If you store user/bot messages, pass a callback to update them
   const handleUpdateMessages = (message: string) => {
+    if (!activeChatId) return;
     setChats(prevChats =>
       prevChats.map(chat =>
-        chat.id === activeChatId ? { ...chat, messages: [...chat.messages, message] } : chat
+        chat.id === activeChatId
+          ? { ...chat, messages: [...chat.messages, message] }
+          : chat
       )
     );
   };
@@ -64,7 +64,7 @@ const App: React.FC = () => {
   const activeChat = chats.find(chat => chat.id === activeChatId);
 
   return (
-    <div style={{ display: "flex" }}>
+    <div style={{ display: 'flex' }}>
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -75,9 +75,7 @@ const App: React.FC = () => {
       {showPlatformSelection && (
         <PlatformSelection onPlatformSelect={handlePlatformSelect} />
       )}
-      {showTopicSelection && (
-        <TopicSelection platform={selectedPlatform} onTopicSelect={handleTopicSelect} />
-      )}
+      {/* No more TopicSelection here */}
       {activeChat && (
         <SummaryPage
           chat={activeChat}
@@ -85,8 +83,8 @@ const App: React.FC = () => {
           onUpdateMessages={handleUpdateMessages}
         />
       )}
-      {!activeChat && !showPlatformSelection && !showTopicSelection && (
-        <div style={{ flex: 1, padding: "20px" }}>
+      {!activeChat && !showPlatformSelection && (
+        <div style={{ flex: 1, padding: '20px' }}>
           <h2>No chat selected</h2>
         </div>
       )}
