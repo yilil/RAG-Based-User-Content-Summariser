@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
 
 type Chat = {
@@ -22,11 +22,31 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Dictionary of possible topics for each platform
+  const topicsByPlatform: Record<string, string[]> = {
+    "Stack Overflow": ["JavaScript", "React", "CSS", "TypeScript"],
+    Reddit: ["Academic", "Community", "Career"],
+    "Red Note": ["Travel", "Food", "Fashion"],
+  };
+
+  // Initialize topic state to an empty string (so no topic is auto-selected)
+  const [topic, setTopic] = useState("");
+
+  // When chat changes, reset topic to empty string
+  useEffect(() => {
+    setTopic("");
+  }, [chat.platform, chat.topic]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
+  };
+
+  // Handle topic dropdown changes
+  const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTopic(e.target.value);
   };
 
   const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -40,29 +60,27 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     console.log("Fetch response:", searchText);
 
     try {
-      // Force values for testing:
-      const normalizedSource = "rednote";
-      const modelToSend = "gemini-1.5-flash";
-      // Use the model and source coming from the web
-      // Normalize source by converting to lower case and removing spaces
+      // For demonstration, forcing values for testing:
+      const normalizedSource = "rednote"; 
+      const modelToSend = "gemini-1.5-flash"; 
+      // To use dynamic values, uncomment:
       // const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
       // const modelToSend = selectedModel;
-      
+
       const response = await fetch("http://127.0.0.1:8000/search/", {
         method: "POST",
         mode: "cors",
         headers: {
           "Content-Type": "application/json",
         },
-  
         body: JSON.stringify({
           search_query: searchText,
           llm_model: modelToSend,
           source: normalizedSource,
+          chosen_topic: topic, // Pass the selected topic to the backend
         }),
       });
-      console.log("Fetch response:", searchText);
-
+      console.log("Fetch response:", response);
 
       if (!response.ok) {
         throw new Error(`Network response was not ok, status: ${response.status}`);
@@ -71,12 +89,10 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       const data = await response.json();
       console.log("Parsed data:", data);
 
-      // Update state with the received data
       setResult(data.result);
       setMetadata(data.metadata);
       setLlmModel(data.llm_model);
 
-      // Save bot response in chat history
       onUpdateMessages(`Bot: ${data.result}`);
       console.log("Received data:", data);
     } catch (err: any) {
@@ -108,9 +124,29 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
   return (
     <div style={{ padding: "20px", flex: 1, position: "relative" }}>
       <h2>
-        Summary for {chat.platform} - {chat.topic}
+        Summary for {chat.platform} - {topic || "No Topic Selected"}
       </h2>
-      
+
+      {/* Topic dropdown integrated beneath heading */}
+      <div style={{ marginBottom: "10px" }}>
+        <label htmlFor="topic-select" style={{ fontWeight: "bold", marginRight: "10px" }}>
+          Topic:
+        </label>
+        <select
+          id="topic-select"
+          value={topic}
+          onChange={handleTopicChange}
+          style={{ padding: "5px", borderRadius: "5px", border: "1px solid #ccc" }}
+        >
+          <option value="">Select a Topic</option>
+          {topicsByPlatform[chat.platform]?.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Chat History */}
       <div
         style={{
@@ -162,7 +198,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         {showTemplates && (
           <QuestionTemplates
             platform={chat.platform}
-            topic={chat.topic}
+            topic={topic} // Pass the currently selected topic
             onTemplateSelect={handleTemplateSelect}
           />
         )}
