@@ -15,6 +15,8 @@ from rank_bm25 import BM25Okapi
 
 logger = logging.getLogger(__name__)
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 class FaissManager:
     def __init__(self, embedding_model, base_index_dir="faiss_index", platform="reddit"):
         """
@@ -34,18 +36,35 @@ class FaissManager:
         self.all_texts = []  # 用于保存初始化BM25时的文本
         self.preprocessor = TextPreprocessor()  # 实例化预处理类
 
-    def initialize_bm25(self, texts: List[str]):
-        """初始化 BM25 搜索"""
+    def initialize_bm25(self, texts):
+        """Initialize or update BM25 index with given texts"""
+        # Filter out None values and empty strings
+        texts = [text for text in texts if text]
+        
         if not texts:
-            logger.warning("Attempting to initialize BM25 with empty texts")
+            logger.warning("No texts provided for BM25 initialization")
             return
         
-        # 如果没有被initialize BM25库才去initialize
-        logger.info("Initializing BM25 with texts...")
-        self.all_texts = texts  # 保存下来，后面search_bm25要用
-        tokenized_docs = [self.preprocessor.preprocess_text(doc) for doc in texts]
+        tokenized_docs = []
+        for text in texts:
+            # Pre-process the text
+            text = self.preprocessor.preprocess_text(text)
+            # For Chinese text use jieba
+            if any('\u4e00' <= char <= '\u9fff' for char in text):
+                tokens = list(jieba.cut(text))
+            else:
+                tokens = text.split()
+            if tokens:  # Only add non-empty token lists
+                tokenized_docs.append(tokens)
+        
+        if not tokenized_docs:
+            logger.warning("No tokenized documents for BM25")
+            return
+        
+        # Initialize BM25
         self.bm25 = BM25Okapi(tokenized_docs)
-        logger.info("BM25 initialized.")
+        self.all_texts = texts
+        logger.info(f"BM25 initialized with {len(texts)} documents")
 
     def initialize_store(self, texts: list):
         """从文本列表初始化 FAISS 索引"""
@@ -150,3 +169,8 @@ class FaissManager:
             return self.faiss_store.similarity_search(query, k)
         else:
             return self.search_bm25(query, k)
+
+    def ensure_directories(self):
+        """Ensure all required directories exist"""
+        # Make sure base directory exists
+        os.makedirs(self.index_dir, exist_ok=True)

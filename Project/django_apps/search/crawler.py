@@ -27,7 +27,7 @@ index_service.faiss_manager.load_index()
 logger.info("Global IndexService for rednote loaded in crawler.")
 ####################
 
-def crawl_rednote_page(url, cookies=None):
+def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     """
     使用 Selenium 爬取某个小红书页面, 将结果存入 RednoteContent 表中。
     :param url: 小红书页面 URL
@@ -145,13 +145,18 @@ def crawl_rednote_page(url, cookies=None):
                             created_at=created_time,
                             tags=tags,
                             likes=likes,
-                            embedding_key=None  # 还没embedding
+                            embedding_key=None,  # 还没embedding
+                            content=content_text  # Make sure content is stored
                         )
                         new_items.append(db_obj)
                     
-                    # 立刻embedding, 只要embedding_key为空 => indexer.index_crawled_item
-                    index_service.indexer.index_crawled_item(db_obj, content_text)
-                
+                        # Only perform immediate indexing if the flag is set
+                        if immediate_indexing:
+                            logger.info(f"Performing immediate indexing for item {db_obj.id}")
+                            index_service.indexer.index_crawled_item(db_obj, content_text)
+                        else:
+                            logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
+
                 driver.back()
                 time.sleep(1)
                 
@@ -162,8 +167,10 @@ def crawl_rednote_page(url, cookies=None):
     finally:
         driver.quit()
 
-    # 再次确认BM25 & embedding 库更被新到最新状态
-    index_service.faiss_manager.load_index()
+    # only update indices if immediate indexing was used
+    if immediate_indexing:
+        # Re-confirm BM25 & embedding are updated
+        index_service.faiss_manager.load_index()
     
     return new_items
 

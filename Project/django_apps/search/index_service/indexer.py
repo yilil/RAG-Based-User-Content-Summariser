@@ -94,7 +94,7 @@ class Indexer:
 
     def _index_content(self, content_obj, source: str):
         try:
-            if ContentIndex.objects.filter(source=source, content=content_obj.content).exists():
+            if ContentIndex.objects.filter(source=source, thread_id=content_obj.thread_id).exists():
                 logger.debug(f"[DB] Content already indexed (source={source}, id={content_obj.id}), skip.")
                 return
             ContentIndex.objects.create(
@@ -102,10 +102,15 @@ class Indexer:
                 thread_id=content_obj.thread_id,
                 content_type=content_obj.content_type,
                 author_name=content_obj.author_name,
-                content=content_obj.content,
                 created_at=content_obj.created_at
             )
             logger.info(f"[DB] Created record for content {content_obj.id} from {source}.")
+
+            # Clear content field after successful indexing to save storage
+            model_class = self.PLATFORM_MODEL_MAP[source]
+            model_class.objects.filter(id=content_obj.id).update(content=None)
+            logger.info(f"[DB] Cleared content for {content_obj.id} from {source} to save storage.")
+
         except Exception as e:
             logger.error(f"[DB] Error indexing content {content_obj.id}: {str(e)}")
             raise
@@ -145,7 +150,7 @@ class Indexer:
             "author_name": db_obj.author_name,
             "id": f"{db_obj.source}_{db_obj.id}"
         }
-        # 其他字段
+        # Add other metadata fields
         if db_obj.source == 'reddit':
             meta_dict["upvotes"] = getattr(db_obj, 'upvotes', 0)
         elif db_obj.source == 'stackoverflow':
@@ -153,16 +158,20 @@ class Indexer:
         elif db_obj.source == 'rednote':
             meta_dict["likes"] = getattr(db_obj, 'likes', 0)
         
-        # FAISS
+        # Add to FAISS
         self.faiss_manager.add_texts(
             texts=[raw_text],
             metadatas=[meta_dict],
             embeddings=[emb]
         )
-        # create embedding_key -> 需要改逻辑
+
+        # Update embedding_key ### -> 需要修改逻辑
         if not db_obj.embedding_key:
             key = generate_embedding_key(db_obj)
             db_obj.embedding_key = key
+
+        # Clear content field to save storage after immediate indexing
+        db_obj.content = None
         db_obj.save()
         self.faiss_manager.save_index()
 

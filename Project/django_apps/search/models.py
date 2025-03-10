@@ -37,8 +37,7 @@ class BaseContent(models.Model):
     comment_id = models.CharField(max_length=100, null=True, blank=True)
     commenter_name = models.CharField(max_length=150, null=True, blank=True)
     
-    # Content 目前不在sqlite3中存储content
-    # content = models.TextField()
+    content = models.TextField(null=True, blank=True)
     
     # Timestamps
     created_at = models.DateTimeField()

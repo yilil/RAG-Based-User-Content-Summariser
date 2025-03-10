@@ -15,10 +15,18 @@ class Command(BaseCommand):
             required=True,
             help="The Rednote page URL to crawl"
         )
+        # Add the immediate-indexing parameter
+        parser.add_argument(
+            '--immediate-indexing',
+            action='store_true',
+            default=False,
+            help='Index content immediately after crawling (default: False)'
+        )
 
     def handle(self, *args, **options):
         url = options["url"]
         self.stdout.write(f"Starting to crawl {url}")
+        immediate_indexing = options.get('immediate_indexing', False)
 
         #爬虫登陆需要的cookies(暂时是个人账号的)
         cookies = [
@@ -85,7 +93,7 @@ class Command(BaseCommand):
 ]
 
         try:
-            results = crawl_rednote_page(url, cookies=cookies)
+            results = crawl_rednote_page(url, cookies=cookies, immediate_indexing=immediate_indexing)
             self.stdout.write(self.style.SUCCESS(f"Crawled {len(results)} items from {url}"))
         except Exception as e:
             logger.error(f"Error: {e}", exc_info=True)

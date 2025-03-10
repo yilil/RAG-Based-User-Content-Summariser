@@ -153,7 +153,7 @@ def index_content(request):
             # 先尝试加载已有索引到内存，合并已有向量
             index_service.faiss_manager.load_index()
 
-            # 根据平台获取“未索引的”新内容
+            # 根据平台获取"未索引的"新内容
             if platform == 'reddit':
                 model_cls = RedditContent
             elif platform == 'stackoverflow':
@@ -161,9 +161,9 @@ def index_content(request):
             else:  # 'rednote'
                 model_cls = RednoteContent
 
-            # *** 目前是根据source + content两个字段判断是否重复，之后写简化逻辑，所有在contentindex中的数据都是已经被indexed过的，因为存入+index同步
+            # *** 目前改成用threadid来判断是否重复
             unindexed = model_cls.objects.exclude(
-                content__in=ContentIndex.objects.filter(source=platform).values('content')
+                thread_id__in=ContentIndex.objects.filter(source=platform).values('thread_id')
             )
             count_unindexed = unindexed.count()
 
@@ -180,7 +180,7 @@ def index_content(request):
                 # 1) 仅对 unindexed 数据做 embedding + add_texts
                 # 2) 将其写入 ContentIndex
                 # 3) 调用 save_index() 再写回磁盘
-                index_service.index_platform_content(unindexed=unindexed)
+                index_service.indexer.index_platform_content(platform=platform, unindexed_queryset=unindexed)
             else:
                 logger.info(f"No new {platform} items to index.")
 

@@ -72,12 +72,33 @@ UI Design Figma Link(Dev mode)：https://www.figma.com/design/1BZN661uSi2y4FKDcd
 
 ```python manage.py showmigrations```
 
-# 6. 初始化索引
-1. 终端请求
+#### 6，爬虫模式
+爬虫系统支持两种工作模式：
 
-可以通过浏览器、Postman 或 curl 发起 POST 请求：-> 这里是为当前数据库中reddit的数据都构建embedding和索引
-`curl -X POST http://127.0.0.1:8000/index_content/ -d "source=reddit"` (目前还是用的终端输入以上POST, 后续改成postman请求)
+1. **即时索引模式**
+   - 在爬取内容的同时立即进行向量化和索引
+   - 索引完成后自动清除数据库中的原文内容以节省存储空间
+   - 适用于需要立即搜索新内容的场景
+   ```bash
+   python manage.py test_rednote_crawler --url "your_url" --immediate-indexing
+   ```
 
+2. **存储模式**（default）
+   - 仅将爬取的内容存入数据库，不进行索引
+   - 适用于批量数据收集，稍后统一索引的场景
+   ```bash
+   python manage.py test_rednote_crawler --url "your_url"
+   ```
+
+3. **后续批量索引**
+   - 对存储模式下收集的内容进行批量索引
+   - 支持按平台筛选进行索引
+   ```bash
+   # 通过 API 触发索引
+   curl -X POST http://localhost:8000/index_content/ -d "source=rednote"
+   ```
+
+> 注意：无论是即时索引还是后续批量索引，内容一旦被成功索引到 FAISS 中，原文将从数据库中清除以优化存储空间。原文内容会被保存在 FAISS 索引中用于后续检索。
 2. 自定义管理命令 build_faiss
 
 ```python manage.py build_faiss```
@@ -177,4 +198,4 @@ SEARCH_TEST_TOP_K = 5
 # 项目启动步骤
 后端: ```python manage.py runserver```
 前端: ```cd Frontend```到Frontend文件夹使用 ```npm run dev```启动前端服务器
-使用前端服务器提供的URL：“http://localhost:5173/static/”访问
+使用前端服务器提供的URL：“http://localhost:5173/static/”访问 he
