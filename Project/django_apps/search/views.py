@@ -163,8 +163,9 @@ def index_content(request):
 
             # *** 目前改成用threadid来判断是否重复
             unindexed = model_cls.objects.exclude(
-                thread_id__in=ContentIndex.objects.filter(source=platform).values('thread_id')
-            )
+            thread_id__in=ContentIndex.objects.filter(source=platform).values('thread_id')
+            )   
+
             count_unindexed = unindexed.count()
 
             if count_unindexed > 0:
