@@ -32,10 +32,10 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     "Red Note": ["Travel", "Food", "Fashion"],
   };
 
-  // Initialize topic state to an empty string (so no topic is auto-selected)
+  // Initialize topic state to empty (no default selected)
   const [topic, setTopic] = useState("");
 
-  // When chat changes, reset topic to empty string
+  // Reset topic when the chat changes
   useEffect(() => {
     setTopic("");
   }, [chat.platform, chat.topic]);
@@ -44,7 +44,6 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     setSearchText(e.target.value);
   };
 
-  // Handle topic dropdown changes
   const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTopic(e.target.value);
   };
@@ -60,16 +59,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     console.log("Fetch response:", searchText);
 
     try {
-      // For demonstration, forcing values for testing:
-      const normalizedSource = "rednote"; 
-      const modelToSend = "gemini-1.5-flash"; 
-      // To use dynamic values, uncomment:
-      // const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
-      // const modelToSend = selectedModel;
+      // For demonstration, forced values are used.
+      const normalizedSource = "rednote"; // For testing
+      const modelToSend = "gemini-1.5-flash"; // For testing
 
       const response = await fetch("http://127.0.0.1:8000/search/", {
         method: "POST",
-        mode: "cors",
+        mode: "cors", // Important for cross-origin requests
         headers: {
           "Content-Type": "application/json",
         },
@@ -77,7 +73,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
           search_query: searchText,
           llm_model: modelToSend,
           source: normalizedSource,
-          chosen_topic: topic, // Pass the selected topic to the backend
+          chosen_topic: topic,
         }),
       });
       console.log("Fetch response:", response);
@@ -112,7 +108,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     const cleanedTemplate = template.replace(/_+/, "");
     setSearchText(cleanedTemplate);
     setShowTemplates(false);
-    
+
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -122,12 +118,18 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
   };
 
   return (
-    <div style={{ padding: "20px", flex: 1, position: "relative" }}>
+    <div style={{
+      padding: "20px",
+      flex: 1,
+      position: "relative",
+      minHeight: "100vh",         // NEW: Ensure full viewport height
+      boxSizing: "border-box"     // NEW: Include padding in height calculations
+    }}>
       <h2>
         Summary for {chat.platform} - {topic || "No Topic Selected"}
       </h2>
 
-      {/* Topic dropdown integrated beneath heading */}
+      {/* Topic Dropdown */}
       <div style={{ marginBottom: "10px" }}>
         <label htmlFor="topic-select" style={{ fontWeight: "bold", marginRight: "10px" }}>
           Topic:
@@ -148,16 +150,14 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       </div>
 
       {/* Chat History */}
-      <div
-        style={{
-          marginBottom: "20px",
-          border: "1px solid #ddd",
-          padding: "10px",
-          borderRadius: "8px",
-          maxHeight: "200px",
-          overflowY: "auto",
-        }}
-      >
+      <div style={{
+        marginBottom: "20px",
+        border: "1px solid #ddd",
+        padding: "10px",
+        borderRadius: "8px",
+        maxHeight: "200px",
+        overflowY: "auto",
+      }}>
         <h3>Chat History:</h3>
         {chat.messages.map((msg, index) => (
           <p key={index} style={{ margin: "5px 0" }}>{msg}</p>
@@ -198,7 +198,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         {showTemplates && (
           <QuestionTemplates
             platform={chat.platform}
-            topic={topic} // Pass the currently selected topic
+            topic={topic}  // Pass the selected topic
             onTemplateSelect={handleTemplateSelect}
           />
         )}
@@ -209,15 +209,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
 
       {/* Display Response */}
       {result && (
-        <div
-          style={{
-            padding: "20px",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-            textAlign: "left",
-            backgroundColor: "#f9f9f9",
-          }}
-        >
+        <div style={{
+          padding: "20px",
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          textAlign: "left",
+          backgroundColor: "#f9f9f9",
+        }}>
           <h3>Result:</h3>
           <p>{result}</p>
           <h4>Model:</h4>
