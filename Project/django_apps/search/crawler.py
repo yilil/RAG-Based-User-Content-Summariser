@@ -36,6 +36,8 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     """
     global index_service
 
+    items_to_index = [] # crawled items to be indexed
+
     driver = webdriver.Chrome()
     try:
 
@@ -112,6 +114,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                 # 存入数据库, 保持与原来的 RednoteContent 结构一致
                 # 验证数据
                 if validate_post_data(title, content_text, author):
+                    # 生成独特的thread_id
                     thread_id_val = driver.current_url.split('/')[-1]
                     # 检查数据库是否已有
                     existing = RednoteContent.objects.filter(source="rednote", thread_id=thread_id_val).first()
@@ -151,9 +154,9 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                         new_items.append(db_obj)
                     
                         # Only perform immediate indexing if the flag is set
+                        # Collect items during crawling
                         if immediate_indexing:
-                            logger.info(f"Performing immediate indexing for item {db_obj.id}")
-                            index_service.indexer.index_crawled_item(db_obj, content_text)
+                            items_to_index.append((db_obj, content_text))          
                         else:
                             logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
 
@@ -167,10 +170,14 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     finally:
         driver.quit()
 
-    # only update indices if immediate indexing was used
-    if immediate_indexing:
-        # Re-confirm BM25 & embedding are updated
-        index_service.faiss_manager.load_index()
+    # At the end, batch process them 
+    if immediate_indexing and items_to_index:
+        for db_obj, content_text in items_to_index:
+            # Don't save after each item
+            index_service.indexer.index_crawled_item(db_obj, content_text, save_index=False)
+        
+        # Save all of them once at the end
+        index_service.faiss_manager.save_index()
     
     return new_items
 

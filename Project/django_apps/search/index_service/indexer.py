@@ -15,7 +15,7 @@ class Indexer:
         'rednote': RednoteContent
     }
 
-    def __init__(self, embedding_model, faiss_manager: FaissManager, batch_size=32):
+    def __init__(self, embedding_model, faiss_manager: FaissManager, batch_size=128):
         self.embedding_model = embedding_model
         self.faiss_manager = faiss_manager
         self.batch_size = batch_size
@@ -32,11 +32,14 @@ class Indexer:
             return 
 
         # 获取所有文本，包括已有的和新的
-        all_texts = [obj.content for obj in model_class.objects.all()]
+        # all_texts = [obj.content for obj in model_class.objects.all()]
         
         # 初始化 FAISS store 和 BM25
         if not self.faiss_manager.faiss_store:
-            self.faiss_manager.initialize_store(all_texts)
+            # Only get texts from unindexed queryset
+            unindexed_texts = [obj.content for obj in unindexed_queryset if obj.content]
+            if unindexed_texts:
+                self.faiss_manager.initialize_store(unindexed_texts)
         #else:
             # 更新 BM25
         #    self.faiss_manager.initialize_bm25(all_texts)
@@ -53,6 +56,9 @@ class Indexer:
         if total == 0:
             logger.warning("No content available to index for this platform.")
             return
+
+        # Add this variable to collect IDs
+        ids_to_clear = []
 
         while processed < total:
             batch = content_objects[processed:processed + self.batch_size]
@@ -82,6 +88,9 @@ class Indexer:
 
                 self._index_content(obj, platform) 
 
+                # Instead of clearing in _index_content
+                ids_to_clear.append(obj.id)
+
             processed += self.batch_size
             logger.info(f"Progress: {min(processed, total)}/{total}")
 
@@ -91,6 +100,9 @@ class Indexer:
         self.faiss_manager.save_index()
         logger.info("FAISS index saved to disk after indexing.")
 
+        # Batch update at the end
+        if ids_to_clear:
+            model_class.objects.filter(id__in=ids_to_clear).update(content=None)
 
     def _index_content(self, content_obj, source: str):
         try:
@@ -135,7 +147,7 @@ class Indexer:
         max_length = 512
         return text[:max_length] if len(text) > max_length else text
     
-    def index_crawled_item(self, db_obj, raw_text: str):
+    def index_crawled_item(self, db_obj, raw_text: str, save_index=True):
         """对爬虫抓到的一条记录 db_obj + 文本 raw_text 做embedding并写入FAISS, 并给db_obj设置embedding_key"""
         if db_obj.embedding_key:
             logger.info(f"[index_crawled_item] {db_obj} has embedding_key={db_obj.embedding_key}, skip.")
@@ -173,7 +185,10 @@ class Indexer:
         # Clear content field to save storage after immediate indexing
         db_obj.content = None
         db_obj.save()
-        self.faiss_manager.save_index()
+
+        # Only save if explicitly requested (for batches)
+        if save_index:
+            self.faiss_manager.save_index()
 
         # 暂时逻辑是：同时写入ContentIndex数据 -> 可视化被indexing的所有数据(以近去掉content字段)
         ContentIndex.objects.create(

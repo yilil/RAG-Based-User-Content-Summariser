@@ -151,7 +151,7 @@ def index_content(request):
             # 更新平台
             index_service.platform = platform
             # 先尝试加载已有索引到内存，合并已有向量
-            index_service.faiss_manager.load_index()
+            index_service.faiss_manager.load_index()  # This already initializes BM25
 
             # 根据平台获取"未索引的"新内容
             if platform == 'reddit':
@@ -166,13 +166,6 @@ def index_content(request):
                 thread_id__in=ContentIndex.objects.filter(source=platform).values('thread_id')
             )
             count_unindexed = unindexed.count()
-
-            # 新加的几行： 获取所有内容用于初始化/更新BM25
-            all_texts = list(model_cls.objects.values_list('content', flat=True))
-            
-            if all_texts:
-                # 确保BM25被初始化
-                index_service.faiss_manager.initialize_bm25(all_texts)
 
             if count_unindexed > 0:
                 logger.info(f"Found {count_unindexed} new {platform} items to index.")
@@ -193,7 +186,7 @@ def index_content(request):
         })
 
     except Exception as e:
-        logger.error(f"Error during indexing: {str(e)}", exc_info=True)
+        logger.error(f"Indexing failed: {str(e)}")
         return JsonResponse({
             "status": "error",
             "message": str(e)
