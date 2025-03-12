@@ -17,8 +17,8 @@ class Command(BaseCommand):
 
         try:
             # 1. 清空数据库和索引
-            self.stdout.write('Cleaning database and indices...')
-            clean_test_database()
+            #self.stdout.write('Cleaning database and indices...')
+            #clean_test_database()
             
             # 2. 生成测试数据
             self.stdout.write('Generating recommendation test data...')
@@ -34,6 +34,8 @@ class Command(BaseCommand):
             # 4. 创建索引服务
             self.stdout.write('Initializing index service...')
             index_service = IndexService(platform='reddit')
+            index_service = IndexService(platform='rednote')
+            index_service = IndexService(platform='stackoverflow')
             
             # 5. 强制重新构建索引
             self.stdout.write('Building FAISS index...')

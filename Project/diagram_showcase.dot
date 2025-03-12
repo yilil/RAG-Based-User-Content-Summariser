@@ -1,0 +1,53 @@
+digraph Flowchart {
+  rankdir=TB;
+  node [style=filled, fontname=Helvetica, margin=0.3, align=left];
+  
+  // Input with sample documents
+  Input [label="Input Query: 'Recommend Boost fruit juices'\l\nFor example, 60 documents retrieved:\l\n1. Best Boost Juice Rankings (200 upvotes)\l   Content: 'Boost juice recommendations: Berry Crush (5 stars) - vibrant and refreshing,\l            Mango Tango (4 stars) - tropical and smooth...'\l\n2. Summer Boost Review (180 upvotes)\l   Content: 'Best summer Boost juices: Berry Crush (4 stars) - perfect for hot days,\l            Green Machine (5 stars) - energizing and healthy...'\l\n3. Healthy Boost Guide (150 upvotes)\l   Content: 'My favorite Boost juices: Mango Tango (4 stars) - great antioxidants,\l            Green Machine (5 stars) - full of nutrients...'\l\n...\l\n60. Boost Juice Comparison (120 upvotes)\l    Content: 'Top Boost options: Berry Crush (5 stars) - best flavor profile...'\l", 
+   shape=box, fillcolor=lightblue];
+
+  // Hybrid Retrieval System
+  subgraph cluster_hybrid {
+    label="Hybrid Retrieval System\l";
+    style=filled;
+    fillcolor=lightgreen;
+    
+    Retrieval [label="Hybrid Retrieval\l\n- BM25 Text Search (0.3)\l- Embedding Similarity (0.7)\l\nTop 10 documents selected\l", shape=box];
+  }
+
+  // Query Classification
+  Classification [label="Query Classification\l\nClassify query type:\l- Recommendation\l- Knowledge\l- Opinion\l- Tutorial\l", shape=box, fillcolor=lightyellow];
+
+  // Content Processing
+  subgraph cluster_content {
+    label="Content Processing\l";
+    style=filled;
+    fillcolor=orange;
+    
+    Extract [label="Extract & Analyze Content\l\n1. Entity Extraction:\l   - Identify juice products (Berry Crush, Mango Tango, etc.)\l   - Extract attributes (taste, health benefits, etc.)\l\n2. Sentiment Analysis:\l   - Analyze positive/negative opinions\l   - Convert to numerical ratings (1-5 stars)\l\n3. Frequency Analysis:\l   - Count mentions of each product across all documents\l   - Berry Crush: mentioned in 30 documents\l   - Mango Tango: mentioned in 25 documents\l   - Green Machine: mentioned in 20 documents\l   ...\l", shape=box];
+  }
+
+  // Final Score Calculation
+  subgraph cluster_final {
+    label="Final Score Calculation\l";
+    style=filled;
+    fillcolor=plum;
+    
+    Final_Score [label="Calculate Final Scores\l\nWeighted formula:\l0.4*(avg_rating/5.0) + \l0.35*(sum_of_upvotes_for_posts_mentioning_entity/max_upvotes) + \l0.25*(number_of_times_entity_mentioned/max_mentions)\l\nRanking:\l1. Berry Crush: 0.89 (avg rating: 4.7, total upvotes: 530, mentions: 30)\l2. Green Machine: 0.82 (avg rating: 4.5, total upvotes: 450, mentions: 20)\l3. Mango Tango: 0.75 (avg rating: 4.2, total upvotes: 400, mentions: 25)\l...\l", shape=box];
+  }
+
+  // Result Processing
+  Format [label="Format Results for User Experience\l\n1. Group by product\l2. Highlight key features\l3. Show representative reviews\l4. Add visual elements (stars, user icons)\l5. Format for readability\l", shape=box, fillcolor=lightcoral];
+
+  // Connections
+  Input -> Retrieval;
+  Retrieval -> Classification;
+  Classification -> Extract;
+  Extract -> Final_Score;
+  Final_Score -> Format;
+  Format -> Output;
+  
+  // Output formatted based on score calculation data
+  Output [label="Boost Juice Recommendations\l\n1. Berry Crush (Score: 0.89)\l   • Average Rating: 4.7/5.0 (from 30 reviews)\l   • Total Upvotes: 530\l   • Key Features:\l     - Vibrant and refreshing\l     - Perfect for hot days\l     - Best flavor profile\l   • Top Review: \"Berry Crush is my absolute favorite for summer days\"\l\n2. Green Machine (Score: 0.82)\l   • Average Rating: 4.5/5.0 (from 20 reviews)\l   • Total Upvotes: 450\l   • Key Features:\l     - Energizing and healthy\l     - Full of nutrients\l     - Great detox option\l   • Top Review: \"Green Machine gives me energy for the whole day\"\l\n3. Mango Tango (Score: 0.75)\l   • Average Rating: 4.2/5.0 (from 25 reviews)\l   • Total Upvotes: 400\l   • Key Features:\l     - Tropical and smooth\l     - Great antioxidants\l     - Sweet but not overwhelming\l   • Top Review: \"The perfect balance of sweetness and nutrition\"\l\n...\l", 
+   shape=box, fillcolor=lightblue];
+}

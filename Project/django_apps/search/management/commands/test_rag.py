@@ -57,6 +57,7 @@ class Command(BaseCommand):
             # 6. 执行特定测试用例
             test_platform = platform_option
             index_service = IndexService(platform=test_platform)
+            
             test_cases = [
                 {
                     'query': 'How to implement binary search tree in r/programming?',
