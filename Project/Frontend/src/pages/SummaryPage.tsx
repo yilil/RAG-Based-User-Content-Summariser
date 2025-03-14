@@ -209,23 +209,25 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
 
       {/* Display Response */}
       {result && (
-        <div style={{
-          padding: "20px",
-          border: "1px solid #ddd",
-          borderRadius: "8px",
-          textAlign: "left",
-          backgroundColor: "#f9f9f9",
-        }}>
-          <h3>Result:</h3>
-          <p>{result}</p>
-          <h4>Model:</h4>
-          <p>{llmModel}</p>
-          <h4>Metadata:</h4>
-          <pre style={{ background: "#eee", padding: "10px" }}>
-            {JSON.stringify(metadata, null, 2)}
-          </pre>
-        </div>
-      )}
+      <div
+        style={{
+              padding: "20px",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              textAlign: "left",
+              backgroundColor: "#f9f9f9",
+            }}
+          >
+            <h3>Result:</h3>
+            <div dangerouslySetInnerHTML={{ __html: result }} />
+            <h4>Model:</h4>
+            <p>{llmModel}</p>
+            <h4>Metadata:</h4>
+            <pre style={{ background: "#eee", padding: "10px" }}>
+              {JSON.stringify(metadata, null, 2)}
+            </pre>
+          </div>
+        )}
     </div>
   );
 };
