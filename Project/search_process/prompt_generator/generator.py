@@ -117,5 +117,6 @@ Time frame: [e.g. near 24 hours/this week/this month]""")
         prompt.append("""If the current question is determined to be one with a definite answer, such as 23 + 1 = 24," +
         "then the first sentence should directly answer the question before providing detailed explanations.\n""")
 
+    prompt.append("The answer needs to be answered according to the language of the user query. For example, if the user uses Chinese, the answer is in Chinese; if the user uses English, the answer is in English.\n")
     result = "".join(prompt)
     return result

@@ -22,12 +22,12 @@ class Classification:
 
 def category_number_to_name(category_number):
     category_mapping = {
-        1: "Recommendation class",
-        2: "Knowledge interpretation class",
-        3: "Opinion Discussion",
-        4: "Operation instruction and tutorial method class",
-        5: "Specific scenarios",
-        6: "Information and real-time dynamic class"
+        1: "Recommendation class, e.g.: What are some good books to learn Python for beginners?",
+        2: "Knowledge interpretation class, e.g.: How does blockchain technology work?",
+        3: "Opinion Discussion, e.g.: Should social media platforms regulate free speech?",
+        4: "Operation instruction and tutorial method class, e.g.: How do I reset my iPhone to factory settings?",
+        5: "Specific scenarios, e.g.: I've been running a small online store for six months. I get decent traffic, but sales conversions are low. I've optimized my website speed, improved product descriptions, and offered discounts, but it hasn't helped much. What should I do next?",
+        6: "Information and real-time dynamic class, e.g.: What are the latest updates on the AI Act regulations in the European Union?"
     }
     return category_mapping.get(category_number, "Unknown Category")
 
@@ -84,8 +84,8 @@ def test(model_name):
     total_count = len(classifications)
     accuracy = correct_count / total_count
 
-    print(f"model_name: {model_name}")
-    print(f"\n\n\nAccuracy: {accuracy:.4f}")
+    print(f"\n\n\nmodel_name: {model_name}")
+    print(f"Accuracy: {accuracy:.4f}")
     for category, scores in precision_recall_f1.items():
         print(f"Category: {category_number_to_name(int(category))}")
         print(f"  Precision: {scores['Precision']:.4f}")
@@ -94,4 +94,4 @@ def test(model_name):
 
 if __name__ == "__main__":
     #python -m search_process.query_classification.tester
-    test("deepseek-1.0")
+    test("gemini-1.5-flash")
