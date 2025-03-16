@@ -6,6 +6,8 @@ import time
 import logging
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django.db import connection
+from django.core.management import call_command
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ class Command(BaseCommand):
 
         try:
             # 1. 清空数据库
-            clean_test_database()
+            # clean_test_database()
             
             # 2. 生成测试数据
             self.stdout.write('Generating test data...')
@@ -49,7 +51,10 @@ class Command(BaseCommand):
             # 4. 构建索引
             self.stdout.write(f'Indexing content for platform: {platform_option}...')
             index_service = IndexService(platform=platform_option)
-            index_service.index_platform_content()
+            self.stdout.write('Initializing FAISS index...')
+            call_command('initialize_index', source='reddit')
+            self.stdout.write('Adding content to FAISS index...')
+            index_service.indexer.index_platform_content(platform='reddit', unindexed_queryset=RedditContent.objects.all())
             
             # 5. 验证索引构建
             self._verify_index_creation()
@@ -114,55 +119,45 @@ class Command(BaseCommand):
     
     def _verify_test_data(self):
         """验证测试数据是否正确生成"""
-        from django_apps.search.models import RedditContent
+        # 检查是否有内容
+        content_count = RedditContent.objects.count()
+        self.stdout.write(f'Generated {content_count} Reddit records')
         
-        self.stdout.write('\nVerifying test data generation:')
+        # 检查是否有 content 为 None 的记录
+        null_content_count = RedditContent.objects.filter(content__isnull=True).count()
+        if null_content_count > 0:
+            self.stdout.write(self.style.WARNING(f'Found {null_content_count} records with NULL content'))
+            # 可以选择删除这些记录
+            RedditContent.objects.filter(content__isnull=True).delete()
+            self.stdout.write(f'Deleted {null_content_count} invalid records')
         
-        # 检查各个类别的数据
-        categories = ['programming', 'food', 'travel', 'study']
-        for category in categories:
-            count = RedditContent.objects.filter(subreddit=category).count()
-            self.stdout.write(f'- {category}: {count} posts')
-            
-            # 输出每个类别的一个示例内容
-            example = RedditContent.objects.filter(subreddit=category).first()
-            if example:
-                self.stdout.write(f'  Example title: {example.thread_title[:100]}')
+        # 验证剩余记录数量
+        remaining_count = RedditContent.objects.count()
+        if remaining_count == 0:
+            raise Exception("No valid test data was generated")
+        self.stdout.write(f'Verified {remaining_count} valid Reddit records')
 
     def _verify_index_creation(self):
-        """验证索引是否正确创建"""
-        from django_apps.search.models import ContentIndex
-        
-        self.stdout.write('\nVerifying index creation:')
-        
-        # 检查索引数量
+        """验证索引是否成功创建"""
+        # 检查内容数量
         total_content = RedditContent.objects.count()
-        total_index = ContentIndex.objects.count() # 这里相当于代表了索引&embedding的数量, 因为ContentIndex的存入和embedding的构建存入是同步的
         
+        # 检查索引条目数量 - 不要查询不存在的 content 字段
+        index_exists = ContentIndex.objects.filter(
+            source='reddit'
+        ).count()
+        
+        self.stdout.write(f'Verifying index creation:')
         self.stdout.write(f'- Total content: {total_content}')
-        self.stdout.write(f'- Total index entries: {total_index}')
+        self.stdout.write(f'- Total index entries: {index_exists}')
         
-        if total_content != total_index:
-            self.stdout.write(
-                self.style.WARNING(
-                    f'Warning: Content count ({total_content}) does not match '
-                    f'index count ({total_index})'
-                )
-            )
-            
-        # 检查各个类别的索引
-        for category in ['programming', 'food', 'travel', 'study']:
-            contents = RedditContent.objects.filter(subreddit=category)
-            for content in contents:
-                index_exists = ContentIndex.objects.filter(
-                    content=content.content
-                ).exists()
-                if not index_exists:
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f'Warning: Missing index for {category} '
-                            f'content: {content.thread_title[:50]}...'
-                        )
-                    )
+        # 验证索引文件是否存在
+        index_path = os.path.join('faiss_index', 'reddit', 'index.faiss')
+        if not os.path.exists(index_path):
+            raise Exception(f"FAISS index file not found at {index_path}")
+        
+        # 验证索引条目数量是否匹配内容数量
+        if index_exists != total_content:
+            raise Exception(f"Index entries count ({index_exists}) doesn't match content count ({total_content})")
     
         

@@ -20,7 +20,7 @@ class Indexer:
         self.faiss_manager = faiss_manager
         self.batch_size = batch_size
 
-    def index_platform_content(self, platform: str,  unindexed_queryset=None):
+    def index_platform_content(self, platform: str, unindexed_queryset=None):
         if platform not in self.PLATFORM_MODEL_MAP:
             raise ValueError(f"Unsupported platform: {platform}")
 
@@ -31,78 +31,55 @@ class Indexer:
         if not unindexed_queryset:
             return 
 
-        # 获取所有文本，包括已有的和新的
-        # all_texts = [obj.content for obj in model_class.objects.all()]
-        
         # 初始化 FAISS store 和 BM25
         if not self.faiss_manager.faiss_store:
             # Only get texts from unindexed queryset
             unindexed_texts = [obj.content for obj in unindexed_queryset if obj.content]
             if unindexed_texts:
                 self.faiss_manager.initialize_store(unindexed_texts)
-        #else:
-            # 更新 BM25
-        #    self.faiss_manager.initialize_bm25(all_texts)
 
-        # 获取需要被indexing + 存入 的所有新数据
-        #if not unindexed_queryset:
-            # 如果没有传入特定未索引数据，就依然走原先的全表逻辑
-        #   content_objects = model_class.objects.all()
-        #else:
         content_objects = unindexed_queryset
-        total = content_objects.count()
-        processed = 0
-
-        if total == 0:
-            logger.warning("No content available to index for this platform.")
-            return
-
-        # Add this variable to collect IDs
-        ids_to_clear = []
-
-        while processed < total:
-            batch = content_objects[processed:processed + self.batch_size]
-            texts = [obj.content for obj in batch]
-            embeddings = self._batch_create_embeddings(texts)
-
-            for idx, obj in enumerate(batch):
-                emb = embeddings[idx]
-                meta_dict = {
-                    "source": platform,
-                    "thread_id": obj.thread_id,
-                }
-                if platform == 'reddit':
-                    if hasattr(obj, 'subreddit'):
-                        meta_dict["subreddit"] = obj.subreddit
-                    if hasattr(obj, 'upvotes'):
-                        meta_dict["upvotes"] = obj.upvotes
-                elif platform in ('stackoverflow', 'rednote'):
-                    if hasattr(obj, 'tags'):
-                        meta_dict["tags"] = obj.tags
-                    if hasattr(obj, 'likes'):
-                        meta_dict["likes"] = obj.likes
-
-                self.faiss_manager.add_texts(texts=[obj.content],
-                                              metadatas=[meta_dict],
-                                              embeddings=[emb])
-
-                self._index_content(obj, platform) 
-
-                # Instead of clearing in _index_content
-                ids_to_clear.append(obj.id)
-
-            processed += self.batch_size
-            logger.info(f"Progress: {min(processed, total)}/{total}")
-
-        logger.info(f"Indexed {total} {platform} items.")
-
-        # 在这里把索引保存到磁盘
-        self.faiss_manager.save_index()
-        logger.info("FAISS index saved to disk after indexing.")
-
-        # Batch update at the end
-        if ids_to_clear:
-            model_class.objects.filter(id__in=ids_to_clear).update(content=None)
+        
+        # 处理每个内容对象
+        for obj in content_objects:
+            # 跳过内容为空的对象
+            if not obj.content:
+                logger.warning(f"Skipping object with ID {obj.id} due to empty content")
+                continue
+            
+            # 生成唯一ID
+            doc_id = str(uuid.uuid4())
+            
+            # 准备元数据
+            metadata = {
+                'source': platform,
+                'thread_id': obj.thread_id,
+                'content_type': obj.content_type,
+                'author': obj.author_name,
+                'doc_id': doc_id
+            }
+            
+            # 添加特定平台的元数据
+            if platform == 'reddit' and hasattr(obj, 'subreddit'):
+                metadata['subreddit'] = obj.subreddit
+            
+            # 生成 embedding
+            embeddings = self.embedding_model.embed_documents([obj.content])
+            
+            # 添加到 FAISS
+            self.faiss_manager.add_texts(
+                texts=[obj.content], 
+                metadatas=[metadata],
+                embeddings=embeddings  # 提供 embeddings 参数
+            )
+            
+            # 记录到 ContentIndex
+            ContentIndex.objects.create(
+                source=platform,
+                content_type=obj.content_type,
+                thread_id=obj.thread_id,
+                author_name=obj.author_name
+            )
 
     def _index_content(self, content_obj, source: str):
         try:

@@ -17,11 +17,13 @@ class ResultProcessor:
     def __init__(self):
         self.rating_processor = RatingProcessor()
         
-        # 情感到评分的映射
-        self.sentiment_to_rating = {
-            'positive': 5.0,  # 正面评价 -> 5分
-            'neutral': 3.0,   # 中性评价 -> 3分
-            'negative': 1.0   # 负面评价 -> 1分
+        # 情感评分说明（仅用于文档）
+        self.sentiment_ratings = {
+            5: "非常正面",  # 5分 -> 非常正面
+            4: "正面",      # 4分 -> 正面
+            3: "中性",      # 3分 -> 中性
+            2: "负面",      # 2分 -> 负面
+            1: "非常负面"   # 1分 -> 非常负面
         }
         
         # 默认权重配置（综合排序）
@@ -47,69 +49,84 @@ class ResultProcessor:
         
         self.weights = self.default_weights  # 初始使用默认权重
 
-    def _extract_or_convert_rating(self, content: str, metadata: Dict) -> float:
-        """将评论内容转换为评分"""
-        try:
-            # 直接分析情感
-            sentiment_counts = self.rating_processor.analyze_sentiment(content)
-            
-            # 获取主导情感（计数最高的）
-            dominant_sentiment = max(sentiment_counts.items(), key=lambda x: x[1])[0]
-            
-            # 将情感转换为评分
-            return self.sentiment_to_rating[dominant_sentiment]
-            
-        except Exception as e:
-            logger.error(f"评分转换失败: {str(e)}")
-            return 3.0  # 出错时返回中性评分
-
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
         """处理推荐类查询"""
         try:
-            # 1. 使用原有的LLM提取基础信息
+            # 1. 使用LLM提取基础信息
             prompt = self._build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
-            base_recommendations = json.loads(response)
+            extracted_items = json.loads(response)
             
             # 2. 处理每个推荐项
-            for item in base_recommendations:
-                reviews = item.get('reviews', [])
-                ratings = []
+            recommendations = []
+            
+            for item in extracted_items:
+                # 确保必要的字段存在
+                if 'name' not in item or 'posts' not in item:
+                    logger.warning(f"跳过缺少必要字段的项目: {item}")
+                    continue
                 
-                # 处理每条评论
-                for review in reviews:
-                    content = review.get('content', '')
-                    # 获取评分或转换情感为评分
-                    rating = self._extract_or_convert_rating(content, review)
-                    ratings.append(rating)
-                    # 更新评论中的评分
-                    review['rating'] = rating
+                # 计算总点赞数
+                total_upvotes = sum(post.get('upvotes', 0) for post in item['posts'])
                 
                 # 计算平均评分
+                ratings = [post.get('rating', 3.0) for post in item['posts']]
                 avg_rating = sum(ratings) / len(ratings) if ratings else 3.0
                 
-                # 更新推荐项
-                item.update({
+                # 提及次数就是帖子数量
+                mentions = len(item['posts'])
+                
+                # 创建推荐项
+                recommendation = {
+                    'name': item['name'],
+                    'total_upvotes': total_upvotes,
                     'avg_rating': round(avg_rating, 2),
-                    'score': (
-                        self.weights['rating'] * (avg_rating / 5.0) +
-                        self.weights['upvotes'] * (item['total_upvotes'] / 1000) +
-                        self.weights['mentions'] * (item['mentions'] / 10)
-                    )
-                })
+                    'mentions': mentions,
+                    'posts': item['posts'],
+                    'summary': item.get('summary', '没有摘要')
+                }
+                
+                recommendations.append(recommendation)
             
-            # 3. 排序
-            sorted_items = sorted(
-                base_recommendations,
+            # 3. 计算分数并排序
+            self._calculate_scores(recommendations)
+            sorted_recommendations = sorted(
+                recommendations,
                 key=lambda x: x['score'],
                 reverse=True
             )[:top_k]
             
-            return self._format_results(sorted_items)
+            # 4. 格式化结果
+            return self._format_results(sorted_recommendations)
             
         except Exception as e:
             logger.error(f"处理推荐时出错: {e}")
             return []
+    
+    def _calculate_scores(self, recommendations: List[Dict]):
+        """计算每个推荐项的分数"""
+        # 找出最大值用于归一化
+        max_upvotes = max([rec['total_upvotes'] for rec in recommendations]) if recommendations else 1
+        max_mentions = max([rec['mentions'] for rec in recommendations]) if recommendations else 1
+        max_rating = 5.0  # 评分最大值固定为5
+        
+        # 计算每个推荐项的分数
+        for rec in recommendations:
+            # 归一化各个组件
+            rating_component = self.weights['rating'] * (rec['avg_rating'] / max_rating)
+            upvote_component = self.weights['upvotes'] * (rec['total_upvotes'] / max_upvotes)
+            mention_component = self.weights['mentions'] * (rec['mentions'] / max_mentions)
+            
+            # 计算总分
+            score = rating_component + upvote_component + mention_component
+            
+            # 更新推荐项
+            rec['score'] = round(score, 3)
+            rec['score_components'] = {
+                'rating': round(rating_component, 3),
+                'upvotes': round(upvote_component, 3),
+                'mentions': round(mention_component, 3)
+            }
 
     def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
         """构建大模型提取信息的提示词"""
@@ -138,62 +155,49 @@ class ResultProcessor:
                 f"{content}\n\n"
             )
         
-        prompt = f"""Please analyze these recommendations with exact calculations:
+        prompt = f"""Please analyze these posts and extract information about recommended items.
 
 Input Posts:
 {posts_text}
 
-Calculation Rules:
-1. Upvotes Calculation:
-   Grape Juice: 200 + 150 + 150 = 500 upvotes
-   Apple Juice: 200 + 200 + 150 = 550 upvotes
-   Pear Juice: 200 + 200 = 400 upvotes
-   Orange Juice: 200 + 150 = 350 upvotes
-
-2. Score Calculation (using weights: rating={self.weights['rating']}, upvotes={self.weights['upvotes']}, mentions={self.weights['mentions']}):
-   
-   For each juice:
-   - Rating component = {self.weights['rating']} * (avg_rating/5.0)
-   - Upvote component = {self.weights['upvotes']} * (total_upvotes/max_upvotes)  
-   - Mention component = {self.weights['mentions']} * (mentions/max_mentions)    
-
-Example Score Calculation for Grape Juice:
-- Rating: {self.weights['rating']} * (5.0/5.0) = {self.weights['rating']}
-- Upvotes: {self.weights['upvotes']} * (500/550) = {self.weights['upvotes'] * (500/550):.3f}
-- Mentions: {self.weights['mentions']} * (3/3) = {self.weights['mentions']}
-Final Score = {self.weights['rating']} + {self.weights['upvotes'] * (500/550):.3f} + {self.weights['mentions']} = {self.weights['rating'] + self.weights['upvotes'] * (500/550) + self.weights['mentions']:.3f}
-
-Please ensure:
-1. Exact upvote sums for each juice
-2. Precise score calculations using provided weights
-3. Correct normalization using max values:
-   - Max upvotes: 550 (from Apple Juice)
-   - Max mentions: 3 (from Grape/Apple Juice)
-   - Max rating: 5.0
+Your task:
+1. Identify all recommended items (e.g., juices, libraries, products)
+2. For each item, extract:
+   - The item name (e.g., "grape juice", "Library A")
+   - All posts mentioning this item
+   - For each post:
+     * The exact post content
+     * The upvotes associated with the post
+     * A sentiment rating (1-5 scale) based on how positive the post is about the item
+   - A brief summary of all reviews for this item (2-3 sentences)
 
 Output Format:
 [
     {{
-        "name": "juice name",
-        "total_upvotes": exact_sum,
-        "avg_rating": precise_average,
-        "mentions": count,
-        "score": calculated_score,
-        "reviews": [
+        "name": "item name",
+        "posts": [
             {{
-                "content": "评论内容",
-                "rating": 情感分析得分,
-                "upvotes": 点赞数
+                "content": "the exact post text",
+                "upvotes": number_of_upvotes,
+                "rating": sentiment_rating_1_to_5
             }}
-        ]
+        ],
+        "summary": "Brief summary of all reviews for this item"
     }}
 ]
 
-Double-check all calculations before responding."""
+Important:
+- DO NOT calculate any totals, averages, or final scores
+- Extract the exact text from the posts
+- Include ALL relevant items mentioned in the posts
+- For sentiment rating: 5=very positive, 4=positive, 3=neutral, 2=negative, 1=very negative
+- Make sure the summary captures the overall sentiment and key points from all reviews
+
+Return only the JSON array with the extracted information."""
         return prompt
 
     def _call_llm_for_extraction(self, prompt: str) -> str:
-        """调用大模型进行提取和计算"""
+        """调用大模型进行提取"""
         try:
             from search_process.prompt_sender.sender import send_prompt_to_gemini
             response = send_prompt_to_gemini(prompt, model_name="gemini-1.5-flash")
@@ -246,51 +250,45 @@ Double-check all calculations before responding."""
         mock_data = [
             {
                 "name": "grape juice",
-                "total_upvotes": 500,
-                "avg_rating": 5.0,
-                "mentions": 3,
-                "score": 0.775,
-                "reviews": [
+                "posts": [
                     {
-                        "rating": 5.0,  
+                        "content": "Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars).",
                         "upvotes": 150,
-                        "content": "a"
+                        "rating": 5.0
                     },
                     {
-                        "rating": 5.0,
+                        "content": "Best summer juices: grape juice (5 stars) - rich and sweet",
                         "upvotes": 200,
-                        "content": "b"
+                        "rating": 5.0
                     },
                     {
-                        "rating": 5.0,
+                        "content": "My favorite fresh juices: grape juice (5 stars) - full of nutrients",
                         "upvotes": 150,
-                        "content": "c"
+                        "rating": 5.0
                     }
-                ]
+                ],
+                "summary": "Grape juice is highly praised for its natural sweetness, rich flavor, and nutritional value. All reviews are extremely positive, giving it 5-star ratings consistently."
             },
             {
                 "name": "apple juice",
-                "total_upvotes": 550,
-                "avg_rating": 3.0,
-                "mentions": 3,
-                "score": 0.720,
-                "reviews": [
+                "posts": [
                     {
-                        "stars": 5,
+                        "content": "Fresh juice recommendations: apple juice (5 stars) - crisp and sweet",
                         "upvotes": 200,
-                        "content": "a"
+                        "rating": 5.0
                     },
                     {
-                        "stars": 4,
+                        "content": "Best summer juices: apple juice (4 stars) - perfect for hot days",
+                        "upvotes": 200,
+                        "rating": 4.0
+                    },
+                    {
+                        "content": "My favorite fresh juices: apple juice (4 stars) - great antioxidants",
                         "upvotes": 150,
-                        "content": "b"
-                    },
-                    {
-                        "stars": 4,
-                        "upvotes": 200,
-                        "content": "c"
+                        "rating": 4.0
                     }
-                ]
+                ],
+                "summary": "Apple juice receives high praise for being crisp, sweet, and refreshing, especially during hot weather. Reviewers also appreciate its antioxidant properties, with ratings ranging from 4 to 5 stars."
             }
         ]
         return json.dumps(mock_data, indent=2)
@@ -301,19 +299,28 @@ Double-check all calculations before responding."""
         for i, item in enumerate(items, 1):
             # 创建格式化的内容字符串
             content = (
-                f"{i}. {item['name'].title()} Juice\n"
+                f"{i}. {item['name'].title()}\n"
                 f"   情感评分: {item['avg_rating']:.1f} ({item['mentions']} 条评论)\n"
                 f"   点赞数: {item['total_upvotes']}\n"
-                f"   综合得分: {item['score']:.3f}\n\n"
+                f"   综合得分: {item['score']:.3f}\n"
+                f"   得分明细: 评分={item['score_components']['rating']:.3f}, "
+                f"点赞={item['score_components']['upvotes']:.3f}, "
+                f"提及={item['score_components']['mentions']:.3f}\n\n"
+                f"   评论摘要: {item['summary']}\n\n"
                 f"   评论详情:\n"
             )
             
             # 添加评论
-            for review in item['reviews']:
-                sentiment_text = "好评" if review['rating'] >= 4 else "中评" if review['rating'] >= 2 else "差评"
+            for post in item['posts']:
+                # 获取评分对应的情感文本
+                rating = int(round(post['rating']))
+                if rating > 5: rating = 5
+                if rating < 1: rating = 1
+                sentiment_text = self.sentiment_ratings.get(rating, "未知")
+                
                 content += (
-                    f"   - {review['content']}\n"
-                    f"     ({sentiment_text}, {review['upvotes']} 点赞)\n"
+                    f"   - {post['content']}\n"
+                    f"     ({sentiment_text}, {post['upvotes']} 点赞)\n"
                 )
             
             # 创建Document对象
@@ -326,7 +333,9 @@ Double-check all calculations before responding."""
                     'avg_rating': item['avg_rating'],
                     'mentions': item['mentions'],
                     'score': item['score'],
-                    'reviews': item['reviews']
+                    'score_components': item['score_components'],
+                    'summary': item['summary'],
+                    'posts': item['posts']
                 }
             )
             results.append(doc)

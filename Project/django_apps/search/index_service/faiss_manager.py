@@ -27,7 +27,7 @@ class FaissManager:
         self.embedding_model = embedding_model
         self.platform = platform.lower() if isinstance(platform, str) else "all"
         self.index_dir = os.path.join(base_index_dir, self.platform)
-        self.texts = []  # 添加这行来保存文本
+        self.texts = []  # 添加这行来保存文本Sydney
         # 检查目录是否存在，不存在则自动创建
         if not os.path.exists(self.index_dir):
             os.makedirs(self.index_dir, exist_ok=True)

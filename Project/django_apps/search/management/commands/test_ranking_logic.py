@@ -6,6 +6,7 @@ from django_apps.search.models import RedditContent
 import time
 import logging
 import os
+from django.core.management import call_command
 
 logger = logging.getLogger(__name__)
 
@@ -37,18 +38,21 @@ class Command(BaseCommand):
             index_service = IndexService(platform='rednote')
             index_service = IndexService(platform='stackoverflow')
             
-            # 5. 强制重新构建索引
-            self.stdout.write('Building FAISS index...')
+            # 5. 初始化 FAISS 索引
+            self.stdout.write('Initializing FAISS indices...')
+            # 使用新的 initialize_index 命令初始化索引
+            call_command('initialize_index', source='all')
+            
+            # 6. 添加内容到索引
+            self.stdout.write('Adding content to FAISS index...')
             unindexed = RedditContent.objects.all()
-            index_service.index_platform_content(unindexed=unindexed)
+            index_service = IndexService(platform='reddit')  # 重新初始化以确保使用正确的平台
+            index_service.indexer.index_platform_content(platform='reddit', unindexed_queryset=unindexed)
             
-            # 6. 验证索引创建
-            index_path = os.path.join("faiss_index", "reddit", "index.faiss")
-            if not os.path.exists(index_path):
-                raise Exception(f"FAISS index not created at {index_path}")
-            self.stdout.write('FAISS index created successfully')
+            # 7. 验证索引创建
+            self._verify_index_creation(index_service)
             
-            # 7. 执行测试查询
+            # 8. 执行测试查询
             test_queries = [
                 {
                     'query': 'Recommend fruit juices',

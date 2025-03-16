@@ -2,71 +2,29 @@ from datetime import datetime, timedelta
 from faker import Faker
 from django.utils import timezone
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent
+import random
 
 class TestDataGenerator:
     def __init__(self):
         self.fake = Faker()
         self.start_date = timezone.now() - timedelta(days=365)
 
-    def generate_reddit_data(self):
-        """
-        Generate general Reddit test data with various topics.
-        """
-        # 预定义不同主题的内容
-        test_contents = [
-            {
-                'title': '[Python] How to implement a binary search tree',
-                'content': '''Here's my implementation of a binary search tree in Python. 
-                            The time complexity for insertion and search is O(log n).
-                            I'm wondering if there are better ways to balance the tree?
-                            Code example: class Node: def __init__(self, value): self.value = value''',
-                'subreddit': 'programming',
-                'upvotes': 150
-            },
-            {
-                'title': 'Best Chinese Restaurant in SYD',
-                'content': '''Just tried this amazing hotpot place in Sydney. 
-                            The soup was incredible and the ice cream was to die for! 
-                            They make their meals fresh daily.''',
-                'subreddit': 'food',
-                'upvotes': 45
-            },
-            {
-                'title': 'Backpacking through Europe',
-                'content': '''Just finished my 3-month trip across Europe. 
-                            Visited 10 countries and stayed in 25 different hostels. 
-                            Here are my top travel tips...''',
-                'subreddit': 'travel',
-                'upvotes': 89
-            },
-            {
-                'title': 'NBA Finals Discussion',
-                'content': '''Amazing game last night! The defensive strategy in the fourth quarter
-                            really changed everything. What do you think about the coach's decision?''',
-                'subreddit': 'sports',
-                'upvotes': 200
-            },
-            {
-                'title': 'New Album Review: Classical Meets Jazz',
-                'content': '''This new fusion album combines classical piano techniques with 
-                            modern jazz improvisation. The third track especially shows some 
-                            interesting harmonies.''',
-                'subreddit': 'music',
-                'upvotes': 67
-            }
-        ]
-
-        for content in test_contents:
+    def generate_reddit_data(self, count=20):
+        """生成Reddit测试数据"""
+        for i in range(count):
+            # 确保 content 字段始终有值
+            content = f"This is a sample Reddit post about {self.fake.word()} and {self.fake.word()}."
+            
             RedditContent.objects.create(
-                source='reddit',
-                content_type='post',
-                thread_id=self.fake.uuid4(),
-                thread_title=content['title'],
+                thread_id=f"thread_{i}",
+                content_type="post",
+                thread_title=f"Reddit Post {i}",
+                content=content,
                 author_name=self.fake.user_name(),
-                content=content['content'],
-                created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
-                subreddit=content['subreddit'],
-                upvotes=content['upvotes']
+                upvotes=random.randint(1, 1000),
+                source="reddit",
+                subreddit=random.choice(["technology", "programming", "python", "django"]),
+                created_at=self.start_date + timedelta(days=random.randint(0, 365))
             )
 
     def generate_library_ranking_data(self):
@@ -156,7 +114,7 @@ class TestDataGenerator:
         test_recommendations = [
             # 相关文档 - 高质量
             {
-                'title': 'Best Fruit Juice Rankings',
+                'thread_title': 'Best Fruit Juice Rankings',
                 'content': 'Fresh juice recommendations: apple juice (5 stars) - crisp and sweet, '
                           'pear juice (4 stars) - mild and refreshing, '
                           'orange juice (3 stars) - classic choice',
@@ -164,7 +122,7 @@ class TestDataGenerator:
                 'subreddit': 'food'
             },
             {
-                'title': 'Summer Juice Review',
+                'thread_title': 'Summer Juice Review',
                 'content': 'Best summer juices: apple juice (4 stars) - perfect for hot days, '
                           'pear juice (4 stars) - light and refreshing, '
                           'grape juice (5 stars) - rich and sweet',
@@ -174,7 +132,7 @@ class TestDataGenerator:
             
             # 相关文档 - 中等质量
             {
-                'title': 'Healthy Juice Guide',
+                'thread_title': 'Healthy Juice Guide',
                 'content': 'My favorite fresh juices: apple juice (4 stars) - great antioxidants, '
                           'grape juice (5 stars) - full of nutrients, '
                           'orange juice (4 stars) - vitamin C boost',
@@ -182,7 +140,7 @@ class TestDataGenerator:
                 'subreddit': 'food'
             },
             {
-                'title': 'Grape Juice Special',
+                'thread_title': 'Grape Juice Special',
                 'content': 'Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars). '
                           'Perfect for both adults and kids.',
                 'upvotes': 150,
@@ -191,7 +149,7 @@ class TestDataGenerator:
             
             # 相关文档 - 低质量/争议
             {
-                'title': 'Controversial Juice Review',
+                'thread_title': 'Controversial Juice Review',
                 'content': 'Mixed feelings about these juices: apple juice (2 stars) - too sweet, '
                           'grape juice (1 star) - artificial taste, '
                           'orange juice (3 stars) - just okay',
@@ -201,7 +159,7 @@ class TestDataGenerator:
             
             # 部分相关文档
             {
-                'title': 'Beverage Discussion',
+                'thread_title': 'Beverage Discussion',
                 'content': 'Talking about drinks in general. Some juice mentions: apple juice is okay. '
                           'Also coffee and tea are great.',
                 'upvotes': 100,
@@ -210,13 +168,13 @@ class TestDataGenerator:
             
             # 无关文档
             {
-                'title': 'Coffee Reviews',
+                'thread_title': 'Coffee Reviews',
                 'content': 'Best coffee brands and brewing methods. No juice content here.',
                 'upvotes': 300,
                 'subreddit': 'food'
             },
             {
-                'title': 'Tea Appreciation',
+                'thread_title': 'Tea Appreciation',
                 'content': 'Different types of tea and their benefits.',
                 'upvotes': 250,
                 'subreddit': 'food'
@@ -228,12 +186,12 @@ class TestDataGenerator:
                 source='reddit',
                 content_type='post',
                 thread_id=self.fake.uuid4(),
-                thread_title=rec['title'],
+                thread_title=rec.get('thread_title', 'Default Title'),
                 author_name=self.fake.user_name(),
-                content=rec['content'],
+                content=rec.get('content', 'Default content'),
                 created_at=self.start_date + timedelta(days=self.fake.random_int(0, 365)),
-                subreddit=rec['subreddit'],
-                upvotes=rec['upvotes']
+                subreddit=rec.get('subreddit', 'general'),
+                upvotes=rec.get('upvotes', 0)
             )
 
     

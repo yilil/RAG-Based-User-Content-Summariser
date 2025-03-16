@@ -30,24 +30,30 @@ digraph Flowchart {
   // Combined Scores
   Combine [label="Combined Hybrid Scores\n\nFinal scores (weighted average):\n1. Best Fruit Juice Rankings: 0.86\n2. Summer Juice Review: 0.84\n3. Healthy Juice Guide: 0.76\n4. Grape Juice Special: 0.74\n5. Controversial Review: 0.62\n6. Coffee Reviews: 0.45\n7. Beverage Discussion: 0.40\n8. Tea Appreciation: 0.36\n\nTop 5 selected for next stage", shape=box, fillcolor=lightgreen];
 
-  // Content Processing
-  subgraph cluster_content {
-    label="Content Processing (Top 5 only)";
+  // Content Processing - LLM Extraction
+  subgraph cluster_llm_extraction {
+    label="LLM Information Extraction (Top 5 only)";
     style=filled;
     fillcolor=orange;
     
-    Extract [label="Extract Juice Information\n\nJuices mentioned in top 5 docs:\n1. Apple Juice: 3 mentions (docs 1,2,3)\n2. Grape Juice: 3 mentions (docs 2,3,4)\n3. Orange Juice: 2 mentions (docs 1,3)\n4. Pear Juice: 2 mentions (docs 1,2)", shape=box];
+    Extract [label="LLM Extract Items and Posts\n\nItems identified:\n1. Apple Juice\n   - 3 posts with upvotes and sentiment ratings\n2. Grape Juice\n   - 3 posts with upvotes and sentiment ratings\n3. Orange Juice\n   - 2 posts with upvotes and sentiment ratings\n4. Pear Juice\n   - 2 posts with upvotes and sentiment ratings", shape=box];
     
-    LLM [label="Sentiment Analysis per Juice\n\nApple Juice:\n- Doc1: 5 stars (crisp and sweet)\n- Doc2: 4 stars (perfect for hot days)\n- Doc3: 4 stars (great antioxidants)\nAvg: 4.33\n\nGrape Juice:\n- Doc2: 5 stars (rich and sweet)\n- Doc3: 5 stars (full of nutrients)\n- Doc4: 5 stars (natural sweetness)\nAvg: 5.0\n\nOrange Juice:\n- Doc1: 3 stars (classic choice)\n- Doc3: 4 stars (vitamin C boost)\nAvg: 3.5\n\nPear Juice:\n- Doc1: 4 stars (mild and refreshing)\n- Doc2: 4 stars (light and refreshing)\nAvg: 4.0", shape=box];
+    Sentiment [label="LLM Sentiment Analysis\n\nApple Juice posts:\n- Post1: 5 stars (crisp and sweet)\n- Post2: 4 stars (perfect for hot days)\n- Post3: 4 stars (great antioxidants)\n\nGrape Juice posts:\n- Post1: 5 stars (rich and sweet)\n- Post2: 5 stars (full of nutrients)\n- Post3: 5 stars (natural sweetness)\n\nOrange Juice posts:\n- Post1: 3 stars (classic choice)\n- Post2: 4 stars (vitamin C boost)\n\nPear Juice posts:\n- Post1: 4 stars (mild and refreshing)\n- Post2: 4 stars (light and refreshing)", shape=box];
+    
+    Summary [label="LLM Generate Summaries\n\nApple Juice:\n\"Apple juice receives high praise for being crisp,\nsweet, and refreshing, especially during hot weather.\nReviewers also appreciate its antioxidant properties.\"\n\nGrape Juice:\n\"Grape juice is highly praised for its natural sweetness,\nrich flavor, and nutritional value. All reviews are\nextremely positive.\"\n\nOrange Juice:\n\"Orange juice is appreciated as a classic choice with\ngood vitamin C content. Reviews are generally positive.\"\n\nPear Juice:\n\"Pear juice is consistently described as mild, light,\nand refreshing. Reviews are uniformly positive.\"", shape=box];
   }
 
-  // Final Score Calculation
-  subgraph cluster_final {
-    label="Final Score Calculation";
+  // Code Calculation
+  subgraph cluster_code_calculation {
+    label="Code Calculation";
     style=filled;
     fillcolor=plum;
     
-    Final_Score [label="Calculate Final Scores\n\nGrape Juice:\n0.4*(5.0/5.0) + 0.35*(500/500) + 0.25*(3/3) = 1.000\n\nApple Juice:\n0.4*(4.33/5.0) + 0.35*(550/500) + 0.25*(3/3) = 0.947\n\nPear Juice:\n0.4*(4.0/5.0) + 0.35*(400/500) + 0.25*(2/3) = 0.767\n\nOrange Juice:\n0.4*(3.5/5.0) + 0.35*(350/500) + 0.25*(2/3) = 0.697", shape=box];
+    Aggregate [label="Calculate Aggregates\n\nApple Juice:\n- Total Upvotes: 550\n- Average Rating: 4.33\n- Mentions: 3\n\nGrape Juice:\n- Total Upvotes: 500\n- Average Rating: 5.0\n- Mentions: 3\n\nOrange Juice:\n- Total Upvotes: 350\n- Average Rating: 3.5\n- Mentions: 2\n\nPear Juice:\n- Total Upvotes: 400\n- Average Rating: 4.0\n- Mentions: 2", shape=box];
+    
+    Normalize [label="Normalize Components\n\nMax Values:\n- Max Upvotes: 550\n- Max Rating: 5.0\n- Max Mentions: 3\n\nNormalized Components:\n- Apple Juice: rating=0.866, upvotes=1.000, mentions=1.000\n- Grape Juice: rating=1.000, upvotes=0.909, mentions=1.000\n- Orange Juice: rating=0.700, upvotes=0.636, mentions=0.667\n- Pear Juice: rating=0.800, upvotes=0.727, mentions=0.667", shape=box];
+    
+    Final_Score [label="Apply Weights and Calculate Final Scores\n\nWeights: rating=0.4, upvotes=0.35, mentions=0.25\n\nApple Juice:\n0.4*(0.866) + 0.35*(1.000) + 0.25*(1.000) = 0.946\n\nGrape Juice:\n0.4*(1.000) + 0.35*(0.909) + 0.25*(1.000) = 0.968\n\nOrange Juice:\n0.4*(0.700) + 0.35*(0.636) + 0.25*(0.667) = 0.669\n\nPear Juice:\n0.4*(0.800) + 0.35*(0.727) + 0.25*(0.667) = 0.744", shape=box];
   }
 
   // Result Processing
@@ -56,7 +62,7 @@ digraph Flowchart {
     style=filled;
     fillcolor=lightcoral;
     
-    Format [label="Final Ranked Results:\n\n1. Grape Juice\n   Rating: 5.0 (3 reviews)\n   Upvotes: 500\n   Score: 1.000\n\n2. Apple Juice\n   Rating: 4.33 (3 reviews)\n   Upvotes: 550\n   Score: 0.947\n\n3. Pear Juice\n   Rating: 4.0 (2 reviews)\n   Upvotes: 400\n   Score: 0.767\n\n4. Orange Juice\n   Rating: 3.5 (2 reviews)\n   Upvotes: 350\n   Score: 0.697", shape=box];
+    Format [label="Final Ranked Results:\n\n1. Grape Juice\n   Rating: 5.0 (3 reviews)\n   Upvotes: 500\n   Score: 0.968\n   Summary: \"Grape juice is highly praised for its natural sweetness,\n   rich flavor, and nutritional value.\"\n\n2. Apple Juice\n   Rating: 4.33 (3 reviews)\n   Upvotes: 550\n   Score: 0.946\n   Summary: \"Apple juice receives high praise for being crisp,\n   sweet, and refreshing, especially during hot weather.\"\n\n3. Pear Juice\n   Rating: 4.0 (2 reviews)\n   Upvotes: 400\n   Score: 0.744\n   Summary: \"Pear juice is consistently described as mild, light,\n   and refreshing.\"\n\n4. Orange Juice\n   Rating: 3.5 (2 reviews)\n   Upvotes: 350\n   Score: 0.669\n   Summary: \"Orange juice is appreciated as a classic choice with\n   good vitamin C content.\"", shape=box];
   }
 
   // Connections
@@ -69,11 +75,15 @@ digraph Flowchart {
   Social -> Combine;
   
   Combine -> Extract;
-  Extract -> LLM;
-  LLM -> Final_Score;
+  Extract -> Sentiment;
+  Sentiment -> Summary;
+  
+  Summary -> Aggregate;
+  Aggregate -> Normalize;
+  Normalize -> Final_Score;
   Final_Score -> Format;
   
   Format -> Output;
   
-  Output [label="Return top 4 ranked juices", shape=ellipse, fillcolor=lightblue];
+  Output [label="Return top 4 ranked juices with summaries", shape=ellipse, fillcolor=lightblue];
 }

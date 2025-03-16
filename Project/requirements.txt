@@ -62,4 +62,4 @@ selenium==4.28.1
 openai==1.61.0
 
 # 结果处理相关
-markdown==3.7.0
+markdown==3.7.0django-cors-headers
