@@ -33,7 +33,6 @@ def search(request):
     print("Request Method:", request.method)
     print("Request Headers:", request.headers)
     print("Request Body:", request.body)
-    print("如山峰般的返回")
     global index_service
 
     logger.info("Received search request")
@@ -64,7 +63,8 @@ def search(request):
         return JsonResponse({
                 'result': answer,
                 'metadata': metadata,
-                'llm_model': llm_model
+                'llm_model': llm_model,
+                'history': recent_memory
             })
 
     logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {filter_value}")
@@ -114,10 +114,12 @@ def search(request):
         metadata = {}
 
     print(answer)
+    recent_memory = MemoryService.get_recent_memory(session_id)
     return JsonResponse({
             'result': answer,
             'metadata': metadata,
-            'llm_model': llm_model
+            'llm_model': llm_model,
+            'history': recent_memory
         })
 
 

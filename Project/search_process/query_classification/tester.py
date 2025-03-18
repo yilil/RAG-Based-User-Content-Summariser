@@ -3,6 +3,7 @@ from search_process.query_classification.classification import classify_query
 import json
 import os
 import re
+import datetime
 
 class Classification:
     def __init__(self, id, question, ground_truth, prediction, confidence=1.0):
@@ -13,12 +14,17 @@ class Classification:
         self.confidence = confidence
 
     def is_correct(self):
-        return self.ground_truth == self.prediction
+        correct = self.ground_truth == self.prediction
+        if not correct:
+            filename = datetime.datetime.now().strftime("%Y-%m-%d") + ".txt"
+            with open(filename, 'a', encoding='utf-8') as f:
+                f.write(str(self) + '\n')
+        return correct
 
     def __str__(self):
         return (f"ID: {self.id}, Question: {self.question}, "
                 f"Truth: {self.ground_truth}, Prediction: {self.prediction}, "
-                f"Correct: {self.is_correct()}")
+                f"Correct: {self.ground_truth == self.prediction}")
 
 def category_number_to_name(category_number):
     category_mapping = {
