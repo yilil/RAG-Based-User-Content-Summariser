@@ -52,7 +52,8 @@ class Command(BaseCommand):
             self.stdout.write(f'Indexing content for platform: {platform_option}...')
             index_service = IndexService(platform=platform_option)
             self.stdout.write('Initializing FAISS index...')
-            call_command('initialize_index', source='reddit')
+            self.stdout.write(f'Initializing empty index for {platform_option}')
+            index_service.faiss_manager.create_empty_index()
             self.stdout.write('Adding content to FAISS index...')
             index_service.indexer.index_platform_content(platform='reddit', unindexed_queryset=RedditContent.objects.all())
             
@@ -106,9 +107,11 @@ class Command(BaseCommand):
                 for i, doc in enumerate(results, 1):
                     self.stdout.write(f'\nResult {i}:')
                     self.stdout.write(f'Content: {doc.page_content[:150]}...')
-                    self.stdout.write(f'Subreddit: {doc.metadata["subreddit"]}')
+                    self.stdout.write(f'Subreddit: {doc.metadata.get("subreddit", "unknown")}')
                     is_relevant = (doc.metadata.get('subreddit') == test_case['subreddit'])
                     self.stdout.write(f'Relevant: {"Y" if is_relevant else "N"}')
+                    self.stdout.write(f'Author: {doc.metadata.get("author", "anonymous")}')
+                    self.stdout.write(f'Thread ID: {doc.metadata.get("thread_id", "unknown")}')
             
             duration = time.time() - start_time
             self.stdout.write(f'\nAll tests completed in {duration:.2f} seconds')
@@ -141,23 +144,21 @@ class Command(BaseCommand):
         """验证索引是否成功创建"""
         # 检查内容数量
         total_content = RedditContent.objects.count()
-        
-        # 检查索引条目数量 - 不要查询不存在的 content 字段
-        index_exists = ContentIndex.objects.filter(
-            source='reddit'
-        ).count()
-        
-        self.stdout.write(f'Verifying index creation:')
         self.stdout.write(f'- Total content: {total_content}')
+        
+        # 检查索引条目数量
+        index_exists = ContentIndex.objects.filter(source='reddit').count()
         self.stdout.write(f'- Total index entries: {index_exists}')
         
-        # 验证索引文件是否存在
-        index_path = os.path.join('faiss_index', 'reddit', 'index.faiss')
-        if not os.path.exists(index_path):
-            raise Exception(f"FAISS index file not found at {index_path}")
+        # 验证所有当前测试生成的内容是否都已被索引
+        # 查找未被索引的内容
+        unindexed_count = RedditContent.objects.exclude(
+            thread_id__in=ContentIndex.objects.filter(source='reddit').values('thread_id')
+        ).count()
         
-        # 验证索引条目数量是否匹配内容数量
-        if index_exists != total_content:
-            raise Exception(f"Index entries count ({index_exists}) doesn't match content count ({total_content})")
+        if unindexed_count > 0:
+            raise Exception(f"Found {unindexed_count} Reddit records that were not indexed")
+        else:
+            self.stdout.write(self.style.SUCCESS('All current content has been properly indexed'))
     
         

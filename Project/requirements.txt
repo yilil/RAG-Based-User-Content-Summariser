@@ -40,6 +40,10 @@ typing_extensions==4.12.2
 uritemplate==4.1.1
 urllib3==2.2.3
 
+# 混合检索相关
+rank-bm25>=0.2.2
+jieba>=0.42.1
+
 # LangChain 和 Embeddings
 langchain>=0.0.200,<1.0.0
 faiss-cpu>=1.7.3,<2.0.0
@@ -62,4 +66,5 @@ selenium==4.28.1
 openai==1.61.0
 
 # 结果处理相关
-markdown==3.7.0django-cors-headers
+markdown==3.7.0 
+django-cors-headers==3.14.0

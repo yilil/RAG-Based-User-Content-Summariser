@@ -9,7 +9,7 @@ class HybridRetriever:
         self.faiss_manager = faiss_manager
         self.embedding_model = embedding_model
 
-    def retrieve(self, query, top_k=5):
+    def retrieve(self, query, top_k=80, relevance_threshold=0.6):
         # 从两种方法获取候选文档 (使用更大的检索范围确保有足够的候选项)
         bm25_docs = self.faiss_manager.search_bm25(query, top_k * 3)
         embedding_docs = self.faiss_manager.search(query, top_k * 3)
@@ -62,7 +62,11 @@ class HybridRetriever:
             combined_score = (self.bm25_weight * bm25_normalized[i] +
                              self.embedding_weight * embedding_normalized[i] +
                              self.vote_weight * vote_normalized[i])
-            final_scores.append((doc_id, combined_score))
+            
+            # 添加阈值过滤 - 只保留分数超过阈值的文档
+            if combined_score >= relevance_threshold:
+                all_docs[doc_id]['doc'].metadata['relevance_score'] = combined_score  # 保存分数到元数据
+                final_scores.append((doc_id, combined_score))
         
         # 按最终分数排序并获取前k个
         final_scores.sort(key=lambda x: x[1], reverse=True)

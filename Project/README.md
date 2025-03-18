@@ -55,20 +55,29 @@ python manage.py index_content --source=all
 
 > **注意**：每次添加新内容到数据库后，都需要运行 `index_content` 命令来更新索引。
 
+
+
+### 3.1 索引文件结构与检索机制
+
+ - FAISS索引系统使用两个关键文件存储数据：
+    - index.faiss: 存储向量索引结构，用于快速相似性搜索
+    - index.pkl: 存储文档内容和元数据(来源、ID、作者等)，与向量索引中的ID一一对应
+
+系统使用混合检索方法提高结果相关性
+
+### 3.2 相关性阈值与文档数量要求
+- 系统仅返回相关度超过阈值(默认0.6)的文档
+- RAG仅在找到至少5个高质量相关文档时激活
+- 当相关文档不足时，系统回退到直接回答模式
+
 ## 4. 测试与数据准备
 
-### 4.1 安装测试依赖
-```bash
-pip install faker  # 用于生成随机测试数据
-```
-
-### 4.2 运行测试
+# 运行测试
 ```bash
 python manage.py test_rag
 ```
 
 此命令会执行：
-- 清空数据库
 - 生成测试数据(包括 Library A/B, Reddit 内容等)
 - 构建 Embeddings 并写入数据库
 - 建立 FAISS 索引
@@ -270,5 +279,67 @@ python manage.py runserver
 cd Frontend
 npm run dev
 ```
+
+# 15. 将本地数据（sqlite + faiss相关）push到github上 以及数据获取
+
+## 将本地数据（sqlite + faiss相关）push到github上
+
+## 安装Git LFS (需要添加到README中)
+brew install git-lfs  # macOS
+which git-lfs
+git-lfs install
+
+## 设置Git LFS
+git lfs install
+
+## 跟踪SQLite数据库文件
+git lfs track "*.sqlite3"
+git lfs track "*.db"
+
+## 跟踪FAISS索引文件
+git lfs track "*.faiss"
+git lfs track "*.pkl"
+
+## 检查哪些文件已被Git LFS跟踪
+git lfs ls-files
+
+
+## 数据文件：
+本项目包含以下预构建的数据文件以便快速开始测试：
+
+- **SQLite数据库** (`db.sqlite3`): 包含已爬取和处理的内容数据
+- **FAISS索引目录** (`faiss_index/`): 包含各平台的预构建向量索引
+  - `faiss_index/reddit/`: Reddit数据索引
+  - `faiss_index/stackoverflow/`: StackOverflow数据索引
+  - `faiss_index/rednote/`: Rednote数据索引
+
+### 获取数据文件：
+通过Git LFS管理。克隆项目后，运行以下命令获取数据文件
+
+安装Git LFS (如果尚未安装)
+macOS: brew install git-lfs
+Ubuntu: sudo apt-get install git-lfs
+Windows: choco install git-lfs
+初始化Git LFS
+git lfs install
+拉取LFS文件
+git lfs pull
+
+### 数据文件提交：
+# 1. 先提交.gitattributes文件和README修改
+git add .gitignore .gitattributes README.md
+git commit -m "Add Git LFS configuration and update README"
+
+# 2. 然后添加数据库和索引文件
+git add db.sqlite3 faiss_index/
+# 此时Git LFS应该会显示跟踪信息，如：
+# "Tracking db.sqlite3"
+# "Tracking faiss_index/reddit/index.faiss"
+
+# 3. 提交大文件
+git commit -m "Add SQLite database and FAISS indexes via Git LFS"
+
+# 4. 推送到GitHub
+git push origin main  # 或您使用的分支名
 
 使用前端服务器提供的 URL：http://localhost:5173/static/ 访问

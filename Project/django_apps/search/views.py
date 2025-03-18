@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=5)
 
 # Initialize the shared index_service
-index_service = IndexService(platform="rednote")  # Declare a global variable to hold the shared instance
+index_service = IndexService(platform="reddit")  # Declare a global variable to hold the shared instance
 
 def search(request):
     """
@@ -75,20 +75,22 @@ def search(request):
             platform = 'reddit'
         # 更新平台并确保加载了对应的索引
         index_service.platform = platform
-        index_service.faiss_manager.load_index()  # 这会同时初始化FAISS和BM25
+        index_service.faiss_manager.set_platform(platform)
+
+        loaded = index_service.faiss_manager.load_index()
+        logger.info(f"平台 {platform} 索引加载状态: {loaded}")
 
         # 初始化 HybridRetriever
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
-            bm25_weight=0.3,  # 可调整的参数
-            embedding_weight=0.7,  # 可调整的参数
+            bm25_weight=0.4,  # 可调整的参数
+            embedding_weight=0.6,  # 可调整的参数
             vote_weight=0  # 可调整的参数
         )
 
         # 获取最终的 top_k retrieved_documents
-        retrieved_docs = []
-        #retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10)
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=50, relevance_threshold=0.6) # 添加适当的阈值
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
@@ -132,6 +134,8 @@ def index_content(request):
 
     global index_service
 
+    results = {}
+
     start_time = time.time()
     logger.info("Starting content indexing process (incremental).")
 
@@ -150,8 +154,21 @@ def index_content(request):
 
             # 更新平台
             index_service.platform = platform
-            # 先尝试加载已有索引到内存，合并已有向量
-            index_service.faiss_manager.load_index()  # This already initializes BM25
+            index_service.faiss_manager.set_platform(platform)
+            
+            # 尝试加载已有索引
+            try:
+                loaded = index_service.faiss_manager.load_index()
+                if not loaded:
+                    logger.info(f"没有找到现有索引，为 {platform} 创建新索引")
+                    index_service.faiss_manager.create_empty_index()
+                    # 确保保存空索引
+                    index_service.faiss_manager.save_index()
+                    logger.info(f"空索引已创建并保存到磁盘：{platform}")
+            except Exception as e:
+                logger.error(f"加载或创建索引失败: {str(e)}")
+                results[platform] = f"error: {str(e)}"
+                continue
 
             # 根据平台获取"未索引的"新内容
             if platform == 'reddit':
@@ -175,6 +192,9 @@ def index_content(request):
                 # 2) 将其写入 ContentIndex
                 # 3) 调用 save_index() 再写回磁盘
                 index_service.indexer.index_platform_content(platform=platform, unindexed_queryset=unindexed)
+                # 添加内容后保存索引
+                index_service.faiss_manager.save_index()
+                logger.info(f"Saved FAISS index for {platform}")
             else:
                 logger.info(f"No new {platform} items to index.")
 

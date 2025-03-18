@@ -30,12 +30,16 @@ class Indexer:
         # 如果没有未被indexed数据，return即可
         if not unindexed_queryset:
             return 
+        
+        # 记录处理的数量
+        indexed_count = 0
 
         # 初始化 FAISS store 和 BM25
         if not self.faiss_manager.faiss_store:
             # Only get texts from unindexed queryset
             unindexed_texts = [obj.content for obj in unindexed_queryset if obj.content]
             if unindexed_texts:
+                logger.info(f"初始化 FAISS 索引，包含 {len(unindexed_texts)} 个文档")
                 self.faiss_manager.initialize_store(unindexed_texts)
 
         content_objects = unindexed_queryset
@@ -59,9 +63,17 @@ class Indexer:
                 'doc_id': doc_id
             }
             
+            
             # 添加特定平台的元数据
-            if platform == 'reddit' and hasattr(obj, 'subreddit'):
+            if platform == 'reddit':
                 metadata['subreddit'] = obj.subreddit
+                metadata['upvotes'] = getattr(obj, 'upvotes', 0)
+            elif platform == 'stackoverflow':
+                metadata['tags'] = getattr(obj, 'tags', [])
+                metadata['vote_score'] = getattr(obj, 'vote_score', 0)
+            elif platform == 'rednote':
+                metadata['tags'] = getattr(obj, 'tags', [])
+                metadata['likes'] = getattr(obj, 'likes', 0)
             
             # 生成 embedding
             embeddings = self.embedding_model.embed_documents([obj.content])
@@ -73,14 +85,20 @@ class Indexer:
                 embeddings=embeddings  # 提供 embeddings 参数
             )
             
-            # 记录到 ContentIndex
-            ContentIndex.objects.create(
-                source=platform,
-                content_type=obj.content_type,
-                thread_id=obj.thread_id,
-                author_name=obj.author_name
-            )
+            # 使用_index_content处理数据库记录和内容清理
+            self._index_content(obj, platform)
 
+            indexed_count += 1
+
+        # 保存索引到磁盘
+        if indexed_count > 0:
+            self.faiss_manager.save_index()
+            logger.info(f"已完成 {platform} 内容索引 ({indexed_count} 条) 并保存到磁盘")
+        else:
+            logger.info(f"没有新的 {platform} 内容需要索引")
+
+
+        
     def _index_content(self, content_obj, source: str):
         try:
             if ContentIndex.objects.filter(source=source, thread_id=content_obj.thread_id).exists():
