@@ -59,9 +59,9 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     console.log("Fetch response:", searchText);
 
     try {
-      // For demonstration, forced values are used.
-      const normalizedSource = "rednote"; // For testing
-      const modelToSend = "gemini-1.5-flash"; // For testing
+      // Use dynamic values based on user selection:
+      const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
+      const modelToSend = selectedModel;
 
       const response = await fetch("http://127.0.0.1:8000/search/", {
         method: "POST",
@@ -122,8 +122,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       padding: "20px",
       flex: 1,
       position: "relative",
-      minHeight: "100vh",         // NEW: Ensure full viewport height
-      boxSizing: "border-box"     // NEW: Include padding in height calculations
+      minHeight: "100vh",         // Ensure full viewport height
+      boxSizing: "border-box",     // Include padding in height calculations
     }}>
       <h2>
         Summary for {chat.platform} - {topic || "No Topic Selected"}
@@ -160,7 +160,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       }}>
         <h3>Chat History:</h3>
         {chat.messages.map((msg, index) => (
-          <p key={index} style={{ margin: "5px 0" }}>{msg}</p>
+          // Render HTML in chat messages
+          <div key={index} dangerouslySetInnerHTML={{ __html: msg }} />
         ))}
       </div>
 
@@ -198,7 +199,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         {showTemplates && (
           <QuestionTemplates
             platform={chat.platform}
-            topic={topic}  // Pass the selected topic
+            topic={topic}
             onTemplateSelect={handleTemplateSelect}
           />
         )}
@@ -209,25 +210,23 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
 
       {/* Display Response */}
       {result && (
-      <div
-        style={{
-              padding: "20px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              textAlign: "left",
-              backgroundColor: "#f9f9f9",
-            }}
-          >
-            <h3>Result:</h3>
-            <div dangerouslySetInnerHTML={{ __html: result }} />
-            <h4>Model:</h4>
-            <p>{llmModel}</p>
-            <h4>Metadata:</h4>
-            <pre style={{ background: "#eee", padding: "10px" }}>
-              {JSON.stringify(metadata, null, 2)}
-            </pre>
-          </div>
-        )}
+        <div style={{
+          padding: "20px",
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          textAlign: "left",
+          backgroundColor: "#f9f9f9",
+        }}>
+          <h3>Result:</h3>
+          <div dangerouslySetInnerHTML={{ __html: result }} />
+          <h4>Model:</h4>
+          <p>{llmModel}</p>
+          <h4>Metadata:</h4>
+          <pre style={{ background: "#eee", padding: "10px" }}>
+            {JSON.stringify(metadata, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
