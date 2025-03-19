@@ -72,41 +72,35 @@ const QuestionTemplates: React.FC<QuestionTemplatesProps> = ({
 }) => {
   const topicTemplates = templates[platform]?.[topic] || [];
 
+  if (topicTemplates.length === 0) {
+    return null; // Do not render anything if there are no templates.
+  }
+
   return (
     <div
       style={{
-        position: "absolute",
         backgroundColor: "#fff",
         border: "1px solid #ccc",
         borderRadius: "5px",
-        width: "300px",
-        marginTop: "5px",
-        zIndex: 1000,
+        width: "100%",
         boxShadow: "0px 4px 8px rgba(0,0,0,0.1)",
       }}
     >
-      {topicTemplates.length > 0 ? (
-        <ul style={{ listStyle: "none", margin: 0, padding: "10px" }}>
-          {topicTemplates.map((template, index) => (
-            <li
-              key={index}
-              onMouseDown={() => onTemplateSelect(template)}
-              style={{
-                padding: "8px",
-                cursor: "pointer",
-                borderBottom:
-                  index !== topicTemplates.length - 1 ? "1px solid #eee" : "none",
-              }}
-            >
-              {template}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p style={{ padding: "10px" }}>
-          No templates available for this selection.
-        </p>
-      )}
+      <ul style={{ listStyle: "none", margin: 0, padding: "10px" }}>
+        {topicTemplates.map((template, index) => (
+          <li
+            key={index}
+            onMouseDown={() => onTemplateSelect(template)}
+            style={{
+              padding: "8px",
+              cursor: "pointer",
+              borderBottom: index !== topicTemplates.length - 1 ? "1px solid #eee" : "none",
+            }}
+          >
+            {template}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

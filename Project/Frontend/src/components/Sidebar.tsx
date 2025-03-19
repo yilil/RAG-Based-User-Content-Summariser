@@ -22,13 +22,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectChat,
   onModelChange,
 }) => {
-  // Local state for the model dropdown
   const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newModel = e.target.value;
     setSelectedModel(newModel);
-    onModelChange(newModel); // Notify parent
+    onModelChange(newModel);
   };
 
   return (
@@ -56,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <h2>Chats</h2>
-      {chats.map((chat) => (
+      {chats.map(chat => (
         <div
           key={chat.id}
           onClick={() => onSelectChat(chat.id)}
