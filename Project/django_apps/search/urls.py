@@ -15,4 +15,5 @@ urlpatterns = [
     path('search/', views.search, name='search'),
      path('index_content/', views.index_content, name='index_content'),
      path('sessionKey/', views.sessionKey, name='sessionKey'),
+     path('getMemory/', views.getMemory, name='getMemory'),
  ]

@@ -224,3 +224,14 @@ def sessionKey(request):
     return JsonResponse({
         'session_id': session_id
     })
+
+def getMemory(request):
+    session_id = request.GET.get('session_id')
+    if not session_id:
+        return JsonResponse({
+            'error': 'session_id is required'
+        }, status=400)
+    memory = MemoryService.get_recent_memory(session_id)
+    return JsonResponse({
+        'memory': memory
+    })
