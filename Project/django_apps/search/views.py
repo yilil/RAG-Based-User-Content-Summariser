@@ -91,6 +91,7 @@ def search(request):
 
         # 获取最终的 top_k retrieved_documents
         retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=50, relevance_threshold=0.6) # 添加适当的阈值
+        #retrieved_docs = []
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
@@ -215,3 +216,11 @@ def index_content(request):
             "message": str(e)
         }, status=500)
         
+def sessionKey(request):
+    session_id = request.session.session_key
+    if not session_id:
+        request.session.create()  # 创建新会话
+        session_id = request.session.session_key
+    return JsonResponse({
+        'session_id': session_id
+    })
