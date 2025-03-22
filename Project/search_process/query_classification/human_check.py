@@ -3,6 +3,7 @@ import random
 import os
 
 # 获取 test_data.json 文件的路径
+#python -m search_process.query_classification.human_check
 file_path = os.path.join(os.path.dirname(__file__), 'test_data.json')
 
 # 读取 JSON 文件
@@ -19,6 +20,12 @@ with open('mismatch_log.txt', 'w') as log_file:
     for i, entry in enumerate(data, start=1):
         # 打印剩余题目数量
         remaining_questions = total_questions - i
+        print("""\n1. 推荐类
+2. 知识解释（有标准答案）类 
+3. 观点讨论（无标准答案 -> Summary) 类
+4. 操作指导与教程方法类
+5. 具体情景类 (StackOverFlow)
+6. 信息与实时动态类 (e.g. Agent -> access Google)""")
         print(f"\nRemaining questions: {remaining_questions}")
         
         question_id = entry['id']
@@ -29,7 +36,7 @@ with open('mismatch_log.txt', 'w') as log_file:
         while True:
             print(f"Question: {question}")
             try:
-                user_input = int(input("Enter a number between 1 and 6: "))
+                user_input = int(input("Enter a number between 1 and 6: \n"))
                 if 1 <= user_input <= 6:
                     break  # 输入有效，退出循环
                 else:
