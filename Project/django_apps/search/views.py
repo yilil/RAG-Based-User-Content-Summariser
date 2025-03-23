@@ -39,11 +39,6 @@ def search(request):
     logger.debug(f"Request method: {request.method}")
     logger.debug(f"POST data: {request.POST}")
 
-    session_id = request.session.session_key
-    if not session_id:
-        request.session.create()  # 创建新会话
-        session_id = request.session.session_key
-
     # 默认返回变量
     answer = ""
     metadata = {}
@@ -56,7 +51,11 @@ def search(request):
     platform = data.get('source')
     filter_value = data.get('filter_value', None)
     llm_model = data.get('llm_model', llm_model)
+    session_id = data.get('session_id')
 
+    if not session_id:
+        request.session.create()  # 创建新会话
+        session_id = request.session.session_key
     recent_memory = MemoryService.get_recent_memory(session_id)
 
     if not search_query:
@@ -90,8 +89,7 @@ def search(request):
         )
 
         # 获取最终的 top_k retrieved_documents
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=50, relevance_threshold=0.6) # 添加适当的阈值
-        #retrieved_docs = []
+        #retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=50, relevance_threshold=0.6) # 添加适当的阈值
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
