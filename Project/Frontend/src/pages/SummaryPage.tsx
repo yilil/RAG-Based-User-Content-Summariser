@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
+import QuestionTemplates from "../components/QuestionTemplates"; // adjust path if needed
 
 type Chat = {
   id: string;
@@ -18,16 +18,18 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Dictionary of possible topics for each platform
+  // Dictionary of topics for each platform
   const topicsByPlatform: Record<string, string[]> = {
     "Stack Overflow": ["JavaScript", "React", "CSS", "TypeScript"],
     Reddit: ["Academic", "Community", "Career"],
     "Red Note": ["Travel", "Food", "Fashion"],
   };
 
-  // Topic state: initially empty (no default)
+  // Topic state: initially empty
   const [topic, setTopic] = useState("");
 
   // Reset topic when chat changes
@@ -35,16 +37,66 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     setTopic("");
   }, [chat.platform, chat.topic]);
 
-  // Auto-scroll effect: Scroll to the user message (if there are at least two messages)
+  // Retrieve or fetch a stable session key for this chat
   useEffect(() => {
-    const messagesCount = chat.messages.length;
-    if (messagesCount > 0) {
-      // If there is a bot response, user message is at index messagesCount - 2; otherwise, index 0.
-      const targetIndex = messagesCount > 1 ? messagesCount - 2 : 0;
-      const element = document.getElementById(`message-${targetIndex}`);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    const storageKey = `sessionKey-${chat.id}`;
+    const storedKey = localStorage.getItem(storageKey);
+    if (storedKey) {
+      setSessionKey(storedKey);
+    } else {
+      // Fetch a new session key from the backend
+      fetch("http://127.0.0.1:8000/sessionKey/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chat.id }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Error fetching session key, status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          // Backend returns { "session_id": "..." }
+          const key = data.session_id;
+          localStorage.setItem(storageKey, key);
+          setSessionKey(key);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch session key:", err);
+          setError("Failed to get session key.");
+        });
+    }
+  }, [chat.id]);
+
+  // Fetch chat history from the backend once sessionKey is available
+  useEffect(() => {
+    if (sessionKey) {
+      fetch(`http://127.0.0.1:8000/getMemory/?session_id=${sessionKey}`)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Error fetching memory, status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          // Assume backend returns { "memory": [ ... ] } where each item is an HTML string.
+          if (data.memory && Array.isArray(data.memory)) {
+            data.memory.forEach((msg: string) => {
+              onUpdateMessages(msg);
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching chat history:", err);
+        });
+    }
+  }, [sessionKey, onUpdateMessages]);
+
+  // Auto-scroll to the bottom of the chat when new messages are added
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [chat.messages]);
 
@@ -61,25 +113,27 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     setLoading(true);
     setError(null);
 
-    // Append user's query to chat history as HTML
+    // Append user's query to chat history
     onUpdateMessages(`<div class="user-message">User: ${searchText}</div>`);
     console.log("Submitting query:", searchText);
 
     try {
-      // Use dynamic values: normalized source and selected model
       const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
       const modelToSend = selectedModel;
+
+      const requestBody = {
+        search_query: searchText,
+        llm_model: modelToSend,
+        source: normalizedSource,
+        chosen_topic: topic,
+        session_id: sessionKey, // Include the session key
+      };
 
       const response = await fetch("http://127.0.0.1:8000/search/", {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          search_query: searchText,
-          llm_model: modelToSend,
-          source: normalizedSource,
-          chosen_topic: topic,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -89,7 +143,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       const data = await response.json();
       console.log("Received data:", data);
 
-      // Append bot response as HTML to chat history
+      // Append bot's response to chat history
       onUpdateMessages(`<div class="bot-message">Bot: ${data.result}</div>`);
     } catch (err: any) {
       console.error("Error fetching search result:", err);
@@ -117,7 +171,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     }, 0);
   };
 
-  // Local state for controlling template display
+  // Local state to control template display
   const [showTemplates, setShowTemplates] = useState(false);
 
   return (
@@ -125,8 +179,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",   // Full viewport height
-        width: "100%",     // Full width
+        height: "100vh",
+        width: "100%",
         boxSizing: "border-box",
         padding: "20px",
       }}
@@ -168,10 +222,11 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         }}
       >
         {chat.messages.map((msg, index) => (
-          <div key={index} id={`message-${index}`} dangerouslySetInnerHTML={{ __html: msg }} />
+          <div key={index} dangerouslySetInnerHTML={{ __html: msg }} />
         ))}
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
+        <div ref={chatEndRef} />
       </div>
 
       {/* Question Templates (displayed above the search input) */}
