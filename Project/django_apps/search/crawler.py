@@ -4,7 +4,12 @@ import time
 import logging
 import random
 from django.utils import timezone
+
+# 替换undetected_chromedriver导入
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium_stealth import stealth  # 需要先安装这两个包
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -38,11 +43,42 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
 
     items_to_index = [] # crawled items to be indexed
 
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    # options.add_argument('--headless=new')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+
+    # 反爬设置增强
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+    options.add_experimental_option("useAutomationExtension", False)
+    
+    # 使用Service配置
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options
+    )
+    # 应用stealth设置增强反检测能力
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    stealth(driver,
+        user_agent=user_agent,  # 通过stealth设置user-agent
+        languages=["zh-CN", "zh"],
+        vendor="Google Inc.",
+        platform="Win32", 
+        webgl_vendor="Intel Inc.",
+        renderer="Intel Iris OpenGL Engine",
+        fix_hairline=True
+    )
+        
+    # 额外的WebDriver隐藏
+    driver.execute_script(
+        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+    )
+        
     try:
 
         # 设置我们想要爬取的笔记数量上限
-        MAX_POSTS = 20
+        MAX_POSTS = 50
 
         # 设置cookies和打开页面
         driver.get("https://www.xiaohongshu.com/explore")
@@ -57,7 +93,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         
         # 打开目标页面
         driver.get(url)
-        time.sleep(random.uniform(2, 3))  # 在2到3秒之间随机等待页面加载
+        time.sleep(random.uniform(2, 4))  # 在2到3秒之间随机等待页面加载
 
         # 等待帖子元素出现, 最长等待30秒
         try:
@@ -76,14 +112,14 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         for link in post_links:
             try:
                 link.click()
-                time.sleep(random.uniform(5, 6)) 
+                time.sleep(random.uniform(0.5, 1.5)) 
 
                 # 使用显式等待确保元素加载完成
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.title"))
                 )
 
-                # 模拟人类用户浏览行为
+                # 模拟人类用户浏览行为 -> 现在还有问题
                 # simulate_human_behavior(driver)
                 
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.username")))
@@ -126,7 +162,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                             # embedding已经做过 => 跳过
                             logger.info(f"thread_id={thread_id_val} found, already embedded => skip.")
                             driver.back()
-                            time.sleep(1)
+                            time.sleep(random.uniform(2, 5))  # 增加返回后的等待时间，模拟用户浏览列表
                             continue
                         else:
                             # update meta
@@ -161,7 +197,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                             logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
 
                 driver.back()
-                time.sleep(1)
+                time.sleep(random.uniform(2, 5))  # 增加返回后的等待时间，模拟用户浏览列表
                 
             except Exception as e:
                 logger.warning(f"Failed to parse post: {e}")
@@ -181,19 +217,41 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     
     return new_items
 
-# 暂时不确定是否对防反爬有好处
 def simulate_human_behavior(driver):
     """模拟人类用户浏览行为"""
-    # 随机滚动页面
-    scroll_height = random.randint(300, 700)
-    driver.execute_script(f"window.scrollBy(0, {scroll_height});")
-    time.sleep(random.uniform(0.5, 1.5))
+    # 随机决定行为模式
+    behavior_type = random.random()
     
-    # 有时候上下滚动，模拟阅读
+    # 1. 滚动行为 - 更加真实的渐进式滚动
+    if behavior_type < 0.8:  # 80%的概率会滚动
+        # 首先慢慢滚动一点
+        initial_scroll = random.randint(200, 400)
+        driver.execute_script(f"window.scrollBy(0, {initial_scroll});")
+        time.sleep(random.uniform(1, 3))  # 假装在阅读
+        
+        # 然后滚动更多
+        for _ in range(random.randint(2, 5)):  # 随机滚动2-5次
+            scroll_height = random.randint(200, 600)
+            driver.execute_script(f"window.scrollBy(0, {scroll_height});")
+            time.sleep(random.uniform(1.5, 4))  # 每次滚动后暂停，模拟阅读
+            
+        # 有时候会滚回去一点，再往下 - 很像人类阅读行为
+        if random.random() < 0.4:  # 40%的概率
+            driver.execute_script(f"window.scrollBy(0, -{random.randint(100, 300)});")
+            time.sleep(random.uniform(1, 2))
+            driver.execute_script(f"window.scrollBy(0, {random.randint(150, 400)});")
+    
+    # 2. 鼠标悬停行为 - 模拟用户查看特定元素
     if random.random() < 0.3:  # 30%的概率
-        driver.execute_script(f"window.scrollBy(0, -{random.randint(100, 300)});")
-        time.sleep(random.uniform(0.5, 1.5))
-        driver.execute_script(f"window.scrollBy(0, {random.randint(150, 400)});")
+        try:
+            # 尝试找一些可能的互动元素
+            elements = driver.find_elements(By.CSS_SELECTOR, "img, a, button, .like-icon")
+            if elements:
+                element = random.choice(elements)
+                ActionChains(driver).move_to_element(element).perform()
+                time.sleep(random.uniform(0.5, 1.5))
+        except Exception as e:
+            logger.debug(f"鼠标悬停模拟失败: {e}")
 
 
 

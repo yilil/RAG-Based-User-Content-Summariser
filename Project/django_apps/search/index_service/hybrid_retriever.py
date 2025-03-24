@@ -1,5 +1,7 @@
 import numpy as np
 import math
+import logging
+logger = logging.getLogger(__name__)
 
 class HybridRetriever:
     def __init__(self, faiss_manager, embedding_model, bm25_weight=0.3, embedding_weight=0.4, vote_weight=0.3):
@@ -11,7 +13,13 @@ class HybridRetriever:
 
     def retrieve(self, query, top_k=80, relevance_threshold=0.6):
         # 从两种方法获取候选文档 (使用更大的检索范围确保有足够的候选项)
-        bm25_docs = self.faiss_manager.search_bm25(query, top_k * 3)
+        # 尝试从 BM25 获取候选文档
+        try:
+            bm25_docs = self.faiss_manager.search_bm25(query, top_k * 3)
+        except Exception as e:
+            logger.error(f"BM25 搜索失败: {str(e)}", exc_info=True)  # 添加 exc_info=True 获取完整堆栈
+            bm25_docs = []
+        
         embedding_docs = self.faiss_manager.search(query, top_k * 3)
         
         # 创建统一的文档池（需要文档ID进行去重）
@@ -19,7 +27,8 @@ class HybridRetriever:
         
         # 将BM25文档添加到池中，设置默认的嵌入和投票分数
         for doc in bm25_docs:
-            doc_id = doc.metadata.get('id')
+            # 优先使用doc_id，如果不存在则尝试使用id
+            doc_id = doc.metadata.get('doc_id', doc.metadata.get('id'))
             all_docs[doc_id] = {
                 'doc': doc,
                 'bm25_score': doc.metadata.get('bm25_score', 0),

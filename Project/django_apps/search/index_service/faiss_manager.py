@@ -157,7 +157,15 @@ class FaissManager:
     def search_bm25(self, query: str, top_k: int):
         """使用 BM25 进行搜索"""
         if self.bm25 is None:
-            raise ValueError("BM25 has not been initialized.")
+            try:
+                self._initialize_bm25_from_faiss()
+            except Exception as e:
+                logger.warning(f"BM25 初始化失败: {str(e)}")
+
+        # 如果仍然未初始化，返回空列表
+        if self.bm25 is None:
+            logger.warning(f"平台 {self.platform} 的BM25未初始化，返回空列表")
+            return []
         tokenized_query = self.preprocessor.preprocess_text(query)
         scores = self.bm25.get_scores(tokenized_query)
 
@@ -223,7 +231,7 @@ class FaissManager:
 
         # 直接保存到磁盘
         index_path = os.path.join(self.index_dir, "index.faiss")
-        docstore_path = os.path.join(self.index_dir, "docstore.pkl")
+        docstore_path = os.path.join(self.index_dir, "index.pkl")
         
         # 使用 FAISS 的 save_local 方法保存
         self.faiss_store.save_local(self.index_dir)
@@ -276,3 +284,24 @@ class FaissManager:
             # 清除当前索引，准备加载新索引
             self.faiss_store = None
             self.bm25 = None
+
+            # 主动加载新平台的索引，并检查加载结果
+            load_result = self.load_index()
+            if not load_result:
+                logger.warning(f"平台 {platform} 的索引加载失败，尝试创建空索引")
+                self.create_empty_index()
+            # 保存空索引
+            self.save_index()
+            logger.info(f"已切换到平台 {platform}，索引加载状态: {self.faiss_store is not None}")
+
+    def get_index_size(self):
+        """获取当前索引中的文档数量"""
+        if not self.faiss_store:
+            return 0
+        try:
+            # 获取FAISS索引中的文档数量
+            docs = self._get_all_docs_from_faiss()
+            return len(docs)
+        except Exception as e:
+            logger.error(f"获取索引大小时出错: {str(e)}")
+            return 0

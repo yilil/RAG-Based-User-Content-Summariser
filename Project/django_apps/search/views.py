@@ -76,25 +76,57 @@ def search(request):
         index_service.platform = platform
         index_service.faiss_manager.set_platform(platform)
 
-        loaded = index_service.faiss_manager.load_index()
-        logger.info(f"平台 {platform} 索引加载状态: {loaded}")
+        index_count = index_service.faiss_manager.get_index_size()
+        logger.info(f"当前{platform}平台索引包含{index_count}条记录")
 
         # 初始化 HybridRetriever
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
-            bm25_weight=0.4,  # 可调整的参数
-            embedding_weight=0.6,  # 可调整的参数
+            bm25_weight=0.25,  # 可调整的参数
+            embedding_weight=0.75,  # 可调整的参数
             vote_weight=0  # 可调整的参数
         )
 
         # 获取最终的 top_k retrieved_documents
-        #retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=50, relevance_threshold=0.6) # 添加适当的阈值
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.5) # 添加适当的阈值
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
         # 2. 生成prompt
         classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
+
+        # *** -> 如果是推荐类查询，直接使用process_recommendations处理 ***
+        if classification == '1':  # 推荐类查询
+            logger.info("使用推荐类处理逻辑处理查询")
+            
+            # 使用ResultProcessor处理推荐 -> 这里页面的显示上还有问题 & 貌似只有跑mock数据，但是retrieve到了文档
+            processed_results = index_service.result_processor.process_recommendations(
+                documents=retrieved_docs,
+                query=search_query,
+                top_k=20  # 可配置的推荐数量
+            )
+            
+            # 格式化推荐结果
+            answer = format_recommendation_results(processed_results)
+            metadata = {'query_type': 'recommendation', 'processing': 'direct'}
+            
+            # 将对话添加到记忆
+            MemoryService.add_to_memory(
+                session_id,
+                search_query,
+                answer
+            )
+            
+            # 直接返回结果，不经过LLM处理
+            return JsonResponse({
+                'result': answer,
+                'metadata': metadata,
+                'llm_model': "recommendation_processor",  # 标记使用了推荐处理器
+                'history': MemoryService.get_recent_memory(session_id)
+            })
+
+        # *** -> 如果是非推荐类查询，走正常处理逻辑 ***
         prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform, classification)
 
         future = executor.submit(
@@ -233,3 +265,42 @@ def getMemory(request):
     return JsonResponse({
         'memory': memory
     })
+
+
+def format_recommendation_results(results):
+    """将推荐处理结果格式化为可读文本"""
+    if not results:
+        return "未找到相关推荐。"
+        
+    formatted_text = "# 根据您的查询，为您推荐以下选项：\n\n"
+    
+    for doc in results:
+        metadata = doc.metadata
+        formatted_text += f"## {metadata['name']}\n"
+        formatted_text += f"- 评分: {metadata['avg_rating']:.1f}/5.0 ({metadata['mentions']} 条评论)\n"
+        formatted_text += f"- 人气: {metadata['total_upvotes']} 点赞\n"
+        formatted_text += f"- 摘要: {metadata['summary']}\n\n"
+        
+        formatted_text += "### 用户评价:\n"
+        for post in metadata['posts'][:3]:  # 最多显示3条评论
+            rating = int(round(post['rating']))
+            if rating > 5: rating = 5
+            if rating < 1: rating = 1
+            sentiment = "非常正面" if rating == 5 else "正面" if rating == 4 else "中性" if rating == 3 else "负面" if rating == 2 else "非常负面"
+            
+            formatted_text += f"- {post['content']}\n"
+            formatted_text += f"  ({sentiment}, {post['upvotes']} 点赞)\n"
+        
+        formatted_text += "\n"
+        
+    # 添加比较表格
+    formatted_text += "## 比较表\n\n"
+    formatted_text += "| 名称 | 评分 | 人气 | 综合得分 | 推荐指数 |\n"
+    formatted_text += "|------|------|------|----------|----------|\n"
+
+    for doc in results:
+        metadata = doc.metadata
+        stars = "⭐" * int(round(metadata['avg_rating']))
+        formatted_text += f"| {metadata['name']} | {metadata['avg_rating']:.1f} {stars} | {metadata['total_upvotes']} | {metadata['score']:.2f} | {'🔥' * (6 - metadata['rank'])} |\n"
+    
+    return formatted_text
