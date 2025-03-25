@@ -52,11 +52,12 @@ def search(request):
     filter_value = data.get('filter_value', None)
     llm_model = data.get('llm_model', llm_model)
     session_id = data.get('session_id')
+    topic = data.get('topic')
 
     if not session_id:
         request.session.create()  # 创建新会话
         session_id = request.session.session_key
-    recent_memory = MemoryService.get_recent_memory(session_id)
+    recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform, topic=topic)
 
     if not search_query:
         return JsonResponse({
@@ -251,6 +252,10 @@ def sessionKey(request):
     if not session_id:
         request.session.create()  # 创建新会话
         session_id = request.session.session_key
+    data = json.loads(request.body.decode('utf-8'))
+    platform = data.get('platform')
+    topic = data.get('topic')
+    MemoryService.get_or_create_memory(session_id, platform, topic)
     return JsonResponse({
         'session_id': session_id
     })
@@ -264,6 +269,22 @@ def getMemory(request):
     memory = MemoryService.get_recent_memory(session_id)
     return JsonResponse({
         'memory': memory
+    })
+
+def getAllChat(request):
+    sessions = MemoryService.get_all_sessions()
+    sessions_data = [
+        {
+            "session_id": s.session_id,
+            "platform": s.platform,
+            "topic": s.topic,
+            "memory_data": s.memory_data,
+            "updated_at": s.updated_at.isoformat()  # DateTime 需要转换为字符串
+        }
+        for s in sessions
+    ]
+    return JsonResponse({
+        'sessions': sessions_data
     })
 
 

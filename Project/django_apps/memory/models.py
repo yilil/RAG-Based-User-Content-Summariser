@@ -2,6 +2,8 @@ from django.db import models
 
 class SessionMemory(models.Model):
     session_id = models.CharField(max_length=255, unique=True, db_index=True)  # 唯一会话ID
+    platform = models.CharField(max_length=100, blank=True, null=True)  # 平台信息
+    topic = models.CharField(max_length=255, blank=True, null=True)  # 话题信息
     memory_data = models.JSONField(default=list)  # 存储对话历史的JSON
     updated_at = models.DateTimeField(auto_now=True)  # 最后更新时间
 
@@ -26,4 +28,4 @@ class SessionMemory(models.Model):
         self.save()
 
     def __str__(self):
-        return f"SessionMemory(session_id={self.session_id})"
+        return f"SessionMemory(session_id={self.session_id}, platform={self.platform}, topic={self.topic})"
