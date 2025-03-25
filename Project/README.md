@@ -151,58 +151,43 @@ python manage.py runserver
 
 ```mermaid
 sequenceDiagram
-    %% 主要角色定义
-    actor User
-    participant Views as SearchView
-    participant Memory as MemoryService
-    participant Index as IndexService
-    participant FAISS as FaissManager
-    participant Embed as EmbeddingModel
-    participant LLM as GeminiAI
+    participant User
+    participant View as View Layer
+    participant Service as Service Layer
+    participant Retriever as Hybrid Retriever
+    participant Processor as Result Processor
+    participant RatingProcessor as Sentiment Rating Processor
     participant DB as Database
+    participant FAISS as FAISS Index
 
-    %% 搜索流程
-    rect rgb(200, 220, 255)
-        Note over User,DB: Search Flow
-        User->>Views: POST /search/ with query
-        Views->>Memory: get_recent_memory(session_id)
-        Memory-->>Views: recent chat history
-        
-        Views->>Index: faiss_search(query, platform)
-        Index->>Embed: embed_query(query)
-        Embed-->>Index: query_vector
-        
-        Index->>FAISS: similarity_search(query_vector)
-        FAISS->>DB: get metadata for matches
-        DB-->>FAISS: document metadata
-        FAISS-->>Index: similar documents
-        
-        Index->>LLM: process_search_query(query, docs, chat_history)
-        LLM-->>Index: generated response
-        
-        Index-->>Views: {answer, metadata, docs}
-        Views->>Memory: add_to_memory(user_query, ai_response)
-        Views-->>User: render response with template
-    end
+    User->>View: Input search query
+    View->>Service: Call search service
+    Service->>Retriever: Execute hybrid retrieval
+    Retriever->>FAISS: Vector similarity search
+    Retriever->>DB: BM25 text search
+    FAISS-->>Retriever: Return similar documents
+    DB-->>Retriever: Return matching documents
+    Retriever->>Retriever: Merge results and calculate hybrid scores
+    Retriever-->>Service: Return sorted documents
 
-    %% 索引构建流程
-    rect rgb(220, 200, 255)
-        Note over User,DB: Index Building Flow
-        User->>Index: build_faiss_index(platform)
-        Index->>DB: get_unindexed_content()
-        DB-->>Index: content_objects
-        
-        loop For each batch
-            Index->>Embed: embed_documents(texts)
-            Embed-->>Index: document_vectors
-            Index->>FAISS: add_embeddings(vectors, metadata)
-            Index->>DB: update_index_status()
+    alt Is recommendation query
+        Service->>Processor: Process recommendation results
+        Processor->>Processor: Extract recommendation items
+        loop For each recommendation item
+            loop For each related post
+                Processor->>Processor: Extract item-related content
+                Processor->>RatingProcessor: Analyze sentiment and rate
+                RatingProcessor-->>Processor: Return sentiment class and rating
+            end
+            Processor->>Processor: Calculate average rating and overall score
         end
-        
-        Index->>FAISS: save_index()
-        FAISS-->>Index: index saved
-        Index-->>User: index build complete
+        Processor-->>Service: Return sorted recommendations
+    else Is regular query
+        Service->>Service: Return retrieval results directly
     end
+
+    Service-->>View: Return processed results
+    View-->>User: Display search results
 ```
 
 #### 生成序列图

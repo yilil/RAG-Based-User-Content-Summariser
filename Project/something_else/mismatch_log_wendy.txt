@@ -1,0 +1,83 @@
+ID: 139
+Question: Are non-fungible tokens (NFTs) a legitimate form of digital ownership?
+Original Category: 3
+User Input: 2
+# Agree
+
+ID: 14
+Question: What podcasts would you suggest for entrepreneurship insights?
+Original Category: 1
+User Input: 3
+# Agree
+
+ID: 281
+Question: Which countries have implemented emergency measures for monkeypox outbreaks?
+Original Category: 6
+User Input: 2
+# Agree
+
+ID: 124
+Question: Are privacy rights obsolete in an era of counter-terrorism surveillance?
+Original Category: 3
+User Input: 2
+# Agree
+
+ID: 25
+Question: What are must-have accessories for digital nomads?
+Original Category: 1
+User Input: 2
+# Agree
+
+ID: 18
+Question: Which budgeting apps work best for college students?
+Original Category: 1
+User Input: 3
+# Agree
+
+ID: 9
+Question: What programming language should beginners learn first?
+Original Category: 1
+User Input: 3
+# Agree
+
+ID: 40
+Question: What are essential items for a beginner's photography kit?
+Original Category: 1
+User Input: 3
+# Agree
+
+ID: 57
+Question: Explain the process of photosynthesis in plants step by step.
+Original Category: 2
+User Input: 4
+# Agree
+
+ID: 77
+Question: How do neural networks simulate human decision-making processes?
+Original Category: 2
+User Input: 4
+# Agree
+
+ID: 28
+Question: What are reliable VPN services for secure browsing?
+Original Category: 1
+User Input: 2
+# Agree
+
+ID: 80
+Question: How does 3D printing technology create complex layered structures?
+Original Category: 2
+User Input: 4
+# Agree
+
+ID: 106
+Question: Do social media platforms improve or harm societal communication?
+Original Category: 3
+User Input: 1
+# Agree
+
+ID: 288
+Question: Which hospitals in Mumbai have available ICU beds at this moment?
+Original Category: 6
+User Input: 1
+# Agree

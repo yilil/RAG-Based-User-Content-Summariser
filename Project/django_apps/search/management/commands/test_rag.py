@@ -1,3 +1,6 @@
+"""
+DEPRECATED: This command is deprecated and will be removed in a future version.
+"""
 from django.core.management.base import BaseCommand
 from django_apps.search.index_service.base import IndexService
 from django_apps.search.management.commands.test_data_generator import TestDataGenerator

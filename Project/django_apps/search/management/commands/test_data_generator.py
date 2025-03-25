@@ -1,3 +1,6 @@
+"""
+DEPRECATED: This command is deprecated and will be removed in a future version.
+"""
 from datetime import datetime, timedelta
 from faker import Faker
 from django.utils import timezone

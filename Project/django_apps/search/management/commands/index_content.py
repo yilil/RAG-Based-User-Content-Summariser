@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.http import HttpRequest
+from django.http import HttpRequest, QueryDict
 from django_apps.search.views import index_content
 from django_apps.search.index_service.base import IndexService
 import os
@@ -20,7 +20,7 @@ class Command(BaseCommand):
         
         self.stdout.write(f'Indexing content from source: {source or "all"}')
         
-        # 如果指定了初始化选项，先创建空索引
+        # 只在指定初始化选项时执行初始化
         if initialize and source:
             self.stdout.write(f'Initializing empty index for {source}')
             index_service = IndexService(platform=source)
@@ -36,10 +36,18 @@ class Command(BaseCommand):
                 index_service.faiss_manager.save_index()
                 self.stdout.write(self.style.SUCCESS(f'Empty index created for {source}'))
         
+        # 如果只需要初始化而不需要索引，则直接返回
+        if initialize and not options.get('index', True):
+            self.stdout.write(self.style.SUCCESS(f'Initialization completed for {source}'))
+            return
+        
         # 创建模拟请求
         request = HttpRequest()
         request.method = 'POST'
-        request.POST = {'source': source} if source else {}
+        post_data = QueryDict(mutable=True)
+        if source:
+            post_data['source'] = source
+        request.POST = post_data
         
         # 调用视图函数
         try:

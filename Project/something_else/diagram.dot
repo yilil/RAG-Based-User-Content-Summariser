@@ -28,17 +28,21 @@ digraph Flowchart {
   }
 
   // Combined Scores
-  Combine [label="Combined Hybrid Scores\n\nFinal scores (weighted average):\n1. Best Fruit Juice Rankings: 0.86\n2. Summer Juice Review: 0.84\n3. Healthy Juice Guide: 0.76\n4. Grape Juice Special: 0.74\n5. Controversial Review: 0.62\n6. Coffee Reviews: 0.45\n7. Beverage Discussion: 0.40\n8. Tea Appreciation: 0.36\n\nTop 5 selected for next stage", shape=box, fillcolor=lightgreen];
+  Combine [label="Combined Hybrid Scores\n\nFinal scores (weighted average):\n1. Best Fruit Juice Rankings: 0.86\n2. Summer Juice Review: 0.84\n3. Healthy Juice Guide: 0.76\n4. Grape Juice Special: 0.74\n5. Controversial Review: 0.62\n6. Coffee Reviews: 0.45\n7. Beverage Discussion: 0.40\n8. Tea Appreciation: 0.36\n\nTop 10 selected for next stage", shape=box, fillcolor=lightgreen];
 
   // Content Processing - LLM Extraction
   subgraph cluster_llm_extraction {
-    label="LLM Information Extraction (Top 5 only)";
+    label="LLM Information Extraction (Top 10)";
     style=filled;
     fillcolor=orange;
     
-    Extract [label="LLM Extract Items and Posts\n\nItems identified:\n1. Apple Juice\n   - 3 posts with upvotes and sentiment ratings\n2. Grape Juice\n   - 3 posts with upvotes and sentiment ratings\n3. Orange Juice\n   - 2 posts with upvotes and sentiment ratings\n4. Pear Juice\n   - 2 posts with upvotes and sentiment ratings", shape=box];
+    Extract [label="LLM Extract Items and Posts\n\nItems identified:\n1. Apple Juice\n   - 3 posts with upvotes\n2. Grape Juice\n   - 3 posts with upvotes\n3. Orange Juice\n   - 2 posts with upvotes\n4. Pear Juice\n   - 2 posts with upvotes", shape=box];
     
-    Sentiment [label="LLM Sentiment Analysis\n\nApple Juice posts:\n- Post1: 5 stars (crisp and sweet)\n- Post2: 4 stars (perfect for hot days)\n- Post3: 4 stars (great antioxidants)\n\nGrape Juice posts:\n- Post1: 5 stars (rich and sweet)\n- Post2: 5 stars (full of nutrients)\n- Post3: 5 stars (natural sweetness)\n\nOrange Juice posts:\n- Post1: 3 stars (classic choice)\n- Post2: 4 stars (vitamin C boost)\n\nPear Juice posts:\n- Post1: 4 stars (mild and refreshing)\n- Post2: 4 stars (light and refreshing)", shape=box];
+    Extract_Content [label="Extract Item-Related Content\n\nFor each post, extract only the content\nrelated to the specific item:\n\nApple Juice from Post1:\n\"apple juice (5 stars) - crisp and sweet\"\n\nGrape Juice from Post2:\n\"grape juice (5 stars) - rich and sweet\"\n\netc.", shape=box];
+    
+    Sentiment [label="Five-Level Sentiment Analysis\n\nApple Juice related content:\n- Content1: \"Very Positive\" (crisp and sweet)\n- Content2: \"Positive\" (perfect for hot days)\n- Content3: \"Positive\" (great antioxidants)\n\nGrape Juice related content:\n- Content1: \"Very Positive\" (rich and sweet)\n- Content2: \"Very Positive\" (full of nutrients)\n- Content3: \"Very Positive\" (natural sweetness)\n\nOrange Juice related content:\n- Content1: \"Neutral\" (classic choice)\n- Content2: \"Positive\" (vitamin C boost)\n\nPear Juice related content:\n- Content1: \"Positive\" (mild and refreshing)\n- Content2: \"Positive\" (light and refreshing)", shape=box];
+    
+    Rating_Mapping [label="Map Sentiment to Rating\n\nSentiment Rating Mapping:\n- Very Positive → 5.0\n- Positive → 4.0\n- Neutral → 3.0\n- Negative → 2.0\n- Very Negative → 1.0\n\nApple Juice ratings: 5.0, 4.0, 4.0\nGrape Juice ratings: 5.0, 5.0, 5.0\nOrange Juice ratings: 3.0, 4.0\nPear Juice ratings: 4.0, 4.0", shape=box];
     
     Summary [label="LLM Generate Summaries\n\nApple Juice:\n\"Apple juice receives high praise for being crisp,\nsweet, and refreshing, especially during hot weather.\nReviewers also appreciate its antioxidant properties.\"\n\nGrape Juice:\n\"Grape juice is highly praised for its natural sweetness,\nrich flavor, and nutritional value. All reviews are\nextremely positive.\"\n\nOrange Juice:\n\"Orange juice is appreciated as a classic choice with\ngood vitamin C content. Reviews are generally positive.\"\n\nPear Juice:\n\"Pear juice is consistently described as mild, light,\nand refreshing. Reviews are uniformly positive.\"", shape=box];
   }
@@ -49,7 +53,7 @@ digraph Flowchart {
     style=filled;
     fillcolor=plum;
     
-    Aggregate [label="Calculate Aggregates\n\nApple Juice:\n- Total Upvotes: 550\n- Average Rating: 4.33\n- Mentions: 3\n\nGrape Juice:\n- Total Upvotes: 500\n- Average Rating: 5.0\n- Mentions: 3\n\nOrange Juice:\n- Total Upvotes: 350\n- Average Rating: 3.5\n- Mentions: 2\n\nPear Juice:\n- Total Upvotes: 400\n- Average Rating: 4.0\n- Mentions: 2", shape=box];
+    Aggregate [label="Calculate Aggregates\n\nApple Juice:\n- Total Upvotes: 550\n- Average Rating: 4.33 (from sentiment analysis)\n- Mentions: 3\n\nGrape Juice:\n- Total Upvotes: 500\n- Average Rating: 5.0 (from sentiment analysis)\n- Mentions: 3\n\nOrange Juice:\n- Total Upvotes: 350\n- Average Rating: 3.5 (from sentiment analysis)\n- Mentions: 2\n\nPear Juice:\n- Total Upvotes: 400\n- Average Rating: 4.0 (from sentiment analysis)\n- Mentions: 2", shape=box];
     
     Normalize [label="Normalize Components\n\nMax Values:\n- Max Upvotes: 550\n- Max Rating: 5.0\n- Max Mentions: 3\n\nNormalized Components:\n- Apple Juice: rating=0.866, upvotes=1.000, mentions=1.000\n- Grape Juice: rating=1.000, upvotes=0.909, mentions=1.000\n- Orange Juice: rating=0.700, upvotes=0.636, mentions=0.667\n- Pear Juice: rating=0.800, upvotes=0.727, mentions=0.667", shape=box];
     
@@ -75,8 +79,10 @@ digraph Flowchart {
   Social -> Combine;
   
   Combine -> Extract;
-  Extract -> Sentiment;
-  Sentiment -> Summary;
+  Extract -> Extract_Content;
+  Extract_Content -> Sentiment;
+  Sentiment -> Rating_Mapping;
+  Rating_Mapping -> Summary;
   
   Summary -> Aggregate;
   Aggregate -> Normalize;

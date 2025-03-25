@@ -60,6 +60,9 @@ class ResultProcessor:
             # 2. 处理每个推荐项
             recommendations = []
             
+            # 初始化情感分析处理器
+            rating_processor = RatingProcessor()
+            
             for item in extracted_items:
                 # 确保必要的字段存在
                 if 'name' not in item or 'posts' not in item:
@@ -69,8 +72,76 @@ class ResultProcessor:
                 # 计算总点赞数
                 total_upvotes = sum(post.get('upvotes', 0) for post in item['posts'])
                 
-                # 计算平均评分
-                ratings = [post.get('rating', 3.0) for post in item['posts']]
+                # 对每个帖子中与该item相关的段落进行情感分析
+                posts_with_ratings = []
+                ratings = []
+                
+                for post in item['posts']:
+                    content = post.get('content', '')
+                    if not content:
+                        # 如果没有内容，使用默认评分
+                        post_with_rating = post.copy()
+                        post_with_rating['rating'] = 3.0
+                        post_with_rating['sentiment'] = 'neutral'
+                        post_with_rating['reason'] = '无内容可分析'
+                        posts_with_ratings.append(post_with_rating)
+                        ratings.append(3.0)
+                        continue
+                    
+                    # 提取与item相关的段落
+                    item_related_content = self._extract_item_related_content(content, item['name'])
+                    
+                    # 使用情感分析获取评分
+                    try:
+                        # 构建提示词
+                        prompt = rating_processor.sentiment_prompt.format(text=item_related_content)
+                        
+                        # 调用LLM
+                        from search_process.prompt_sender.sender import send_prompt_to_gemini
+                        response = send_prompt_to_gemini(prompt)
+                        
+                        # 解析响应
+                        response_text = response.text.strip()
+                        
+                        # 提取JSON结果
+                        if "```json" in response_text:
+                            start = response_text.find("```json") + 7
+                            end = response_text.find("```", start)
+                            if start > 6 and end > start:
+                                json_str = response_text[start:end].strip()
+                                result = json.loads(json_str)
+                            else:
+                                result = json.loads(response_text)
+                        else:
+                            result = json.loads(response_text)
+                        
+                        # 获取情感分类
+                        sentiment = result.get('sentiment', '').lower()
+                        reason = result.get('reason', '无分析理由')
+                        
+                        # 将情感分类映射到评分
+                        if sentiment in rating_processor.sentiment_to_rating:
+                            rating = rating_processor.sentiment_to_rating[sentiment]
+                        else:
+                            logger.warning(f"未知情感分类: {sentiment}，使用默认评分 3.0")
+                            sentiment = 'neutral'
+                            rating = 3.0
+                    except Exception as e:
+                        logger.error(f"评分计算失败: {str(e)}")
+                        sentiment = 'neutral'
+                        rating = 3.0
+                        reason = f"分析失败: {str(e)}"
+                    
+                    # 更新帖子信息，添加评分和情感分析结果
+                    post_with_rating = post.copy()
+                    post_with_rating['rating'] = rating
+                    post_with_rating['sentiment'] = sentiment
+                    post_with_rating['reason'] = reason
+                    post_with_rating['item_related_content'] = item_related_content
+                    posts_with_ratings.append(post_with_rating)
+                    ratings.append(rating)
+                
+                # 计算平均评分 - 这是该item的所有相关评价的平均分
                 avg_rating = sum(ratings) / len(ratings) if ratings else 3.0
                 
                 # 提及次数就是帖子数量
@@ -80,9 +151,9 @@ class ResultProcessor:
                 recommendation = {
                     'name': item['name'],
                     'total_upvotes': total_upvotes,
-                    'avg_rating': round(avg_rating, 2),
+                    'avg_rating': round(avg_rating, 2),  # 平均情感评分
                     'mentions': mentions,
-                    'posts': item['posts'],
+                    'posts': posts_with_ratings,  # 使用带评分的帖子
                     'summary': item.get('summary', '没有摘要')
                 }
                 
@@ -100,7 +171,7 @@ class ResultProcessor:
             return self._format_results(sorted_recommendations)
             
         except Exception as e:
-            logger.error(f"处理推荐时出错: {e}")
+            logger.error(f"处理推荐时出错: {str(e)}")
             return []
     
     def _calculate_scores(self, recommendations: List[Dict]):
@@ -341,4 +412,34 @@ Return only the JSON array with the extracted information."""
             results.append(doc)
         
         return results
+
+    def _extract_item_related_content(self, content: str, item_name: str) -> str:
+        """提取与特定item相关的内容段落"""
+        try:
+            # 构建提示词
+            prompt = f"""
+请从以下文本中提取与"{item_name}"相关的段落或句子。如果找不到明确相关的内容，请返回整个文本。
+
+文本:
+{content}
+
+只返回与"{item_name}"直接相关的内容，不要添加任何解释或分析。
+"""
+            
+            # 调用LLM
+            from search_process.prompt_sender.sender import send_prompt_to_gemini
+            response = send_prompt_to_gemini(prompt)
+            
+            # 获取响应文本
+            extracted_content = response.text.strip()
+            
+            # 如果提取的内容太短，可能没有找到相关段落，返回原始内容
+            if len(extracted_content) < 10:
+                return content
+            
+            return extracted_content
+            
+        except Exception as e:
+            logger.error(f"提取相关内容时出错: {str(e)}")
+            return content  # 出错时返回原始内容
 

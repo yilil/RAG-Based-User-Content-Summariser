@@ -1,9 +1,11 @@
+"""
+DEPRECATED: This command is deprecated and will be removed in a future version.
+"""
 from django.core.management.base import BaseCommand
 from django_apps.search.index_service.faiss_manager import FaissManager
 from django_apps.search.utils import get_embeddings
 import os
 import logging
-import numpy as np
 import faiss
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
