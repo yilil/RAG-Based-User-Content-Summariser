@@ -52,12 +52,22 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
     options.add_experimental_option("useAutomationExtension", False)
+
+    # 随机选择 User-Agent - 增加多样性
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ]
+    user_agent = random.choice(user_agents)
     
     # 使用Service配置
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
         options=options
     )
+
     # 应用stealth设置增强反检测能力
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     stealth(driver,
@@ -93,7 +103,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         
         # 打开目标页面
         driver.get(url)
-        time.sleep(random.uniform(2, 4))  # 在2到3秒之间随机等待页面加载
+        time.sleep(random.uniform(3, 6))  # 在3到6秒之间随机等待页面加载
 
         # 等待帖子元素出现, 最长等待30秒
         try:
@@ -162,7 +172,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                             # embedding已经做过 => 跳过
                             logger.info(f"thread_id={thread_id_val} found, already embedded => skip.")
                             driver.back()
-                            time.sleep(random.uniform(2, 5))  # 增加返回后的等待时间，模拟用户浏览列表
+                            time.sleep(random.uniform(1, 2))  # 增加返回后的等待时间，模拟用户浏览列表
                             continue
                         else:
                             # update meta
@@ -197,7 +207,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                             logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
 
                 driver.back()
-                time.sleep(random.uniform(2, 5))  # 增加返回后的等待时间，模拟用户浏览列表
+                time.sleep(random.uniform(1, 3))  # 增加返回后的等待时间，模拟用户浏览列表
                 
             except Exception as e:
                 logger.warning(f"Failed to parse post: {e}")
@@ -217,41 +227,87 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     
     return new_items
 
+
+
 def simulate_human_behavior(driver):
-    """模拟人类用户浏览行为"""
-    # 随机决定行为模式
-    behavior_type = random.random()
+    """模拟更真实的人类用户浏览行为"""
+    # 随机决定行为组合
+    behaviors = ['scroll', 'hover', 'pause', 'partial_scroll']
+    selected_behaviors = random.sample(behaviors, k=min(3, random.randint(1, 4)))
     
-    # 1. 滚动行为 - 更加真实的渐进式滚动
-    if behavior_type < 0.8:  # 80%的概率会滚动
-        # 首先慢慢滚动一点
-        initial_scroll = random.randint(200, 400)
-        driver.execute_script(f"window.scrollBy(0, {initial_scroll});")
-        time.sleep(random.uniform(1, 3))  # 假装在阅读
+    # 文章初始阅读暂停 - 模拟阅读标题和初始内容
+    time.sleep(random.uniform(1.5, 3.5))
+    
+    # 1. 主要滚动行为 - 自然渐进式滚动
+    if 'scroll' in selected_behaviors:
+        # 计算页面高度以确保滚动合理
+        page_height = driver.execute_script("return document.body.scrollHeight")
+        view_height = driver.execute_script("return window.innerHeight")
+        max_scroll = max(100, min(page_height - view_height, 1500))  # 限制最大滚动
         
-        # 然后滚动更多
-        for _ in range(random.randint(2, 5)):  # 随机滚动2-5次
-            scroll_height = random.randint(200, 600)
-            driver.execute_script(f"window.scrollBy(0, {scroll_height});")
-            time.sleep(random.uniform(1.5, 4))  # 每次滚动后暂停，模拟阅读
+        # 渐进式滚动 - 速度先快后慢模拟阅读行为
+        scroll_positions = []
+        total_scrolls = random.randint(3, 5)
+        
+        for i in range(total_scrolls):
+            # 非线性滚动距离 - 开始快，后面慢
+            progress = (i + 1) / total_scrolls
+            scroll_amount = int(max_scroll * (1 - 0.7 * progress**2))
+            scroll_positions.append(scroll_amount)
             
-        # 有时候会滚回去一点，再往下 - 很像人类阅读行为
-        if random.random() < 0.4:  # 40%的概率
-            driver.execute_script(f"window.scrollBy(0, -{random.randint(100, 300)});")
-            time.sleep(random.uniform(1, 2))
-            driver.execute_script(f"window.scrollBy(0, {random.randint(150, 400)});")
-    
-    # 2. 鼠标悬停行为 - 模拟用户查看特定元素
-    if random.random() < 0.3:  # 30%的概率
+            # 执行滚动
+            driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
+            
+            # 阅读暂停，随着内容往下暂停时间变长
+            read_time = random.uniform(1.0, 2.0 + progress * 2)
+            time.sleep(read_time)
+
+    # 2. 部分滚动回顾 - 非常像人类阅读行为
+    if 'partial_scroll' in selected_behaviors and random.random() < 0.7:
+        # 向上滚动一点（回看内容）
+        up_amount = random.randint(100, 300)
+        driver.execute_script(f"window.scrollBy(0, -{up_amount});")
+        time.sleep(random.uniform(1.0, 2.5))  # 停顿一下重新阅读
+        
+        # 继续向下滚动（继续阅读）
+        driver.execute_script(f"window.scrollBy(0, {up_amount + random.randint(50, 150)});")
+        time.sleep(random.uniform(0.7, 1.8))
+
+    # 3. 鼠标悬停行为 - 更真实的元素交互
+    if 'hover' in selected_behaviors:
         try:
-            # 尝试找一些可能的互动元素
-            elements = driver.find_elements(By.CSS_SELECTOR, "img, a, button, .like-icon")
-            if elements:
-                element = random.choice(elements)
-                ActionChains(driver).move_to_element(element).perform()
-                time.sleep(random.uniform(0.5, 1.5))
+            # 优先尝试互动元素
+            hover_selectors = [
+                "img.note-image", "div.like-wrapper", "div.note-content p", 
+                "div.tag", "span.username", "a.tag", "div.title"
+            ]
+            
+            # 随机选择1-2个选择器尝试
+            for selector in random.sample(hover_selectors, k=min(2, len(hover_selectors))):
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements:
+                    # 选择可见元素
+                    visible_elements = []
+                    for elem in elements[:5]:  # 只检查前5个提高效率
+                        if elem.is_displayed():
+                            visible_elements.append(elem)
+                    
+                    if visible_elements:
+                        element = random.choice(visible_elements)
+                        # 平滑移动鼠标 - 不直接跳到元素
+                        actions = ActionChains(driver)
+                        actions.move_to_element_with_offset(element, 
+                                                           random.randint(-10, 10), 
+                                                           random.randint(-5, 5))
+                        actions.perform()
+                        time.sleep(random.uniform(0.6, 1.2))
         except Exception as e:
-            logger.debug(f"鼠标悬停模拟失败: {e}")
+            # 安静地处理错误，不影响爬虫主要功能
+            logger.debug(f"鼠标悬停模拟异常 (非关键): {str(e)[:100]}")
+    
+    # 4. 随机暂停 - 模拟思考
+    if 'pause' in selected_behaviors:
+        time.sleep(random.uniform(0.8, 2.2))
 
 
 

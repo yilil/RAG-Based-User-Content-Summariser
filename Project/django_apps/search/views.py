@@ -83,8 +83,8 @@ def search(request):
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
-            bm25_weight=0.25,  # 可调整的参数
-            embedding_weight=0.75,  # 可调整的参数
+            bm25_weight=0.3,  # 可调整的参数
+            embedding_weight=0.7,  # 可调整的参数
             vote_weight=0  # 可调整的参数
         )
 
