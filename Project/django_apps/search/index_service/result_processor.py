@@ -178,7 +178,11 @@ class ResultProcessor:
         """计算每个推荐项的分数"""
         # 找出最大值用于归一化
         max_upvotes = max([rec['total_upvotes'] for rec in recommendations]) if recommendations else 1
+        if not max_upvotes:
+            max_upvotes = 1
         max_mentions = max([rec['mentions'] for rec in recommendations]) if recommendations else 1
+        if not max_mentions:
+            max_mentions = 1    
         max_rating = 5.0  # 评分最大值固定为5
         
         # 计算每个推荐项的分数

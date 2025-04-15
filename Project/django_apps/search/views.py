@@ -84,9 +84,9 @@ def search(request):
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
-            bm25_weight=0.3,  # 可调整的参数
-            embedding_weight=0.7,  # 可调整的参数
-            vote_weight=0  # 可调整的参数
+            bm25_weight=0.25,  # 可调整的参数
+            embedding_weight=0.55,  # 可调整的参数
+            vote_weight=0.2  # 可调整的参数
         )
 
         # 获取最终的 top_k retrieved_documents
@@ -227,7 +227,7 @@ def index_content(request):
                 # 3) 调用 save_index() 再写回磁盘
                 index_service.indexer.index_platform_content(platform=platform, unindexed_queryset=unindexed)
                 # 添加内容后保存索引
-                index_service.faiss_manager.save_index()
+                # index_service.faiss_manager.save_index()
                 logger.info(f"Saved FAISS index for {platform}")
             else:
                 logger.info(f"No new {platform} items to index.")

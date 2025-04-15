@@ -62,7 +62,7 @@ beautifulsoup4>=4.9.3
 html5lib>=1.1
 selenium==4.28.1
 # undetected-chromedriver==3.1.7
-selenium-stealth==1.1.0
+selenium-stealth>=1.0.0
 webdriver-manager==4.0.1
 
 # 大模型api相关

@@ -66,7 +66,7 @@ python manage.py index_content --source=all
 系统使用混合检索方法提高结果相关性
 
 ### 3.2 相关性阈值与文档数量要求
-- 系统仅返回相关度超过阈值(默认0.6)的文档
+- 系统仅返回相关度超过阈值(默认0.5)的文档
 - RAG仅在找到至少5个高质量相关文档时激活
 - 当相关文档不足时，系统回退到直接回答模式
 
@@ -127,7 +127,55 @@ python manage.py test_rednote_crawler --url "your_url"
    curl -X POST http://localhost:8000/index_content/ -d "source=rednote"
    ```
 
-> **注意**：无论是即时索引还是后续批量索引，内容一旦被成功索引到 FAISS 中，原文将从数据库中清除以优化存储空间。原文内容会被保存在 FAISS 索引中用于后续检索。
+在post indexing指令后，有时候会出现："Skipping object with ID xx due to empty content" 类似的提醒信息
+**这些消息表明什么：**
+
+这些"skipping"消息表示系统找到了未在ContentIndex表中记录的内容条目(即认为它们未被索引)，但当尝试读取这些条目时，发现它们的content字段为空。
+
+**为什么不同平台的行为不同：**
+
+1. **数据一致性问题**：如果您看到某个平台(如rednote)显示跳过消息，而另一个平台(如stackoverflow)没有，这很可能是因为：
+   - 该平台的内容之前已被索引过(其content字段被清空)
+   - 但由于某种原因(数据库操作、迁移中断等)，ContentIndex表中相应的记录被删除了
+   - 系统认为这些内容是"未索引"的，但发现内容为空时会跳过它们
+
+2. **正常的索引行为**：这些消息通常不影响系统功能，仅表示系统在工作时正在跳过某些不完整记录
+
+3. **跨平台一致性**：如果需要保持所有平台索引行为一致，可以：
+   ```bash
+   # 为所有content为空但缺少ContentIndex记录的内容创建对应记录
+   python manage.py shell
+   
+   # 在Django shell中执行
+   from django_apps.search.models import RednoteContent, ContentIndex
+   
+   empty_contents = RednoteContent.objects.filter(content__isnull=True)
+   for item in empty_contents:
+       if not ContentIndex.objects.filter(source='rednote', thread_id=item.thread_id).exists():
+           ContentIndex.objects.create(
+               source='rednote',
+               thread_id=item.thread_id,
+               content_type=item.content_type,
+               author_name=item.author_name,
+               created_at=item.created_at
+           )
+   ```
+
+**技术背景解释：**
+
+- 索引过程使用`thread_id`来判断内容是否已被索引，通过检查ContentIndex表
+- 成功索引后，原内容的`content`字段会被设为`None`以节省存储空间
+- 如果ContentIndex记录被删除但原内容记录保留(content=None)，就会出现"skipping"消息
+- 不同平台可能由于数据处理过程不同而表现出不同的索引行为
+
+
+### 6.4 理解索引日志和平台差异
+
+在运行索引命令(如 `curl -X POST http://localhost:8000/index_content/ -d "source=platform"`)时，您可能会看到类似以下的日志信息：
+
+```
+Skipping object with ID xx due to empty content
+```
 
 ## 7. 运行服务器
 
@@ -218,7 +266,7 @@ choco install graphviz
 dot -Tpng diagram.dot -o diagram.png
 ```
 
-## 10. 可视化数据库内容
+## 10. 可视化数据库内容与调试
 
 ```bash
 # 创建超级用户
@@ -226,7 +274,46 @@ python manage.py createsuperuser
 
 # 启动开发服务器
 python manage.py runserver
+
+# 以下两种可以看到更详细的日志内容
+python manage.py runserver --verbosity 2
+python manage.py runserver --verbosity 3
 ```
+
+### 10.1 日志级别配置与调试
+
+系统使用不同日志级别记录运行信息。要添加更详细的日志输出（特别是在调试混合检索和点赞数据时），可以在项目设置中配置日志级别：
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # 改为DEBUG以显示更多日志
+    },
+    'loggers': {
+        'django_apps.search': {  # 您应用的特定日志器
+            'handlers': ['console'],
+            'level': 'DEBUG',  # 设置为DEBUG级别
+            'propagate': False,
+        },
+    },
+}
+```
+
+**日志级别说明**：
+- **DEBUG**: 显示所有级别的消息，包括最详细的调试信息，如混合检索中的各类分数、点赞数据处理等
+- **INFO**: 显示一般运行信息，如已成功索引的内容数量、检索结果条数等
+- **WARNING**: 只显示警告和错误，如跳过内容为空的对象时的警告
+- **ERROR**: 只显示错误信息，如索引初始化失败
+
+在排查点赞数据正确性、混合检索评分、BM25搜索结果时，推荐使用DEBUG级别。
 
 访问 Django Admin：http://127.0.0.1:8000/admin
 

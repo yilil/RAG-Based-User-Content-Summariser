@@ -166,10 +166,15 @@ class FaissManager:
         if self.bm25 is None:
             logger.warning(f"平台 {self.platform} 的BM25未初始化，返回空列表")
             return []
+        
+        # 从FAISS获取所有文档及其原始元数据
+        faiss_docs = self._get_all_docs_from_faiss()
+        faiss_docs_dict = {doc.page_content: doc.metadata for doc in faiss_docs}
+        
         tokenized_query = self.preprocessor.preprocess_text(query)
         scores = self.bm25.get_scores(tokenized_query)
 
-         # 得到前 top_k 的文档索引
+        # 得到前 top_k 的文档索引
         top_indexes = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
 
         # 把它们转成 Document 对象
@@ -177,15 +182,40 @@ class FaissManager:
         for i in top_indexes:
             doc_text = self.all_texts[i]
             bm25_score = scores[i]
-            # 构造一个 Document
-            doc_obj = Document(
-                page_content=doc_text,
-                metadata={
-                    'bm25_score': bm25_score,
-                    'id': i,
-                    # 你也可以加更多字段
-                }
-            )
+            
+            # 创建基本元数据
+            metadata = {
+                'bm25_score': bm25_score,
+                'id': i,
+                'source': self.platform
+            }
+            
+            # 如果能在FAISS索引中找到对应的文本，就添加其完整元数据
+            if doc_text in faiss_docs_dict:
+                original_metadata = faiss_docs_dict[doc_text]
+                # 保留BM25分数
+                original_metadata['bm25_score'] = bm25_score
+                original_metadata['id'] = i
+                original_metadata['source'] = self.platform
+                # 使用原始元数据创建Document对象
+                doc_obj = Document(
+                    page_content=doc_text,
+                    metadata=original_metadata
+                )
+            else:
+                # 如果在FAISS索引中找不到对应文本，则根据平台添加特定字段
+                if self.platform == 'reddit':
+                    metadata['upvotes'] = 0
+                elif self.platform == 'stackoverflow':
+                    metadata['vote_score'] = 0
+                elif self.platform == 'rednote':
+                    metadata['likes'] = 0
+                    
+                doc_obj = Document(
+                    page_content=doc_text,
+                    metadata=metadata
+                )
+                
             doc_results.append(doc_obj)
         return doc_results
     

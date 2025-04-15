@@ -33,7 +33,7 @@ class HybridRetriever:
                 'doc': doc,
                 'bm25_score': doc.metadata.get('bm25_score', 0),
                 'embedding_score': 0,  # 默认值
-                'vote_score': self.get_doc_vote_score(doc)
+                'vote_score': self.get_doc_vote_score(doc) #确保此时doc中已经正确存储了点赞数据 & metadata
             }
         
         # 添加或更新嵌入文档
@@ -132,7 +132,20 @@ class HybridRetriever:
         
     def get_doc_vote_score(self, doc):
         """获取单个文档的投票分数"""
-        upvotes = doc.metadata.get('upvotes', 0)
-        likes = doc.metadata.get('likes', 0)
-        vote_score = doc.metadata.get('vote_score', 0)
-        return max(upvotes, likes, vote_score)
+        upvotes = doc.metadata.get('upvotes', None)
+        likes = doc.metadata.get('likes', None)
+        vote_score = doc.metadata.get('vote_score', None)
+        # 获取文档ID或其他标识信息用于日志
+        doc_id = doc.metadata.get('doc_id', doc.metadata.get('id', 'unknown'))
+        source = doc.metadata.get('source', 'unknown')
+        thread_id = doc.metadata.get('thread_id', 'unknown')
+
+        # 检查是否存在任何点赞数据
+        if upvotes is None and likes is None and vote_score is None:
+            logger.warning(f"没有提取到任何点赞数据! 文档ID:{doc_id}, 来源:{source}, 线程ID:{thread_id}")
+            return 0
+        
+        # 将None值转换为0然后取最大值，并记录日志检查是否正确获取了metadata
+        vote_value = max(upvotes or 0, likes or 0, vote_score or 0)
+        logger.info(f"文档ID:{doc_id}, 来源:{source}, 获取到的点赞值:{vote_value}")
+        return vote_value
