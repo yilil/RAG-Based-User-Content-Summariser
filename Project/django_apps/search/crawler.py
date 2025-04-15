@@ -4,11 +4,15 @@ import time
 import logging
 import random
 from django.utils import timezone
+import subprocess
+import shutil
 
 # 替换undetected_chromedriver导入
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# 避免使用WebDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium_stealth import stealth  # 需要先安装这两个包
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -18,6 +22,8 @@ from selenium.webdriver import ActionChains
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # 处理时区
 import uuid
+import platform
+import os
 
 from django_apps.search.models import RednoteContent
 from django_apps.search.index_service.base import IndexService  # 用于embedding
@@ -43,7 +49,8 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
 
     items_to_index = [] # crawled items to be indexed
 
-    options = webdriver.ChromeOptions()
+    # 使用ChromeOptions
+    options = ChromeOptions()
     # options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -62,254 +69,285 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     ]
     user_agent = random.choice(user_agents)
     
-    # 使用Service配置
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
-
-    # 应用stealth设置增强反检测能力
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    stealth(driver,
-        user_agent=user_agent,  # 通过stealth设置user-agent
-        languages=["zh-CN", "zh"],
-        vendor="Google Inc.",
-        platform="Win32", 
-        webgl_vendor="Intel Inc.",
-        renderer="Intel Iris OpenGL Engine",
-        fix_hairline=True
-    )
-        
-    # 额外的WebDriver隐藏
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    )
-        
-    try:
-
-        # 设置我们想要爬取的笔记数量上限
-        MAX_POSTS = 50
-
-        # 设置cookies和打开页面
-        driver.get("https://www.xiaohongshu.com/explore")
-        driver.delete_all_cookies()
-
-        for c in cookies:
-            try:
-                driver.add_cookie(c)
-            except Exception as e:
-                logger.warning(f"Failed to add cookie: {e}")
-        driver.refresh()
-        
-        # 打开目标页面
-        driver.get(url)
-        time.sleep(random.uniform(3, 6))  # 在3到6秒之间随机等待页面加载
-
-        # 等待帖子元素出现, 最长等待30秒
-        try:
-            post_links = WebDriverWait(driver, 30).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.cover.ld.mask"))
-            )
-        except TimeoutException:
-            logger.warning("未能在指定时间内加载帖子元素")
-            post_links = []
-        
-        # 获取帖子链接 - 这里使用正确的选择器
-        post_links = driver.find_elements(By.CSS_SELECTOR, "a.cover.ld.mask")[:MAX_POSTS]
-        logger.info(f"Found {len(post_links)} posts on the page.")
-        
-        new_items = []
-        for link in post_links:
-            try:
-                link.click()
-                time.sleep(random.uniform(0.5, 1.5)) 
-
-                # 使用显式等待确保元素加载完成
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.title"))
-                )
-
-                # 模拟人类用户浏览行为 -> 现在还有问题
-                # simulate_human_behavior(driver)
-                
-                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.username")))
-
-                author = driver.find_element(By.CSS_SELECTOR, "span.username").get_attribute("innerText").strip()
-                logger.info(f"Extracted author: {author}")
-                
-                # 在详情页获取内容
-                title = driver.find_element(By.CSS_SELECTOR, "div.title").get_attribute("innerText").strip()
-                logger.info(f"Extracted title: {title}")
-
-                content_text = driver.find_element(By.CSS_SELECTOR, "div.note-content").get_attribute("innerText").strip()
-                logger.info(f"Extracted content: {content_text}")
-
-                
-
-                date_element = driver.find_element(By.CSS_SELECTOR, "span.date").get_attribute("innerText").strip()
-                likes_str = driver.find_element(By.CSS_SELECTOR, "span.count").get_attribute("innerText").strip()
-                
-                # 获取标签
-                tag_elements = driver.find_elements(By.CSS_SELECTOR, "a.tag")
-                tags = ' '.join([tag.text for tag in tag_elements])
-                
-                # 处理时间和点赞数
-                created_time = parse_xiaohongshu_date(date_element)
-                likes = parse_likes_count(likes_str)
-                
-                # 存入数据库, 保持与原来的 RednoteContent 结构一致
-                # 验证数据
-                if validate_post_data(title, content_text, author):
-                    # 生成独特的thread_id
-                    thread_id_val = driver.current_url.split('/')[-1]
-                    # 检查数据库是否已有
-                    existing = RednoteContent.objects.filter(source="rednote", thread_id=thread_id_val).first()
-                    if existing:
-                    # 说明这条数据已存在
-
-                        # 如果不需要被更新 -> （后续逻辑改成：根据每个帖子的内容 & 点赞数等生成一个独特的embedding key，所以这里判断条件也需要改）
-                        if existing.embedding_key: 
-                            # embedding已经做过 => 跳过
-                            logger.info(f"thread_id={thread_id_val} found, already embedded => skip.")
-                            driver.back()
-                            time.sleep(random.uniform(1, 2))  # 增加返回后的等待时间，模拟用户浏览列表
-                            continue
-                        else:
-                            # update meta
-                            existing.thread_title = title
-                            existing.author_name = author
-                            existing.created_at = created_time
-                            existing.tags = tags
-                            existing.likes = likes
-                            existing.save()
-                            db_obj = existing
-                    else:
-                        # 新建
-                        db_obj = RednoteContent.objects.create(
-                            source="rednote",
-                            content_type="note",
-                            thread_id=thread_id_val,
-                            thread_title=title,
-                            author_name=author,
-                            created_at=created_time,
-                            tags=tags,
-                            likes=likes,
-                            embedding_key=None,  # 还没embedding
-                            content=content_text  # Make sure content is stored
-                        )
-                        new_items.append(db_obj)
-                    
-                        # Only perform immediate indexing if the flag is set
-                        # Collect items during crawling
-                        if immediate_indexing:
-                            items_to_index.append((db_obj, content_text))          
-                        else:
-                            logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
-
-                driver.back()
-                time.sleep(random.uniform(1, 3))  # 增加返回后的等待时间，模拟用户浏览列表
-                
-            except Exception as e:
-                logger.warning(f"Failed to parse post: {e}")
-                driver.back()
-                
-    finally:
-        driver.quit()
-
-    # At the end, batch process them 
-    if immediate_indexing and items_to_index:
-        for db_obj, content_text in items_to_index:
-            # Don't save after each item
-            index_service.indexer.index_crawled_item(db_obj, content_text, save_index=False)
-        
-        # Save all of them once at the end
-        index_service.faiss_manager.save_index()
+    # 检测系统架构，针对M1/M2 Mac特殊处理
+    is_mac_arm = platform.system() == 'Darwin' and platform.machine() == 'arm64'
     
-    return new_items
+    try:
+        driver = None
+        driver_path = None
+        
+        # 针对M1/M2 Mac的特殊处理
+        if is_mac_arm:
+            logger.info("检测到Mac ARM架构，使用特殊处理...")
+            
+            # 在常见位置查找chromedriver
+            possible_driver_paths = [
+                '/opt/homebrew/bin/chromedriver',  # Homebrew安装位置
+                '/usr/local/bin/chromedriver',     # 手动安装的常见位置
+                '/Applications/Google Chrome.app/Contents/MacOS/chromedriver'  # Chrome包内
+            ]
+            
+            # 查找已经存在的chromedriver
+            for path in possible_driver_paths:
+                if os.path.exists(path) and os.access(path, os.X_OK):
+                    driver_path = path
+                    logger.info(f"找到可用的chromedriver: {driver_path}")
+                    break
+            
+            # 如果没找到，尝试使用which命令
+            if not driver_path:
+                try:
+                    which_result = subprocess.check_output(['which', 'chromedriver']).decode('utf-8').strip()
+                    if which_result and os.path.exists(which_result):
+                        driver_path = which_result
+                        logger.info(f"通过which命令找到chromedriver: {driver_path}")
+                except:
+                    pass
+            
+            # 如果仍未找到，给出明确的错误提示
+            if not driver_path:
+                error_msg = """
+未找到适用于M1/M2 Mac的chromedriver！请执行以下步骤:
+1. 安装chromedriver: brew install --cask chromedriver
+2. 授予权限: xattr -d com.apple.quarantine /opt/homebrew/bin/chromedriver
+3. 确认安装成功: which chromedriver
+                """
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+            
+            # 找到Chrome浏览器
+            chrome_paths = [
+                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta'
+            ]
+            
+            chrome_path = None
+            for path in chrome_paths:
+                if os.path.exists(path):
+                    chrome_path = path
+                    break
+            
+            if chrome_path:
+                options.binary_location = chrome_path
+            
+            # 使用找到的chromedriver创建driver
+            logger.info(f"使用chromedriver: {driver_path}")
+            service = Service(executable_path=driver_path)
+            driver = webdriver.Chrome(service=service, options=options)
+            
+        else:
+            # 非ARM Mac/其他系统 - 尝试使用PATH中的chromedriver
+            chromedriver_path = shutil.which('chromedriver')
+            if chromedriver_path:
+                service = Service(executable_path=chromedriver_path)
+                driver = webdriver.Chrome(service=service, options=options)
+            else:
+                # 回退到基本方法 - 不使用WebDriverManager
+                driver = webdriver.Chrome(options=options)
+        
+        # 应用stealth设置增强反检测能力
+        stealth(driver,
+            user_agent=user_agent,
+            languages=["zh-CN", "zh"],
+            vendor="Google Inc.",
+            platform="Win32", 
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True
+        )
+            
+        # 额外的WebDriver隐藏
+        driver.execute_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+        
+        try:
 
+            # 设置我们想要爬取的笔记数量上限
+            MAX_POSTS = 50
 
+            # 设置cookies和打开页面
+            driver.get("https://www.xiaohongshu.com/explore")
+            driver.delete_all_cookies()
+
+            for c in cookies:
+                try:
+                    driver.add_cookie(c)
+                except Exception as e:
+                    logger.warning(f"Failed to add cookie: {e}")
+            driver.refresh()
+            
+            # 打开目标页面
+            driver.get(url)
+            time.sleep(random.uniform(3, 6))  # 在3到6秒之间随机等待页面加载
+
+            # 在获取文章列表前，滚动页面加载更多内容
+            logger.info("开始智能滚动以加载更多内容...")
+            human_like_scroll(driver, max_scrolls=12)  # 增加滚动次数以加载更多内容
+            
+            # 获取帖子数量
+            post_count = len(driver.find_elements(By.CSS_SELECTOR, "a.cover.ld.mask"))
+            logger.info(f"Found {post_count} posts on the page.")
+            
+            new_items = []
+            for i in range(min(post_count, MAX_POSTS)):
+                # 休息频率和时长随机化
+                if len(new_items) > 0 and random.random() < 0.2:
+                    rest_time = random.uniform(10, 30)
+                    logger.info(f"已爬取{len(new_items)}篇，执行随机休息{rest_time:.1f}秒...")
+                    time.sleep(rest_time)
+
+                try:
+                    # 使用索引而不是保存元素引用
+                    if not safe_click_by_selector(driver, "a.cover.ld.mask", i):
+                        logger.warning(f"点击第 {i+1} 个帖子失败，跳过")
+                        continue
+                    
+                    time.sleep(random.uniform(5, 10))
+                    
+                    # 使用显式等待确保元素加载完成
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "div.title"))
+                    )
+
+                    # 模拟人类浏览行为
+                    simulate_human_behavior(driver)
+                    
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.username")))
+
+                    author = driver.find_element(By.CSS_SELECTOR, "span.username").get_attribute("innerText").strip()
+                    logger.info(f"Extracted author: {author}")
+                    
+                    # 在详情页获取内容
+                    title = driver.find_element(By.CSS_SELECTOR, "div.title").get_attribute("innerText").strip()
+                    logger.info(f"Extracted title: {title}")
+
+                    content_text = driver.find_element(By.CSS_SELECTOR, "div.note-content").get_attribute("innerText").strip()
+                    logger.info(f"Extracted content: {content_text}")
+
+                    
+
+                    date_element = driver.find_element(By.CSS_SELECTOR, "span.date").get_attribute("innerText").strip()
+                    likes_str = driver.find_element(By.CSS_SELECTOR, "span.count").get_attribute("innerText").strip()
+                    
+                    # 获取标签
+                    tag_elements = driver.find_elements(By.CSS_SELECTOR, "a.tag")
+                    tags = ' '.join([tag.text for tag in tag_elements])
+                    
+                    # 处理时间和点赞数
+                    created_time = parse_xiaohongshu_date(date_element)
+                    likes = parse_likes_count(likes_str)
+                    
+                    # 存入数据库, 保持与原来的 RednoteContent 结构一致
+                    # 验证数据
+                    if validate_post_data(title, content_text, author):
+                        # 生成独特的thread_id
+                        thread_id_val = driver.current_url.split('/')[-1]
+                        # 检查数据库是否已有
+                        existing = RednoteContent.objects.filter(source="rednote", thread_id=thread_id_val).first()
+                        if existing:
+                        # 说明这条数据已存在
+
+                            # 如果不需要被更新 -> （后续逻辑改成：根据每个帖子的内容 & 点赞数等生成一个独特的embedding key，所以这里判断条件也需要改）
+                            if existing.embedding_key: 
+                                # embedding已经做过 => 跳过
+                                logger.info(f"thread_id={thread_id_val} found, already embedded => skip.")
+                                driver.back()
+                                time.sleep(random.uniform(1, 2))  # 增加返回后的等待时间，模拟用户浏览列表
+                                continue
+                            else:
+                                # update meta
+                                existing.thread_title = title
+                                existing.author_name = author
+                                existing.created_at = created_time
+                                existing.tags = tags
+                                existing.likes = likes
+                                existing.save()
+                                db_obj = existing
+                        else:
+                            # 新建
+                            db_obj = RednoteContent.objects.create(
+                                source="rednote",
+                                content_type="note",
+                                thread_id=thread_id_val,
+                                thread_title=title,
+                                author_name=author,
+                                created_at=created_time,
+                                tags=tags,
+                                likes=likes,
+                                embedding_key=None,  # 还没embedding
+                                content=content_text  # Make sure content is stored
+                            )
+                            new_items.append(db_obj)
+                        
+                            # Only perform immediate indexing if the flag is set
+                            # Collect items during crawling
+                            if immediate_indexing:
+                                items_to_index.append((db_obj, content_text))          
+                            else:
+                                logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
+
+                    driver.back()
+                    time.sleep(random.uniform(5, 8))  # 增加返回后的等待时间，模拟用户浏览列表
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to parse post: {e}")
+                    driver.back()
+                
+        finally:
+            driver.quit()
+
+        # At the end, batch process them 
+        if immediate_indexing and items_to_index:
+            for db_obj, content_text in items_to_index:
+                # Don't save after each item
+                index_service.indexer.index_crawled_item(db_obj, content_text, save_index=False)
+            
+            # Save all of them once at the end
+            index_service.faiss_manager.save_index()
+        
+        return new_items
+
+    except Exception as e:
+        logger.warning(f"Failed to crawl page: {e}")
+        return []
 
 def simulate_human_behavior(driver):
-    """模拟更真实的人类用户浏览行为"""
-    # 随机决定行为组合
-    behaviors = ['scroll', 'hover', 'pause', 'partial_scroll']
-    selected_behaviors = random.sample(behaviors, k=min(3, random.randint(1, 4)))
-    
-    # 文章初始阅读暂停 - 模拟阅读标题和初始内容
-    time.sleep(random.uniform(1.5, 3.5))
-    
-    # 1. 主要滚动行为 - 自然渐进式滚动
-    if 'scroll' in selected_behaviors:
-        # 计算页面高度以确保滚动合理
-        page_height = driver.execute_script("return document.body.scrollHeight")
-        view_height = driver.execute_script("return window.innerHeight")
-        max_scroll = max(100, min(page_height - view_height, 1500))  # 限制最大滚动
+    """简化版本的人类行为模拟，只保留核心浏览模式"""
+    try:
+        # 文章初始阅读暂停
+        time.sleep(random.uniform(1.5, 3.5))
         
-        # 渐进式滚动 - 速度先快后慢模拟阅读行为
-        scroll_positions = []
-        total_scrolls = random.randint(3, 5)
+        # 1. 主要滚动行为 - 更自然的渐进式滚动
+        scroll_times = random.randint(2, 4)
         
-        for i in range(total_scrolls):
-            # 非线性滚动距离 - 开始快，后面慢
-            progress = (i + 1) / total_scrolls
-            scroll_amount = int(max_scroll * (1 - 0.7 * progress**2))
-            scroll_positions.append(scroll_amount)
+        for i in range(scroll_times):
+            # 非线性滚动距离
+            progress = (i + 1) / scroll_times
+            scroll_amount = int(400 * (1 - 0.4 * progress**2))  # 开始快，后面慢
             
             # 执行滚动
             driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
             
             # 阅读暂停，随着内容往下暂停时间变长
-            read_time = random.uniform(1.0, 2.0 + progress * 2)
+            read_time = random.uniform(1.0, 2.0 + progress * 1.5)
             time.sleep(read_time)
-
-    # 2. 部分滚动回顾 - 非常像人类阅读行为
-    if 'partial_scroll' in selected_behaviors and random.random() < 0.7:
-        # 向上滚动一点（回看内容）
-        up_amount = random.randint(100, 300)
-        driver.execute_script(f"window.scrollBy(0, -{up_amount});")
-        time.sleep(random.uniform(1.0, 2.5))  # 停顿一下重新阅读
         
-        # 继续向下滚动（继续阅读）
-        driver.execute_script(f"window.scrollBy(0, {up_amount + random.randint(50, 150)});")
-        time.sleep(random.uniform(0.7, 1.8))
-
-    # 3. 鼠标悬停行为 - 更真实的元素交互
-    if 'hover' in selected_behaviors:
-        try:
-            # 优先尝试互动元素
-            hover_selectors = [
-                "img.note-image", "div.like-wrapper", "div.note-content p", 
-                "div.tag", "span.username", "a.tag", "div.title"
-            ]
+        # 2. 偶尔向上滚动，模拟回看内容
+        if random.random() < 0.5:  # 50%概率
+            up_amount = random.randint(100, 250)
+            driver.execute_script(f"window.scrollBy(0, -{up_amount});")
+            time.sleep(random.uniform(1.0, 2.5))  # 重新阅读暂停
             
-            # 随机选择1-2个选择器尝试
-            for selector in random.sample(hover_selectors, k=min(2, len(hover_selectors))):
-                elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                if elements:
-                    # 选择可见元素
-                    visible_elements = []
-                    for elem in elements[:5]:  # 只检查前5个提高效率
-                        if elem.is_displayed():
-                            visible_elements.append(elem)
-                    
-                    if visible_elements:
-                        element = random.choice(visible_elements)
-                        # 平滑移动鼠标 - 不直接跳到元素
-                        actions = ActionChains(driver)
-                        actions.move_to_element_with_offset(element, 
-                                                           random.randint(-10, 10), 
-                                                           random.randint(-5, 5))
-                        actions.perform()
-                        time.sleep(random.uniform(0.6, 1.2))
-        except Exception as e:
-            # 安静地处理错误，不影响爬虫主要功能
-            logger.debug(f"鼠标悬停模拟异常 (非关键): {str(e)[:100]}")
-    
-    # 4. 随机暂停 - 模拟思考
-    if 'pause' in selected_behaviors:
-        time.sleep(random.uniform(0.8, 2.2))
-
-
+            # 继续向下滚动
+            driver.execute_script(f"window.scrollBy(0, {up_amount + random.randint(50, 150)});")
+            time.sleep(random.uniform(0.7, 1.8))
+            
+        # 3. 最终随机暂停，模拟阅读完成
+        time.sleep(random.uniform(1.5, 3.0))
+        
+    except Exception as e:
+        logger.debug(f"Error in simulate_human_behavior (non-critical): {str(e)[:100]}")
 
 def parse_xiaohongshu_date(date_text):
     """
@@ -568,3 +606,73 @@ def validate_post_data(title, content_text, author):
     if not all([title, content_text, author]):
         raise ValueError("Missing required post data")
     return True
+
+def human_like_scroll(driver, max_scrolls=15, scroll_pause_min=0.8, scroll_pause_max=2.5):
+    """模拟人类滚动行为，分段、随机停顿、少量回滚"""
+    scroll_count = 0
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    no_change_count = 0
+
+    while scroll_count < max_scrolls:
+        # 随机滚动距离
+        scroll_amount = random.randint(400, 900)
+        driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
+        scroll_count += 1
+        time.sleep(random.uniform(scroll_pause_min, scroll_pause_max))
+
+        # 模拟偶尔向上回滚
+        if random.random() < 0.15:  # 15% 的概率向上滚动
+            up_amount = random.randint(50, 150)
+            driver.execute_script(f"window.scrollBy(0, -{up_amount});")
+            time.sleep(random.uniform(0.5, 1.5))
+
+        # 检查页面高度是否变化 (用于检测无限滚动结束)
+        current_height = driver.execute_script("return document.body.scrollHeight")
+        if current_height == last_height:
+            no_change_count += 1
+        else:
+            no_change_count = 0  # 高度变化，重置计数器
+        last_height = current_height
+
+        if no_change_count >= 3:  # 如果连续3次滚动后高度不变，可能到底了
+            logger.info("Page height stopped changing, assuming end of scroll.")
+            break
+
+    logger.info(f"Scrolling finished after {scroll_count} attempts.")
+    # 滚动回顶部，准备处理帖子
+    logger.info("Scrolling back to top...")
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(random.uniform(3, 5))  # 等待页面稳定
+
+def safe_click_by_selector(driver, selector, index, retries=3):
+    """通过选择器和索引安全点击元素，每次尝试前都重新获取元素"""
+    for attempt in range(retries):
+        try:
+            # 每次尝试前重新获取元素列表
+            elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            if index >= len(elements):
+                logger.warning(f"索引 {index} 超出元素数量 {len(elements)}")
+                return False
+                
+            element = elements[index]
+            
+            # 将元素滚动到视图中央
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'auto', block: 'center'});", element)
+            time.sleep(random.uniform(0.3, 0.7))
+            
+            # 模拟鼠标移动和点击
+            actions = ActionChains(driver)
+            actions.move_to_element(element)
+            actions.pause(random.uniform(0.2, 0.8))
+            actions.click()
+            actions.perform()
+            
+            logger.debug(f"成功点击元素 {index}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"点击尝试 {attempt+1}/{retries} 失败: {e}")
+            time.sleep(1 + attempt)
+    
+    logger.error(f"在 {retries} 次尝试后仍无法点击元素")
+    return False
