@@ -19,11 +19,11 @@ class ResultProcessor:
         
         # 情感评分说明（仅用于文档）
         self.sentiment_ratings = {
-            5: "非常正面",  # 5分 -> 非常正面
-            4: "正面",      # 4分 -> 正面
-            3: "中性",      # 3分 -> 中性
-            2: "负面",      # 2分 -> 负面
-            1: "非常负面"   # 1分 -> 非常负面
+            5: "Very Positive",  # 5 points -> Very Positive
+            4: "Positive",       # 4 points -> Positive
+            3: "Neutral",        # 3 points -> Neutral
+            2: "Negative",       # 2 points -> Negative
+            1: "Very Negative"   # 1 point -> Very Negative
         }
         
         # 默认权重配置（综合排序）
@@ -31,20 +31,6 @@ class ResultProcessor:
             'rating': 0.4,      # 评分权重（包括数值评分和情感转换评分）
             'upvotes': 0.35,    # 点赞权重
             'mentions': 0.25    # 提及次数权重
-        }
-        
-        # 评分优先的权重配置
-        self.rating_weights = {
-            'rating': 0.6,      # 提高评分权重
-            'upvotes': 0.25,    # 降低点赞权重
-            'mentions': 0.15    # 降低提及权重
-        }
-        
-        # 人气优先的权重配置
-        self.popularity_weights = {
-            'rating': 0.2,      # 降低评分权重
-            'upvotes': 0.5,     # 提高点赞权重
-            'mentions': 0.3     # 提高提及权重
         }
         
         self.weights = self.default_weights  # 初始使用默认权重
@@ -83,7 +69,7 @@ class ResultProcessor:
                         post_with_rating = post.copy()
                         post_with_rating['rating'] = 3.0
                         post_with_rating['sentiment'] = 'neutral'
-                        post_with_rating['reason'] = '无内容可分析'
+                        post_with_rating['reason'] = 'No content to analyze'
                         posts_with_ratings.append(post_with_rating)
                         ratings.append(3.0)
                         continue
@@ -109,15 +95,21 @@ class ResultProcessor:
                             end = response_text.find("```", start)
                             if start > 6 and end > start:
                                 json_str = response_text[start:end].strip()
-                                result = json.loads(json_str)
+                                # 修复可能的无效转义序列
+                                fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
+                                result = json.loads(fixed_json)
                             else:
-                                result = json.loads(response_text)
+                                # 修复可能的无效转义序列
+                                fixed_text = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', response_text)
+                                result = json.loads(fixed_text)
                         else:
-                            result = json.loads(response_text)
+                            # 修复可能的无效转义序列
+                            fixed_text = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', response_text)
+                            result = json.loads(fixed_text)
                         
                         # 获取情感分类
                         sentiment = result.get('sentiment', '').lower()
-                        reason = result.get('reason', '无分析理由')
+                        reason = result.get('reason', 'No analysis reason provided')
                         
                         # 将情感分类映射到评分
                         if sentiment in rating_processor.sentiment_to_rating:
@@ -154,7 +146,7 @@ class ResultProcessor:
                     'avg_rating': round(avg_rating, 2),  # 平均情感评分
                     'mentions': mentions,
                     'posts': posts_with_ratings,  # 使用带评分的帖子
-                    'summary': item.get('summary', '没有摘要')
+                    'summary': item.get('summary', 'No summary available')
                 }
                 
                 recommendations.append(recommendation)
@@ -287,11 +279,13 @@ Return only the JSON array with the extracted information."""
                 if start > 6 and end > start:  # 确保找到了有效的标记
                     json_str = response_text[start:end].strip()
                     try:
+                        # 修复可能的无效转义序列
+                        fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
                         # 验证 JSON 是否有效
-                        recommendations = json.loads(json_str)
+                        recommendations = json.loads(fixed_json)
                         return json.dumps(recommendations, indent=2)
-                    except json.JSONDecodeError:
-                        logger.warning("Failed to parse JSON from code block")
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse JSON from code block: {e}")
             
             # 2. 如果代码块提取失败，尝试直接提取 JSON 数组
             try:
@@ -299,10 +293,16 @@ Return only the JSON array with the extracted information."""
                 end = response_text.rfind("]") + 1
                 if start >= 0 and end > start:
                     json_str = response_text[start:end].strip()
-                    recommendations = json.loads(json_str)
+                    # 修复可能的无效转义序列
+                    fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
+                    recommendations = json.loads(fixed_json)
                     return json.dumps(recommendations, indent=2)
             except (json.JSONDecodeError, ValueError) as e:
                 logger.error(f"Failed to extract JSON array: {e}")
+                # 记录问题区域帮助调试
+                pos = e.pos if hasattr(e, 'pos') else 0
+                error_context = json_str[max(0, pos-30):min(len(json_str), pos+30)] if pos > 0 else "unknown position"
+                logger.error(f"Error context: '{error_context}'")
             
             # 3. 如果所有提取方法都失败，记录错误并返回 mock 数据
             logger.error("Failed to extract valid JSON from response")
@@ -375,14 +375,14 @@ Return only the JSON array with the extracted information."""
             # 创建格式化的内容字符串
             content = (
                 f"{i}. {item['name'].title()}\n"
-                f"   情感评分: {item['avg_rating']:.1f} ({item['mentions']} 条评论)\n"
-                f"   点赞数: {item['total_upvotes']}\n"
-                f"   综合得分: {item['score']:.3f}\n"
-                f"   得分明细: 评分={item['score_components']['rating']:.3f}, "
-                f"点赞={item['score_components']['upvotes']:.3f}, "
-                f"提及={item['score_components']['mentions']:.3f}\n\n"
-                f"   评论摘要: {item['summary']}\n\n"
-                f"   评论详情:\n"
+                f"   Sentiment Rating: {item['avg_rating']:.1f} ({item['mentions']} reviews)\n"
+                f"   Upvotes: {item['total_upvotes']}\n"
+                f"   Total Score: {item['score']:.3f}\n"
+                f"   Score Details: Rating={item['score_components']['rating']:.3f}, "
+                f"Upvotes={item['score_components']['upvotes']:.3f}, "
+                f"Mentions={item['score_components']['mentions']:.3f}\n\n"
+                f"   Review Summary: {item['summary']}\n\n"
+                f"   Review Details:\n"
             )
             
             # 添加评论
@@ -422,12 +422,12 @@ Return only the JSON array with the extracted information."""
         try:
             # 构建提示词
             prompt = f"""
-请从以下文本中提取与"{item_name}"相关的段落或句子。如果找不到明确相关的内容，请返回整个文本。
+Please extract paragraphs or sentences related to "{item_name}" from the following text. If no clearly relevant content is found, return the entire text.
 
-文本:
+Text:
 {content}
 
-只返回与"{item_name}"直接相关的内容，不要添加任何解释或分析。
+Return only the content directly related to "{item_name}", without adding any explanation or analysis.
 """
             
             # 调用LLM
@@ -437,13 +437,13 @@ Return only the JSON array with the extracted information."""
             # 获取响应文本
             extracted_content = response.text.strip()
             
-            # 如果提取的内容太短，可能没有找到相关段落，返回原始内容
-            if len(extracted_content) < 10:
+            # 如果提取内容过短或提示未找到，使用原始内容
+            if len(extracted_content) < 20 or "no relevant content" in extracted_content.lower():
                 return content
             
             return extracted_content
             
         except Exception as e:
-            logger.error(f"提取相关内容时出错: {str(e)}")
+            logger.error(f"提取项目相关内容失败: {str(e)}")
             return content  # 出错时返回原始内容
 

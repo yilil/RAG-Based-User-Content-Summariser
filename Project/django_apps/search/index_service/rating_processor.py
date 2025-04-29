@@ -9,46 +9,50 @@ class RatingProcessor:
     def __init__(self):
         # 情感分析提示词
         self.sentiment_prompt = """
-分析以下文本的情感倾向，并将其分类为以下五类之一：very positive, positive, neutral, negative, very negative。
+Analyze the sentiment of the following text and classify it into one of these five categories: very positive, positive, neutral, negative, very negative.
 
-判断规则:
-1. Very Positive (非常正面):
-   - 强烈推荐或高度赞扬
-   - 使用强烈正面词汇：非常好、极力推荐、太棒了、完美等
-   - 明确表示这是最佳选择
-   - 表达强烈的满意度
+Classification criteria:
+1. Very Positive:
+   - Strong recommendation or high praise
+   - Uses intensely positive words: excellent, highly recommend, amazing, perfect, etc.
+   - Clearly indicates this is the best choice
+   - Expresses strong satisfaction
 
-2. Positive (正面):
-   - 明确表达喜欢/推荐
-   - 带有正面词汇：不错、好、推荐、喜欢、棒、赞等
-   - 虽然语气平和但表达认可，如"还不错"、"可以考虑"、"值得一试"
+2. Positive:
+   - Clearly expresses liking/recommendation
+   - Contains positive words: good, nice, recommend, like, great, etc.
+   - Expresses approval even if tone is moderate, such as "pretty good", "worth considering", "worth trying"
 
-3. Neutral (中性):
-   - 纯描述性语言，没有明显情感倾向
-   - 既有优点也有缺点，总体中立
-   - 表达犹豫或不确定，如"一般般"、"说不上好坏"
+3. Neutral:
+   - Purely descriptive language with no obvious sentiment
+   - Mentions both pros and cons, overall balanced
+   - Expresses hesitation or uncertainty, such as "average", "can't say if it's good or bad"
 
-4. Negative (负面):
-   - 表达不满或失望
-   - 带有负面词汇：差、不好、失望、问题等
-   - 不推荐但语气不是特别强烈
+4. Negative:
+   - Expresses dissatisfaction or disappointment
+   - Contains negative words: poor, bad, disappointing, problematic, etc.
+   - Does not recommend but tone is not extremely strong
 
-5. Very Negative (非常负面):
-   - 强烈反对或严厉批评
-   - 使用强烈负面词汇：极差、糟糕透顶、完全不值得等
-   - 明确表示这是最差选择
-   - 表达强烈的不满或愤怒
+5. Very Negative:
+   - Strongly opposes or harshly criticizes
+   - Uses intensely negative words: terrible, awful, completely worthless, etc.
+   - Clearly indicates this is the worst choice
+   - Expresses strong dissatisfaction or anger
 
-文本: {text}
+Text: {text}
 
-请以JSON格式返回结果，包含情感分类和简短理由:
+Please return the result in JSON format, including sentiment classification and a brief reason:
 ```json
 {{
   "sentiment": "positive/neutral/negative/very positive/very negative",
-  "reason": "简短分析理由"
+  "reason": "Brief analysis reason"
 }}
 ```
-只返回JSON格式的结果，不要有其他内容。
+Important notes:
+1. Only return the result in JSON format, with no other content.
+2. Do not use Markdown syntax such as *italics*, **bold**, ~strikethrough~, or -list items.
+3. Do not use backslashes (\\) in your response unless required for JSON escaping.
+4. Do not add any code block markers, just return the raw JSON.
 """
 
         # 情感分类到评分的映射
@@ -89,16 +93,28 @@ class RatingProcessor:
                 if start > 6 and end > start:  # 确保找到了有效的标记
                     json_str = response_text[start:end].strip()
                     try:
-                        result = json.loads(json_str)
-                    except json.JSONDecodeError:
-                        logger.warning("Failed to parse JSON from code block")
+                        # 修复可能的无效转义序列（更新正则表达式以捕获所有无效转义）
+                        fixed_json = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\$1', json_str)
+                        result = json.loads(fixed_json)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse JSON from code block: {e}")
+                        # 记录问题区域帮助调试
+                        pos = e.pos if hasattr(e, 'pos') else 0
+                        context = json_str[max(0, pos-30):min(len(json_str), pos+30)] if pos > 0 else "unknown"
+                        logger.error(f"JSON error context: '{context}'")
                         raise
             else:
                 # 2. 如果没有代码块标记，尝试直接解析
                 try:
-                    result = json.loads(response_text)
+                    # 修复可能的无效转义序列
+                    fixed_text = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\$1', response_text)
+                    result = json.loads(fixed_text)
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON解析失败: {response_text}")
+                    # 记录问题区域帮助调试
+                    pos = e.pos if hasattr(e, 'pos') else 0
+                    context = response_text[max(0, pos-30):min(len(response_text), pos+30)] if pos > 0 else "unknown"
+                    logger.error(f"JSON error context: '{context}'")
                     raise ValueError(f"返回格式错误: {str(e)}")
             
             # 验证情感值
@@ -134,11 +150,17 @@ class RatingProcessor:
                 end = response_text.find("```", start)
                 if start > 6 and end > start:
                     json_str = response_text[start:end].strip()
-                    result = json.loads(json_str)
+                    # 修复可能的无效转义序列
+                    fixed_json = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\$1', json_str)
+                    result = json.loads(fixed_json)
                 else:
-                    result = json.loads(response_text)
+                    # 修复可能的无效转义序列
+                    fixed_text = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\$1', response_text)
+                    result = json.loads(fixed_text)
             else:
-                result = json.loads(response_text)
+                # 修复可能的无效转义序列
+                fixed_text = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\$1', response_text)
+                result = json.loads(fixed_text)
             
             # 获取情感分类
             sentiment = result.get('sentiment', '').lower()

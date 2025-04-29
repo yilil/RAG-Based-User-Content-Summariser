@@ -245,7 +245,7 @@ sequenceDiagram
 
 #### 系统流程图
 
-![系统流程图](diagram.png)
+![系统流程图](/Users/wendyfan/AI-Search-Project/NextGen-AI/Project/something_else/diagram.png)
 
 #### 生成流程图
 
