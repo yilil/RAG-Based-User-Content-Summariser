@@ -1,7 +1,7 @@
 import time
 import google.generativeai as genai
 import os
-
+import sys
 def process_search_query(query, retrieved_docs = None):
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -15,7 +15,8 @@ def process_search_query(query, retrieved_docs = None):
         genai.configure(api_key=key)
         
         print("Creating model instance...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash-preview-04-17")
+        #gemini-2.0-flash
 
         """
         Combine the retrieved documents with the prompt template
@@ -61,3 +62,27 @@ def process_search_query(query, retrieved_docs = None):
         import traceback
         traceback.print_exc()
         return f"Error processing query: {str(e)}"
+
+
+def main():
+    print("=== Gemini Query Processor ===")
+    print("输入 'exit' 可退出程序。\n")
+
+    while True:
+        user_input = input("请输入查询内容: ").strip()
+        if user_input.lower() in {"exit", "quit"}:
+            print("已退出。")
+            break
+
+        # retrieved_docs 示例，实际使用时应来自向量数据库（如 FAISS）
+        # 这里只是模拟，没有向量搜索逻辑
+        fake_retrieved_docs = None  # 或者构造一个假数据列表以测试带文档的逻辑
+
+        result = process_search_query(user_input, retrieved_docs=fake_retrieved_docs)
+        print("\n=== 回答结果 ===")
+        print(result)
+        print("=" * 40 + "\n")
+
+
+if __name__ == "__main__":
+    main()
