@@ -4,27 +4,20 @@ from difflib import SequenceMatcher
 from langchain.docstore.document import Document
 from typing import List, Dict
 import re
+from collections import Counter
 from datetime import datetime
 import math
 import json
 import logging
 from django.conf import settings
 from .rating_processor import RatingProcessor
+from search_process.prompt_sender.sender import send_prompt_to_gemini
 
 logger = logging.getLogger(__name__)
 
 class ResultProcessor:
     def __init__(self):
         self.rating_processor = RatingProcessor()
-        
-        # 情感评分说明（仅用于文档）
-        self.sentiment_ratings = {
-            5: "Very Positive",  # 5 points -> Very Positive
-            4: "Positive",       # 4 points -> Positive
-            3: "Neutral",        # 3 points -> Neutral
-            2: "Negative",       # 2 points -> Negative
-            1: "Very Negative"   # 1 point -> Very Negative
-        }
         
         # 默认权重配置（综合排序）
         self.default_weights = {
@@ -38,155 +31,69 @@ class ResultProcessor:
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
         """处理推荐类查询"""
         try:
-            # 1. 使用LLM提取基础信息
+            # 1) Single LLM call: extract items, posts, upvotes, and 1–5 ratings
             prompt = self._build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
             extracted_items = json.loads(response)
             
-            # 2. 处理每个推荐项
+            # 2) Local aggregation
             recommendations = []
-            
-            # 初始化情感分析处理器
-            rating_processor = RatingProcessor()
-            
             for item in extracted_items:
                 # 确保必要的字段存在
                 if 'name' not in item or 'posts' not in item:
-                    logger.warning(f"跳过缺少必要字段的项目: {item}")
+                    logger.warning(f"Skipping invalid item: {item}")
                     continue
-                
-                # 计算总点赞数
+
+                posts = item['posts']
                 total_upvotes = sum(post.get('upvotes', 0) for post in item['posts'])
-                
-                # 对每个帖子中与该item相关的段落进行情感分析
-                posts_with_ratings = []
-                ratings = []
-                
-                for post in item['posts']:
-                    content = post.get('content', '')
-                    if not content:
-                        # 如果没有内容，使用默认评分
-                        post_with_rating = post.copy()
-                        post_with_rating['rating'] = 3.0
-                        post_with_rating['sentiment'] = 'neutral'
-                        post_with_rating['reason'] = 'No content to analyze'
-                        posts_with_ratings.append(post_with_rating)
-                        ratings.append(3.0)
-                        continue
-                    
-                    # 提取与item相关的段落
-                    item_related_content = self._extract_item_related_content(content, item['name'])
-                    
-                    # 使用情感分析获取评分
-                    try:
-                        # 构建提示词
-                        prompt = rating_processor.sentiment_prompt.format(text=item_related_content)
-                        
-                        # 调用LLM
-                        from search_process.prompt_sender.sender import send_prompt_to_gemini
-                        response = send_prompt_to_gemini(prompt)
-                        
-                        # 解析响应
-                        response_text = response.text.strip()
-                        
-                        # 提取JSON结果
-                        if "```json" in response_text:
-                            start = response_text.find("```json") + 7
-                            end = response_text.find("```", start)
-                            if start > 6 and end > start:
-                                json_str = response_text[start:end].strip()
-                                # 修复可能的无效转义序列
-                                fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
-                                result = json.loads(fixed_json)
-                            else:
-                                # 修复可能的无效转义序列
-                                fixed_text = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', response_text)
-                                result = json.loads(fixed_text)
-                        else:
-                            # 修复可能的无效转义序列
-                            fixed_text = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', response_text)
-                            result = json.loads(fixed_text)
-                        
-                        # 获取情感分类
-                        sentiment = result.get('sentiment', '').lower()
-                        reason = result.get('reason', 'No analysis reason provided')
-                        
-                        # 将情感分类映射到评分
-                        if sentiment in rating_processor.sentiment_to_rating:
-                            rating = rating_processor.sentiment_to_rating[sentiment]
-                        else:
-                            logger.warning(f"未知情感分类: {sentiment}，使用默认评分 3.0")
-                            sentiment = 'neutral'
-                            rating = 3.0
-                    except Exception as e:
-                        logger.error(f"评分计算失败: {str(e)}")
-                        sentiment = 'neutral'
-                        rating = 3.0
-                        reason = f"分析失败: {str(e)}"
-                    
-                    # 更新帖子信息，添加评分和情感分析结果
-                    post_with_rating = post.copy()
-                    post_with_rating['rating'] = rating
-                    post_with_rating['sentiment'] = sentiment
-                    post_with_rating['reason'] = reason
-                    post_with_rating['item_related_content'] = item_related_content
-                    posts_with_ratings.append(post_with_rating)
-                    ratings.append(rating)
-                
-                # 计算平均评分 - 这是该item的所有相关评价的平均分
+                ratings = [p.get('rating', 3) for p in item['posts']]
                 avg_rating = sum(ratings) / len(ratings) if ratings else 3.0
-                
-                # 提及次数就是帖子数量
                 mentions = len(item['posts'])
-                
-                # 创建推荐项
-                recommendation = {
-                    'name': item['name'],
-                    'total_upvotes': total_upvotes,
-                    'avg_rating': round(avg_rating, 2),  # 平均情感评分
-                    'mentions': mentions,
-                    'posts': posts_with_ratings,  # 使用带评分的帖子
-                    'summary': item.get('summary', 'No summary available')
+
+                # Compute sentiment counts for frontend
+                counter = Counter(ratings)
+                sentiment_counts = {
+                    'positive': counter.get(5, 0) + counter.get(4, 0),
+                    'neutral': counter.get(3, 0),
+                    'negative': counter.get(2, 0) + counter.get(1, 0)
                 }
                 
-                recommendations.append(recommendation)
+                recommendations.append({
+                    'name': item['name'],
+                    'total_upvotes': total_upvotes,
+                    'avg_rating': round(avg_rating, 2),
+                    'mentions': mentions,
+                    'sentiment_counts': sentiment_counts,
+                    'posts': item['posts'],
+                    'summary': item.get('summary', 'No summary available')
+                })
             
-            # 3. 计算分数并排序
+             # 3) Score & rank
             self._calculate_scores(recommendations)
-            sorted_recommendations = sorted(
-                recommendations,
-                key=lambda x: x['score'],
-                reverse=True
-            )[:top_k]
-            
-            # 4. 格式化结果
-            return self._format_results(sorted_recommendations)
+            top_recs = sorted(recommendations, key=lambda r: r['score'], reverse=True)[:top_k]
+
+            # 4) Format into Documents
+            return self._format_results(top_recs)
             
         except Exception as e:
             logger.error(f"处理推荐时出错: {str(e)}")
             return []
     
-    def _calculate_scores(self, recommendations: List[Dict]):
+    def _calculate_scores(self, recs: List[Dict]):
         """计算每个推荐项的分数"""
         # 找出最大值用于归一化
-        max_upvotes = max([rec['total_upvotes'] for rec in recommendations]) if recommendations else 1
-        if not max_upvotes:
-            max_upvotes = 1
-        max_mentions = max([rec['mentions'] for rec in recommendations]) if recommendations else 1
-        if not max_mentions:
-            max_mentions = 1    
-        max_rating = 5.0  # 评分最大值固定为5
+        max_upvotes = max((r['total_upvotes'] for r in recs), default=1)
+        max_mentions = max((r['mentions'] for r in recs), default=1)
+        max_rating = 5.0
         
         # 计算每个推荐项的分数
-        for rec in recommendations:
+        for rec in recs:
             # 归一化各个组件
             rating_component = self.weights['rating'] * (rec['avg_rating'] / max_rating)
             upvote_component = self.weights['upvotes'] * (rec['total_upvotes'] / max_upvotes)
             mention_component = self.weights['mentions'] * (rec['mentions'] / max_mentions)
-            
             # 计算总分
-            score = rating_component + upvote_component + mention_component
-            
+            score = rating_component + upvote_component + mention_component    
             # 更新推荐项
             rec['score'] = round(score, 3)
             rec['score_components'] = {
@@ -198,45 +105,38 @@ class ResultProcessor:
     def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
         """构建大模型提取信息的提示词"""
         # 去重并合并相似帖子
-        unique_posts = {}
+        unique = {}
         for doc in documents:
             content = doc.page_content
             upvotes = doc.metadata.get('upvotes', 0)
 
             # 如果内容已存在，更新点赞数
-            if content in unique_posts:
-                unique_posts[content]['count'] += 1
-                unique_posts[content]['total_upvotes'] += upvotes
+            if content in unique:
+                unique[content]['count'] += 1
+                unique[content]['total_upvotes'] += upvotes
             else:
-                unique_posts[content] = {
+                unique[content] = {
                     'count': 1,
                     'total_upvotes': upvotes,
                 }
         
         # 构建去重后的帖子文本
         posts_text = ""
-        for content, stats in unique_posts.items():
+        for content, stats in unique.items():
             posts_text += (
-                f"Post (Total Occurrences: {stats['count']}, "
-                f"Total Upvotes: {stats['total_upvotes']}, "
+                f"Post (Occurrences: {stats['count']}, Upvotes: {stats['total_upvotes']}):\n"
                 f"{content}\n\n"
             )
         
-        prompt = f"""Please analyze these posts and extract information about recommended items.
+        return f"""Please analyze these posts for query "{query}" and extract recommendation items.
 
 Input Posts:
 {posts_text}
 
-Your task:
-1. Identify all recommended items (e.g., juices, libraries, products)
-2. For each item, extract:
-   - The item name (e.g., "grape juice", "Library A")
-   - All posts mentioning this item
-   - For each post:
-     * The exact post content
-     * The upvotes associated with the post
-     * A sentiment rating (1-5 scale) based on how positive the post is about the item
-   - A brief summary of all reviews for this item (2-3 sentences)
+For each item, output:
+- name
+- posts: list of {{content, upvotes, rating (1-5)}}
+- summary (2-3 sentences)
 
 Output Format:
 [
@@ -253,23 +153,12 @@ Output Format:
     }}
 ]
 
-Important:
-- DO NOT calculate any totals, averages, or final scores
-- Extract the exact text from the posts
-- Include ALL relevant items mentioned in the posts
-- For sentiment rating: 5=very positive, 4=positive, 3=neutral, 2=negative, 1=very negative
-- Make sure the summary captures the overall sentiment and key points from all reviews
-
-Return only the JSON array with the extracted information."""
-        return prompt
+Return ONLY a JSON array of items."""
 
     def _call_llm_for_extraction(self, prompt: str) -> str:
         """调用大模型进行提取"""
         try:
-            from search_process.prompt_sender.sender import send_prompt_to_gemini
             response = send_prompt_to_gemini(prompt, model_name="gemini-1.5-flash")
-            
-            # 提取 JSON 内容
             response_text = response.text
             
             # 1. 首先尝试从 json 代码块中提取
@@ -324,46 +213,46 @@ Return only the JSON array with the extracted information."""
         """返回用于测试的模拟数据"""
         mock_data = [
             {
-                "name": "grape juice",
+                "name": "a",
                 "posts": [
                     {
-                        "content": "Pure grape juice is the best drink! Natural sweetness and rich flavor (5 stars).",
-                        "upvotes": 150,
+                        "content": "a",
+                        "upvotes": 1,
                         "rating": 5.0
                     },
                     {
-                        "content": "Best summer juices: grape juice (5 stars) - rich and sweet",
-                        "upvotes": 200,
+                        "content": "b",
+                        "upvotes": 2,
                         "rating": 5.0
                     },
                     {
-                        "content": "My favorite fresh juices: grape juice (5 stars) - full of nutrients",
-                        "upvotes": 150,
+                        "content": "c",
+                        "upvotes": 3,
                         "rating": 5.0
                     }
                 ],
-                "summary": "Grape juice is highly praised for its natural sweetness, rich flavor, and nutritional value. All reviews are extremely positive, giving it 5-star ratings consistently."
+                "summary": "a, b, c"
             },
             {
-                "name": "apple juice",
+                "name": "a",
                 "posts": [
                     {
-                        "content": "Fresh juice recommendations: apple juice (5 stars) - crisp and sweet",
-                        "upvotes": 200,
+                        "content": "a",
+                        "upvotes": 2,
                         "rating": 5.0
                     },
                     {
-                        "content": "Best summer juices: apple juice (4 stars) - perfect for hot days",
-                        "upvotes": 200,
+                        "content": "b",
+                        "upvotes": 2,
                         "rating": 4.0
                     },
                     {
-                        "content": "My favorite fresh juices: apple juice (4 stars) - great antioxidants",
-                        "upvotes": 150,
+                        "content": "c",
+                        "upvotes": 2,
                         "rating": 4.0
                     }
                 ],
-                "summary": "Apple juice receives high praise for being crisp, sweet, and refreshing, especially during hot weather. Reviewers also appreciate its antioxidant properties, with ratings ranging from 4 to 5 stars."
+                "summary": "a, b, c"
             }
         ]
         return json.dumps(mock_data, indent=2)
@@ -375,28 +264,19 @@ Return only the JSON array with the extracted information."""
             # 创建格式化的内容字符串
             content = (
                 f"{i}. {item['name'].title()}\n"
-                f"   Sentiment Rating: {item['avg_rating']:.1f} ({item['mentions']} reviews)\n"
+                f"   Rating: {item['avg_rating']}/5 ({item['mentions']} reviews)\n"
                 f"   Upvotes: {item['total_upvotes']}\n"
-                f"   Total Score: {item['score']:.3f}\n"
-                f"   Score Details: Rating={item['score_components']['rating']:.3f}, "
-                f"Upvotes={item['score_components']['upvotes']:.3f}, "
-                f"Mentions={item['score_components']['mentions']:.3f}\n\n"
-                f"   Review Summary: {item['summary']}\n\n"
-                f"   Review Details:\n"
+                f"   Sentiment: +{item['sentiment_counts']['positive']}, ~{item['sentiment_counts']['neutral']}, -{item['sentiment_counts']['negative']}\n"
+                f"   Score: {item['score']}\n"
+                f"   Summary: {item['summary']}\n\n"
+                f"   Reviews:\n"
             )
             
             # 添加评论
             for post in item['posts']:
-                # 获取评分对应的情感文本
-                rating = int(round(post['rating']))
-                if rating > 5: rating = 5
-                if rating < 1: rating = 1
-                sentiment_text = self.sentiment_ratings.get(rating, "未知")
-                
-                content += (
-                    f"   - {post['content']}\n"
-                    f"     ({sentiment_text}, {post['upvotes']} 点赞)\n"
-                )
+                r = int(round(post.get('rating', 3)))
+                txt = self.rating_processor.get_sentiment_text(r)
+                content += f"   - {post['content']} ({txt}, {post.get('upvotes',0)} upvotes)\n"
             
             # 创建Document对象
             doc = Document(
@@ -407,6 +287,7 @@ Return only the JSON array with the extracted information."""
                     'total_upvotes': item['total_upvotes'],
                     'avg_rating': item['avg_rating'],
                     'mentions': item['mentions'],
+                    'sentiment_counts': item['sentiment_counts'],
                     'score': item['score'],
                     'score_components': item['score_components'],
                     'summary': item['summary'],
@@ -416,34 +297,3 @@ Return only the JSON array with the extracted information."""
             results.append(doc)
         
         return results
-
-    def _extract_item_related_content(self, content: str, item_name: str) -> str:
-        """提取与特定item相关的内容段落"""
-        try:
-            # 构建提示词
-            prompt = f"""
-Please extract paragraphs or sentences related to "{item_name}" from the following text. If no clearly relevant content is found, return the entire text.
-
-Text:
-{content}
-
-Return only the content directly related to "{item_name}", without adding any explanation or analysis.
-"""
-            
-            # 调用LLM
-            from search_process.prompt_sender.sender import send_prompt_to_gemini
-            response = send_prompt_to_gemini(prompt)
-            
-            # 获取响应文本
-            extracted_content = response.text.strip()
-            
-            # 如果提取内容过短或提示未找到，使用原始内容
-            if len(extracted_content) < 20 or "no relevant content" in extracted_content.lower():
-                return content
-            
-            return extracted_content
-            
-        except Exception as e:
-            logger.error(f"提取项目相关内容失败: {str(e)}")
-            return content  # 出错时返回原始内容
-

@@ -14,6 +14,8 @@ from django_apps.memory.service import MemoryService
 from django_apps.search.models import RedditContent, StackOverflowContent, RednoteContent, ContentIndex
 from django_apps.search.index_service.base import IndexService
 from django_apps.search.index_service.hybrid_retriever import HybridRetriever
+from typing import List, Dict
+from langchain.docstore.document import Document
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -85,12 +87,12 @@ def search(request):
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
             bm25_weight=0.25,  # 可调整的参数
-            embedding_weight=0.55,  # 可调整的参数
-            vote_weight=0.2  # 可调整的参数
+            embedding_weight=0.65,  # 可调整的参数
+            vote_weight=0.1  # 可调整的参数
         )
 
         # 获取最终的 top_k retrieved_documents
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.5) # 添加适当的阈值
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.7) # 添加适当的阈值
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
@@ -288,40 +290,74 @@ def getAllChat(request):
     })
 
 
-def format_recommendation_results(results):
-    """将推荐处理结果格式化为可读文本"""
+def format_recommendation_results(results: List[Document]) -> str:
     if not results:
         return "未找到相关推荐。"
-        
-    formatted_text = "# 根据您的查询，为您推荐以下选项：\n\n"
-    
-    for doc in results:
-        metadata = doc.metadata
-        formatted_text += f"## {metadata['name']}\n"
-        formatted_text += f"- 评分: {metadata['avg_rating']:.1f}/5.0 ({metadata['mentions']} 条评论)\n"
-        formatted_text += f"- 人气: {metadata['total_upvotes']} 点赞\n"
-        formatted_text += f"- 摘要: {metadata['summary']}\n\n"
-        
-        formatted_text += "### 用户评价:\n"
-        for post in metadata['posts'][:3]:  # 最多显示3条评论
-            rating = int(round(post['rating']))
-            if rating > 5: rating = 5
-            if rating < 1: rating = 1
-            sentiment = "非常正面" if rating == 5 else "正面" if rating == 4 else "中性" if rating == 3 else "负面" if rating == 2 else "非常负面"
-            
-            formatted_text += f"- {post['content']}\n"
-            formatted_text += f"  ({sentiment}, {post['upvotes']} 点赞)\n"
-        
-        formatted_text += "\n"
-        
-    # 添加比较表格
-    formatted_text += "## 比较表\n\n"
-    formatted_text += "| 名称 | 评分 | 人气 | 综合得分 | 推荐指数 |\n"
-    formatted_text += "|------|------|------|----------|----------|\n"
 
+    lines = ["# 根据您的查询，为您推荐以下选项：\n"]
+    for i, doc in enumerate(results, 1):
+        m = doc.metadata
+        # Use .get for safety, providing default values
+        name = m.get('name', 'N/A')
+        avg_rating = m.get('avg_rating', 0.0)
+        total_upvotes = m.get('total_upvotes', 0)
+        mentions = m.get('mentions', 0)
+        # Ensure sentiment_counts exists and has the expected structure, default if missing
+        sentiment_counts = m.get('sentiment_counts', {'positive': 0, 'neutral': 0, 'negative': 0})
+        summary = m.get('summary', 'No summary available.')
+        posts = m.get('posts', []) # Default to empty list if 'posts' key is missing
+
+        # Header line using sentiment_counts safely
+        lines.append(
+            f"{i}. **{name}**  🌟{avg_rating:.1f}  👍{total_upvotes}  📝{mentions}"
+            f"   Sentiment: +{sentiment_counts.get('positive', 0)}, ~{sentiment_counts.get('neutral', 0)}, -{sentiment_counts.get('negative', 0)}"
+        )
+
+        # Sentiment breakdown line using sentiment_counts safely
+        lines.append(
+            f"▶️ Sentiment Breakdown: Positive {sentiment_counts.get('positive', 0)} | Neutral {sentiment_counts.get('neutral', 0)} | Negative {sentiment_counts.get('negative', 0)}"
+        )
+
+        # General Summary
+        lines.append("General Summary:")
+        try:
+            # Split summary into sentences (adjust regex if needed)
+            bullets = re.split(r'(?<=[.?!])\s+', summary)
+        except Exception:
+             bullets = [summary] # Fallback if regex fails
+
+        for sentence in bullets:
+            # Ensure sentence is not None or empty before stripping/appending
+            if sentence and sentence.strip():
+                lines.append(f"- {sentence.strip()}")
+
+        # Detailed Reviews
+        lines.append("\nDetailed Reviews:")
+        # Iterate safely over posts (which defaults to [] if missing)
+        for post in posts[:3]:
+             # Use .get for safety within the post dictionary
+             content = post.get('content', 'N/A')
+             upvotes = post.get('upvotes', 0)
+             # No 'sentiment' variable is used here in the correct version
+             lines.append(f"- {content}  (👍{upvotes})")
+
+        lines.append("")  # 空行
+
+    # Comparison Table
+    lines.append("## Comparison Table\n")
+    lines.append("| Name | 🌟Rating | 👍Upvotes | 📝Mentions |")
+    lines.append("|------|----------|----------|-----------|")
     for doc in results:
-        metadata = doc.metadata
-        stars = "⭐" * int(round(metadata['avg_rating']))
-        formatted_text += f"| {metadata['name']} | {metadata['avg_rating']:.1f} {stars} | {metadata['total_upvotes']} | {metadata['score']:.2f} | {'🔥' * (6 - metadata['rank'])} |\n"
-    
-    return formatted_text
+        m = doc.metadata
+        # Use .get for safety here too
+        name = m.get('name', 'N/A')
+        avg_rating = m.get('avg_rating', 0.0)
+        total_upvotes = m.get('total_upvotes', 0)
+        mentions = m.get('mentions', 0)
+        # Ensure score and rank are handled safely if needed for the table later
+        # score = m.get('score', 0.0)
+        # rank = m.get('rank', 99)
+        lines.append(f"| {name} | {avg_rating:.1f} | {total_upvotes} | {mentions} |")
+
+    return "\n".join(lines)
+
