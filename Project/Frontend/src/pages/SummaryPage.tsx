@@ -84,6 +84,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
     setTopic(e.target.value);
   };
 
+  const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false);
+
   const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -104,6 +106,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         source: normalizedSource,
         chosen_topic: topic,
         session_id: sessionKey,
+        real_time_crawling_enabled: realTimeCrawlingEnabled
       };
 
       const response = await fetch("http://127.0.0.1:8000/search/", {
@@ -186,6 +189,19 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
             </option>
           ))}
         </select>
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+        <input
+          type="checkbox"
+          id="real-time-toggle"
+          checked={realTimeCrawlingEnabled}
+          onChange={(e) => setRealTimeCrawlingEnabled(e.target.checked)}
+          style={{ marginRight: "8px" }}
+        />
+        <label htmlFor="real-time-toggle">
+          启用实时抓取（当数据库中没有结果时）
+        </label>
       </div>
 
       {/* Unified Chat History */}

@@ -17,4 +17,5 @@ urlpatterns = [
      path('sessionKey/', views.sessionKey, name='sessionKey'),
      path('getMemory/', views.getMemory, name='getMemory'),
      path('getAllChat/', views.getAllChat, name='clearMemory'),
+     path('real_time_crawl/', views.real_time_crawl, name='real_time_crawl'),
  ]

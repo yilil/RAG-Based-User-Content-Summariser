@@ -18,6 +18,8 @@ from django_apps.search.models import RedditContent  # 导入你的 RedditConten
 # 定义查询文件路径
 QUERIES_FILE = os.path.join(os.path.dirname(__file__), "reddit_queries.json")
 
+logger = logging.getLogger(__name__)
+
 def create_reddit_instance():
     """
     创建并返回一个用于 API 访问的 Reddit 实例。
