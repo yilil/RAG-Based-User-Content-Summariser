@@ -1,12 +1,9 @@
 # 负责对检索结果分组合并、排序，返回最终 Document 集合
 
-from difflib import SequenceMatcher
 from langchain.docstore.document import Document
 from typing import List, Dict
 import re
 from collections import Counter
-from datetime import datetime
-import math
 import json
 import logging
 from django.conf import settings
@@ -21,7 +18,7 @@ class ResultProcessor:
         
         # 默认权重配置（综合排序）
         self.default_weights = {
-            'rating': 0.4,      # 评分权重（包括数值评分和情感转换评分）
+            'rating': 0.4,      # 情感评分权重
             'upvotes': 0.35,    # 点赞权重
             'mentions': 0.25    # 提及次数权重
         }
@@ -31,7 +28,7 @@ class ResultProcessor:
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
         """处理推荐类查询"""
         try:
-            # 1) Single LLM call: extract items, posts, upvotes, and 1–5 ratings
+            # 1) Extract items + qualitative sentiment labels from LLM
             prompt = self._build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
             extracted_items = json.loads(response)
@@ -39,44 +36,53 @@ class ResultProcessor:
             # 2) Local aggregation
             recommendations = []
             for item in extracted_items:
-                # 确保必要的字段存在
+                
                 if 'name' not in item or 'posts' not in item:
                     logger.warning(f"Skipping invalid item: {item}")
                     continue
 
                 posts = item['posts']
-                total_upvotes = sum(post.get('upvotes', 0) for post in item['posts'])
-                ratings = [p.get('rating', 3) for p in item['posts']]
-                avg_rating = sum(ratings) / len(ratings) if ratings else 3.0
-                mentions = len(item['posts'])
 
-                # Compute sentiment counts for frontend
-                counter = Counter(ratings)
+                # Map qualitative sentiment → numeric once per post
+                numeric_ratings = []
+                for p in posts:
+                    sent = p.get('sentiment', '').lower()
+                    num = self.rating_processor.get_numeric_rating(sent)
+                    p['numeric_rating'] = num
+                    numeric_ratings.append(num)
+
+                total_upvotes = sum(p.get('upvotes', 0) for p in posts)
+                avg_rating = sum(numeric_ratings) / len(numeric_ratings) if numeric_ratings else 3.0
+                mentions = len(posts)
+
+                # Sentiment counts by qualitative labels
+                labels = [p.get('sentiment', 'neutral').lower() for p in posts]
+                counter = Counter(labels)
                 sentiment_counts = {
-                    'positive': counter.get(5, 0) + counter.get(4, 0),
-                    'neutral': counter.get(3, 0),
-                    'negative': counter.get(2, 0) + counter.get(1, 0)
+                    'positive': counter.get('very positive',0) + counter.get('positive',0),
+                    'neutral': counter.get('neutral',0),
+                    'negative': counter.get('negative',0) + counter.get('very negative',0)
                 }
-                
+
                 recommendations.append({
                     'name': item['name'],
                     'total_upvotes': total_upvotes,
                     'avg_rating': round(avg_rating, 2),
                     'mentions': mentions,
                     'sentiment_counts': sentiment_counts,
-                    'posts': item['posts'],
+                    'posts': posts,
                     'summary': item.get('summary', 'No summary available')
                 })
             
-             # 3) Score & rank
+            # 2) Score & rank
             self._calculate_scores(recommendations)
             top_recs = sorted(recommendations, key=lambda r: r['score'], reverse=True)[:top_k]
 
-            # 4) Format into Documents
+            # 3) Format into Document objects
             return self._format_results(top_recs)
             
         except Exception as e:
-            logger.error(f"处理推荐时出错: {str(e)}")
+            logger.error(f"Error processing recommendations: {e}")
             return []
     
     def _calculate_scores(self, recs: List[Dict]):
@@ -135,7 +141,7 @@ Input Posts:
 
 For each item, output:
 - name
-- posts: list of {{content, upvotes, rating (1-5)}}
+- posts: list of {{content, upvotes, sentiment}}
 - summary (2-3 sentences)
 
 Output Format:
@@ -146,7 +152,7 @@ Output Format:
             {{
                 "content": "the exact post text",
                 "upvotes": number_of_upvotes,
-                "rating": sentiment_rating_1_to_5
+                "sentiment": "very positive/positive/neutral/negative/very negative"
             }}
         ],
         "summary": "Brief summary of all reviews for this item"

@@ -92,7 +92,7 @@ def search(request):
         )
 
         # 获取最终的 top_k retrieved_documents
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.7) # 添加适当的阈值
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10, relevance_threshold=0.6) # 添加适当的阈值
 
         logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
 
@@ -107,7 +107,7 @@ def search(request):
             processed_results = index_service.result_processor.process_recommendations(
                 documents=retrieved_docs,
                 query=search_query,
-                top_k=20  # 可配置的推荐数量
+                top_k=10  # 可配置的推荐数量
             )
             
             # 格式化推荐结果
@@ -334,7 +334,7 @@ def format_recommendation_results(results: List[Document]) -> str:
         # Detailed Reviews
         lines.append("\nDetailed Reviews:")
         # Iterate safely over posts (which defaults to [] if missing)
-        for post in posts[:3]:
+        for post in posts[:10]:
              # Use .get for safety within the post dictionary
              content = post.get('content', 'N/A')
              upvotes = post.get('upvotes', 0)

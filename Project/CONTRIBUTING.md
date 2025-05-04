@@ -195,7 +195,7 @@ Tip：修改完 tailwind.config.ts 需重启 npm run dev 才会生效。
 - **输入**: `search_query`（搜索查询）和 `platform`（平台），平台的选择默认是'reddit'。
 - **方法**:
   - `index_service.faiss_manager.get_index_size()` 获取当前索引的大小。
-  - `HybridRetriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.7)` 使用 FAISS 索引和 BM25 算法进行搜索，返回相似文档。
+  - `HybridRetriever.retrieve(query=search_query, top_k=10, relevance_threshold=0.6)` 使用 FAISS 索引和 BM25 算法进行搜索，返回相似文档。
 
 #### **步骤 4: 分类查询类型**
 - **输入**: `search_query`（搜索查询），`llm_model`（模型类型）。
