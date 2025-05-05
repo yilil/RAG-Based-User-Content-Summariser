@@ -16,6 +16,8 @@ from django_apps.search.index_service.base import IndexService
 from django_apps.search.index_service.hybrid_retriever import HybridRetriever
 from typing import List, Dict
 from langchain.docstore.document import Document
+from urllib.parse import quote
+from django_apps.search.crawler_config import REDNOTE_LOGIN_COOKIES
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -90,21 +92,32 @@ def search(request):
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
-            bm25_weight=0.25,  # 可调整的参数
-            embedding_weight=0.65,  # 可调整的参数
-            vote_weight=0.1  # 可调整的参数
+            bm25_weight=0.55,
+            embedding_weight=0.35,
+            vote_weight=0.1,
+            l2_decay_beta=6.0
         )
 
         # 获取最终的 top_k retrieved_documents
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=10, relevance_threshold=1) # 添加适当的阈值
+        print(f"--- [views.search] 调用 hybrid_retriever.retrieve (Query: '{search_query}')... ---")
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.6) # 可以动态调整
+        print(f"--- [views.search] hybrid_retriever.retrieve 返回了 {len(retrieved_docs)} 个文档 ---")
 
-        logger.debug(f"Retrieved {len(retrieved_docs)} documents from FAISS")
+        # --- 关键打印：检查传递给 generate_prompt 的文档元数据 ---
+        print(f"--- [views.search] 准备调用 generate_prompt, 检查 retrieved_docs 元数据 (Top 5): ---")
+        for i, doc in enumerate(retrieved_docs[:5]):
+            if hasattr(doc, 'metadata'):
+                print(f"  Doc {i+1}: Metadata = {doc.metadata}")
+            else:
+                print(f"  Doc {i+1}: Error - Document has no metadata attribute.")
+        # --- 结束关键打印 ---
 
         # 2. 生成prompt
         classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
 
         # 检查是否有搜索结果，如果没有且开启了实时抓取，则调用实时抓取
-        if not retrieved_docs or len(retrieved_docs) == 0:
+        if not retrieved_docs or len(retrieved_docs) < 5:
+            print(f"数据库中没有找到结果: {search_query}")
             logger.info(f"数据库中没有找到结果: {search_query}")
             
             # 如果开启了实时抓取功能，调用实时抓取
@@ -454,10 +467,40 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                     'history': recent_memory
                 })
             
-        # 未来可添加其他平台的爬虫
-        # elif platform == 'rednote':
-        #     ...
-            
+        # --- Update RedNote real-time crawling ---
+        elif platform == 'rednote':
+            try:
+                from django_apps.search.crawler import crawl_rednote_page
+
+                target_url = generate_xhs_search_url(search_query)
+                logger.info(f"Generated RedNote search URL: {target_url}")
+
+                # 使用从 crawler_config 导入的 Cookies
+                cookies_to_use = REDNOTE_LOGIN_COOKIES
+                if not cookies_to_use:
+                     raise ValueError("RedNote cookies not configured or empty in crawler_config.py.")
+
+                crawled_posts = crawl_rednote_page(url=target_url, cookies=cookies_to_use, immediate_indexing=False)
+                logger.info(f"RedNote crawler attempted search URL, found {len(crawled_posts)} potential posts.")
+
+            except ImportError:
+                 logger.error(f"RedNote crawler function not found.")
+                 return JsonResponse({
+                    'result': f"抱歉，RedNote实时抓取功能配置错误。",
+                    'metadata': {'crawler_error': 'ImportError', 'crawl_attempted': True, 'platform': platform},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+            except Exception as e:
+                logger.error(f"RedNote爬虫异常 (URL: {target_url}): {str(e)}", exc_info=True) # Log URL
+                return JsonResponse({
+                    'result': f"抱歉，在抓取RedNote信息时遇到问题: {str(e)}",
+                    'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+        # --- End RedNote update ---
+
         else:
             return JsonResponse({
                 'result': f"抱歉，平台'{platform}'不支持实时抓取功能。",
@@ -475,7 +518,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 'history': recent_memory
             })
         
-        logger.info(f"成功抓取 {len(crawled_posts)} 条内容，查询: {search_query}")
+        logger.info(f"成功抓取 {len(crawled_posts)} 条内容，查询: {search_query}, 平台: {platform}")
         
         # 如果是推荐类查询(1)，则使用直接处理方式
         if classification == '1':
@@ -682,4 +725,20 @@ def real_time_crawl(request):
     
     # 调用实时抓取处理函数
     return handle_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory)
+
+def generate_xhs_search_url(query: str) -> str:
+    """
+    修正版小红书搜索URL生成器
+
+    :param query: 用户输入的搜索关键词（如："新国立"）
+    :return: 符合小红书实际规则的搜索URL
+    """
+    # 第一次编码（仅处理特殊字符）
+    primary_encoded = quote(query, safe='', encoding='utf-8')
+
+    # 针对中文进行二次编码（仅替换%为%25）
+    double_encoded = primary_encoded.replace('%', '%25')
+
+    # 组合最终URL
+    return f"https://www.xiaohongshu.com/search_result?keyword={double_encoded}&source=web_search_result_notes"
 

@@ -133,7 +133,7 @@ class Indexer:
             embeddings.extend(batch_embeddings)
         return embeddings
 
-    def _preprocess_text(self, text: str):
+    def _preprocess_text(self, text: str): # TO BE DONE: 还可以被很大程度上完善
         if not isinstance(text, str):
             text = str(text)
         text = text.strip()

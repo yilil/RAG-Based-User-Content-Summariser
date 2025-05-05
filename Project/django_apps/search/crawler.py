@@ -193,7 +193,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
             for i in range(min(post_count, MAX_POSTS)):
                 # 休息频率和时长随机化
                 if len(new_items) > 0 and random.random() < 0.2:
-                    rest_time = random.uniform(10, 30)
+                    rest_time = random.uniform(5, 10)
                     logger.info(f"已爬取{len(new_items)}篇，执行随机休息{rest_time:.1f}秒...")
                     time.sleep(rest_time)
 
@@ -203,7 +203,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                         logger.warning(f"点击第 {i+1} 个帖子失败，跳过")
                         continue
                     
-                    time.sleep(random.uniform(5, 10))
+                    time.sleep(random.uniform(3, 10))
                     
                     # 使用显式等待确保元素加载完成
                     WebDriverWait(driver, 10).until(
@@ -288,7 +288,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
                                 logger.info(f"Skipping immediate indexing for item {db_obj.id}, will be indexed later")
 
                     driver.back()
-                    time.sleep(random.uniform(5, 8))  # 增加返回后的等待时间，模拟用户浏览列表
+                    time.sleep(random.uniform(1, 6))  # 增加返回后的等待时间，模拟用户浏览列表
                     
                 except Exception as e:
                     logger.warning(f"Failed to parse post: {e}")

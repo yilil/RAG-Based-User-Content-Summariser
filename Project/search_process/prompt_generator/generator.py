@@ -31,12 +31,35 @@ def generate_prompt(query, retrieved_docs, recent_memory, platform, classificati
     prompt.append("## Chat History\n"+ f"Below are the current 5 chat history with user:\n{recent_memory_str}\n")
 
     doc_texts = []
-    for idx, doc in enumerate(retrieved_docs, start=1):
-        source = doc.metadata.get("source", "unknown")
-        doc_id = doc.metadata.get("id", f"?{idx}")
-        snippet = f"[Doc{idx} | source={source}, id={doc_id}]\n{doc.page_content}\n\n"
-        doc_texts.append(snippet)
-    
+    if retrieved_docs: # 确保有文档再处理
+        for idx, doc in enumerate(retrieved_docs, start=1):
+            source = doc.metadata.get("source", "unknown")
+            doc_id = doc.metadata.get("id", f"?{idx}")
+
+            # --- 新增：获取并格式化分数 ---
+            relevance = doc.metadata.get('relevance_score', -1.0) # 综合得分
+            emb_score = doc.metadata.get('normalized_embedding_score', -1.0) # 语义得分
+            bm25_score = doc.metadata.get('normalized_bm25_score', -1.0) # 关键词得分
+            vote_score = doc.metadata.get('normalized_vote_score', -1.0) # 投票得分
+
+            # 格式化分数，保留两位小数，如果为-1则显示 N/A
+            score_str = (
+                f"Scores("
+                f"Comb:{relevance:.3f}|"
+                f"Emb:{emb_score:.3f}|"
+                f"BM25:{bm25_score:.3f}|"
+                f"Vote:{vote_score:.3f}"
+                f")"
+            )
+            # --- 结束新增 ---
+
+            # 修改 snippet 格式，加入分数信息
+            snippet = (
+                f"[Doc{idx} | source={source}, id={doc_id} | {score_str}]\\n"
+                f"{doc.page_content}\\n\\n"
+            )
+            doc_texts.append(snippet)
+
     combined_docs_str = "".join(doc_texts)
 
     #  need to be changed later -> do RAG process only when enough highly related documents are retrieved 

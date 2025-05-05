@@ -3,6 +3,10 @@ import nltk
 from nltk.corpus import stopwords
 import re
 import string
+import os # 用于加载停用词表
+
+# 定义停用词表文件路径 (假设放在 text_preprocessor.py 同目录下)
+STOPWORDS_PATH = os.path.join(os.path.dirname(__file__), 'stopwords.txt')
 
 class TextPreprocessor:
     def __init__(self):
@@ -27,6 +31,31 @@ class TextPreprocessor:
         
         # 初始化jieba
         jieba.initialize()
+
+        self.stopwords = self._load_stopwords(STOPWORDS_PATH)
+        print(f"--- [TextPreprocessor.__init__] Initializing TextPreprocessor with jieba and {len(self.stopwords)} stopwords ---")
+        try:
+            list(jieba.cut("测试jieba加载"))
+            print("--- [TextPreprocessor.__init__] jieba loaded successfully. ---")
+        except Exception as e:
+            print(f"!!! [TextPreprocessor.__init__] Error loading jieba: {e}")
+
+    def _load_stopwords(self, filepath):
+        """从文件加载停用词列表"""
+        stopwords = set()
+        try:
+            if os.path.exists(filepath):
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        stopwords.add(line.strip())
+                print(f"--- [TextPreprocessor._load_stopwords] Loaded {len(stopwords)} stopwords from {filepath} ---")
+            else:
+                print(f"--- [TextPreprocessor._load_stopwords] Warning: Stopwords file not found at {filepath}, using empty set. ---")
+        except Exception as e:
+            print(f"!!! [TextPreprocessor._load_stopwords] Error loading stopwords from {filepath}: {e}")
+        # 可以添加一些默认的基础停用词
+        stopwords.update([' ', '\t', '\n', '。', '，', '、', '的', '了', '是', '我', '你', '他', '她', '它', '们', '这', '那', '之', '与', '和', '或'])
+        return stopwords
 
     def preprocess_text(self, text: str) -> str:
         """
