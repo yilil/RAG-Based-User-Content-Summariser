@@ -14,121 +14,124 @@ interface SummaryPageProps {
   onUpdateMessages: (message: string) => void;
 }
 
-const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdateMessages }) => {
+const SummaryPage: React.FC<SummaryPageProps> = ({
+  chat,
+  selectedModel,
+  onUpdateMessages,
+}) => {
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false); // NEW
+  const [showTemplates, setShowTemplates] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Dictionary of topics for each platform
+  // topics per platform
   const topicsByPlatform: Record<string, string[]> = {
     "Stack Overflow": ["JavaScript", "React", "CSS", "TypeScript"],
     Reddit: ["Academic", "Community", "Career"],
     "Red Note": ["Travel", "Food", "Fashion"],
   };
 
-  // Topic state: initially empty (no topic selected)
+  // topic selection
   const [topic, setTopic] = useState("");
-
-  // Reset topic when chat changes
   useEffect(() => {
     setTopic("");
   }, [chat.platform, chat.topic]);
 
-  // Retrieve or fetch a session key for the current chat
+  // fetch or reuse sessionKey
   useEffect(() => {
     const storageKey = `sessionKey-${chat.id}`;
-    const storedSessionKey = localStorage.getItem(storageKey);
-    if (storedSessionKey) {
-      setSessionKey(storedSessionKey);
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      setSessionKey(stored);
     } else {
-      // Fetch a new session key from the backend
       fetch("http://127.0.0.1:8000/sessionKey/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Optionally send chat_id if your backend needs it
         body: JSON.stringify({ chat_id: chat.id }),
       })
         .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Error fetching session key, status: ${res.status}`);
-          }
+          if (!res.ok)
+            throw new Error(`Error fetching session key: ${res.status}`);
           return res.json();
         })
-        .then((data) => {
-          const key = data.session_id;
-          localStorage.setItem(storageKey, key);
-          setSessionKey(key);
+        .then(({ session_id }) => {
+          localStorage.setItem(storageKey, session_id);
+          setSessionKey(session_id);
         })
-        .catch((err) => {
-          console.error("Failed to fetch session key:", err);
+        .catch((e) => {
+          console.error(e);
           setError("Failed to get session key.");
         });
     }
   }, [chat.id]);
 
-  // Auto-scroll so that the new message is visible
+  // auto-scroll on new messages
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [chat.messages]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setSearchText(e.target.value);
-  };
-
-  const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
     setTopic(e.target.value);
-  };
 
-  const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false);
+  // NEW: a tiny toggle button component
+  const RealTimeToggle = () => (
+    <button
+      type="button"
+      onClick={() => setRealTimeCrawlingEnabled((f) => !f)}
+      style={{
+        padding: "6px 12px",
+        marginBottom: "12px",
+        borderRadius: "4px",
+        border: "1px solid #188a8d",
+        background: realTimeCrawlingEnabled ? "#188a8d" : "white",
+        color: realTimeCrawlingEnabled ? "white" : "#188a8d",
+        cursor: "pointer",
+      }}
+      aria-pressed={realTimeCrawlingEnabled}
+    >
+      {realTimeCrawlingEnabled ? "Real-time Crawl: On" : "Real-time Crawl: Off"}
+    </button>
+  );
 
-  const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Append user's query to the chat history
-    onUpdateMessages(`<div class="user-message">User: ${searchText}</div>`);
-    console.log("Submitting query:", searchText);
+    onUpdateMessages(
+      `<div class="user-message">User: ${searchText}</div>`
+    );
 
     try {
       const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
-      const modelToSend = selectedModel;
-
-      // Build the request payload including the session key
       const requestBody = {
         search_query: searchText,
-        llm_model: modelToSend,
+        llm_model: selectedModel,
         source: normalizedSource,
         chosen_topic: topic,
         session_id: sessionKey,
-        real_time_crawling_enabled: realTimeCrawlingEnabled
+        real_time_crawling_enabled: realTimeCrawlingEnabled, // ← sent here
       };
 
-      const response = await fetch("http://127.0.0.1:8000/search/", {
+      const res = await fetch("http://127.0.0.1:8000/search/", {
         method: "POST",
-        mode: "cors", // Allow cross-origin requests (if necessary)
-        headers: {
-          "Content-Type": "application/json",
-        },
+        mode: "cors",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok) {
-        throw new Error(`Network response was not ok, status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Received data:", data);
-
-      // Append bot's response to chat history
-      onUpdateMessages(`<div class="bot-message">Bot: ${data.result}</div>`);
-    } catch (err: any) {
-      console.error("Error fetching search result:", err);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      onUpdateMessages(
+        `<div class="bot-message">Bot: ${data.result}</div>`
+      );
+    } catch (e: any) {
+      console.error(e);
       setError("Failed to fetch result");
     } finally {
       setLoading(false);
@@ -137,50 +140,47 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
   };
 
   const handleTemplateSelect = (template: string) => {
-    const match = template.match(/_+/);
-    let caretPosition = 0;
-    if (match && match.index !== undefined) {
-      caretPosition = match.index;
-    }
-    const cleanedTemplate = template.replace(/_+/, "");
-    setSearchText(cleanedTemplate);
+    const m = template.match(/_+/);
+    const pos = m?.index ?? 0;
+    const cleaned = template.replace(/_+/, "");
+    setSearchText(cleaned);
     setShowTemplates(false);
     setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.setSelectionRange(caretPosition, caretPosition);
-      }
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(pos, pos);
     }, 0);
   };
-
-  // Local state to control template display
-  const [showTemplates, setShowTemplates] = useState(false);
 
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",   // Full viewport height
-        width: "100%",     // Full width
-        boxSizing: "border-box",
+        height: "100vh",
+        width: "100%",
         padding: "20px",
+        boxSizing: "border-box",
       }}
     >
       <h2>
         Chat for {chat.platform} - {topic || "No Topic Selected"}
       </h2>
 
-      {/* Topic Dropdown */}
+      {/* Topic selector */}
       <div style={{ marginBottom: "10px", width: "100%" }}>
-        <label htmlFor="topic-select" style={{ fontWeight: "bold", marginRight: "10px" }}>
+        <label htmlFor="topic-select" style={{ marginRight: "10px" }}>
           Topic:
         </label>
         <select
           id="topic-select"
           value={topic}
           onChange={handleTopicChange}
-          style={{ padding: "5px", borderRadius: "5px", border: "1px solid #ccc", width: "100%" }}
+          style={{
+            padding: "5px",
+            borderRadius: "5px",
+            border: "1px solid #ccc",
+            width: "100%",
+          }}
         >
           <option value="">Select a Topic</option>
           {topicsByPlatform[chat.platform]?.map((t) => (
@@ -191,20 +191,10 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         </select>
       </div>
 
-      <div style={{ marginBottom: "10px" }}>
-        <input
-          type="checkbox"
-          id="real-time-toggle"
-          checked={realTimeCrawlingEnabled}
-          onChange={(e) => setRealTimeCrawlingEnabled(e.target.checked)}
-          style={{ marginRight: "8px" }}
-        />
-        <label htmlFor="real-time-toggle">
-          启用实时抓取（当数据库中没有结果时）
-        </label>
-      </div>
+      {/* Real-time crawling toggle */}
+      <RealTimeToggle />
 
-      {/* Unified Chat History */}
+      {/* Chat history + results */}
       <div
         style={{
           flex: 1,
@@ -216,15 +206,19 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
           marginBottom: "10px",
         }}
       >
-        {chat.messages.map((msg, index) => (
-          <div key={index} id={`message-${index}`} dangerouslySetInnerHTML={{ __html: msg }} />
+        {chat.messages.map((msg, i) => (
+          <div
+            key={i}
+            id={`message-${i}`}
+            dangerouslySetInnerHTML={{ __html: msg }}
+          />
         ))}
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
         <div ref={chatEndRef} />
       </div>
 
-      {/* Question Templates (displayed above the search input) */}
+      {/* Templates popup */}
       {showTemplates && (
         <div style={{ marginBottom: "10px", width: "100%" }}>
           <QuestionTemplates
@@ -235,9 +229,12 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
         </div>
       )}
 
-      {/* Fixed Search Bar at the Bottom */}
-      <div style={{ borderTop: "1px solid #ddd", paddingTop: "10px", width: "100%" }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: "flex", alignItems: "center", width: "100%" }}>
+      {/* Fixed search bar */}
+      <div style={{ borderTop: "1px solid #ddd", paddingTop: "10px" }}>
+        <form
+          onSubmit={handleSearchSubmit}
+          style={{ display: "flex", alignItems: "center", width: "100%" }}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -245,13 +242,14 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ chat, selectedModel, onUpdate
             value={searchText}
             onChange={handleSearchChange}
             onFocus={() => setShowTemplates(true)}
-            onBlur={() => setTimeout(() => setShowTemplates(false), 150)}
+            onBlur={() =>
+              setTimeout(() => setShowTemplates(false), 150)
+            }
             style={{
               flex: 1,
               padding: "10px",
               borderRadius: "5px",
               border: "1px solid #ccc",
-              width: "100%",
             }}
           />
           <button
