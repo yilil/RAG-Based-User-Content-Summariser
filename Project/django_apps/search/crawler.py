@@ -164,7 +164,7 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         try:
 
             # 设置我们想要爬取的笔记数量上限
-            MAX_POSTS = 50
+            MAX_POSTS = 10
 
             # 设置cookies和打开页面
             driver.get("https://www.xiaohongshu.com/explore")
@@ -588,18 +588,28 @@ def parse_xiaohongshu_date(date_text):
         return datetime.now(tz=ZoneInfo("Asia/Shanghai"))
     
 def parse_likes_count(likes_str):
-    """解析小红书点赞数格式"""
+    """解析小红书点赞数格式，包括“万”, “千+”, “数字+”等变体"""
     try:
+        likes_str = likes_str.strip()
+        
+        # 处理 "万"（如 "1.5万"）
         if '万' in likes_str:
-            # 处理带"万"的数字, 如"1.5万"
-            number = float(likes_str.replace('万', ''))
+            number = float(likes_str.replace('万', '').replace('+', ''))
             return int(number * 10000)
-        else:
-            # 处理普通数字
-            return int(likes_str)
-    except ValueError:
-        logger.warning(f"Failed to parse likes count: {likes_str}")
-        return 0
+        
+        # 处理 "千"（如 "1千+"）
+        elif '千' in likes_str:
+            number = float(likes_str.replace('千', '').replace('+', ''))
+            return int(number * 1000)
+
+        # 处理 "10+" 类格式
+        elif likes_str.endswith('+'):
+            return int(re.match(r'(\d+)', likes_str).group(1))
+
+        # 普通数字
+        return int(likes_str)
+    except Exception as e:
+        return 0  # 无法解析时返回0
 
 
 def validate_post_data(title, content_text, author):
