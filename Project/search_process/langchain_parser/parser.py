@@ -10,7 +10,7 @@ class LangchainResponse:
         try:
             # 尝试将 GenerateContentResponse 对象转换为字典
             response_dict = response.to_dict()
-            response_json = json.dumps(response_dict)
+            response_json = json.dumps(response_dict, ensure_ascii=False)
             parsed_response = json.loads(response_json)
         except (json.JSONDecodeError, AttributeError):
             try:

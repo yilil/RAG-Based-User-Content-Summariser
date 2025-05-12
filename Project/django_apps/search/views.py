@@ -73,7 +73,9 @@ def search(request):
                 'metadata': metadata,
                 'llm_model': llm_model,
                 'history': recent_memory
-            })
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
 
     logger.info(f"Processing search query: {search_query} with model: {llm_model} and option: {filter_value}")
 
@@ -100,7 +102,7 @@ def search(request):
 
         # 获取最终的 top_k retrieved_documents
         print(f"--- [views.search] 调用 hybrid_retriever.retrieve (Query: '{search_query}')... ---")
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.6) # 可以动态调整
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=5, relevance_threshold=0.6) # 可以动态调整
         print(f"--- [views.search] hybrid_retriever.retrieve 返回了 {len(retrieved_docs)} 个文档 ---")
 
         # --- 关键打印：检查传递给 generate_prompt 的文档元数据 ---
@@ -116,7 +118,7 @@ def search(request):
         classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
 
         # 检查是否有搜索结果，如果没有且开启了实时抓取，则调用实时抓取
-        if not retrieved_docs or len(retrieved_docs) < 5:
+        if not retrieved_docs or len(retrieved_docs) < 1: # 改top_k的时候注意这里
             print(f"数据库中没有找到结果: {search_query}")
             logger.info(f"数据库中没有找到结果: {search_query}")
             
@@ -141,17 +143,25 @@ def search(request):
                 'metadata': metadata,
                 'llm_model': llm_model,
                 'history': recent_memory
-            })
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
 
         # *** -> 如果是推荐类查询，直接使用process_recommendations处理 ***
         if classification == '1':  # 推荐类查询
             logger.info("使用推荐类处理逻辑处理查询")
             
             # 使用ResultProcessor处理推荐 -> 这里页面的显示上还有问题 & 貌似只有跑mock数据，但是retrieve到了文档
+            top_for_prompt = sorted(
+                retrieved_docs,
+                key=lambda d: d.metadata.get('relevance_score', 0),
+                reverse=True
+            )[:5]
             processed_results = index_service.result_processor.process_recommendations(
-                documents=retrieved_docs,
+                documents=top_for_prompt,
                 query=search_query,
-                top_k=10  # 可配置的推荐数量
+                top_k=5  # 可配置的推荐数量
             )
             
             # 格式化推荐结果
@@ -171,7 +181,10 @@ def search(request):
                 'metadata': metadata,
                 'llm_model': "recommendation_processor",  # 标记使用了推荐处理器
                 'history': MemoryService.get_recent_memory(session_id)
-            })
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
 
         # *** -> 如果是非推荐类查询，走正常处理逻辑 ***
         prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform, classification)
@@ -198,7 +211,10 @@ def search(request):
             'metadata': metadata,
             'llm_model': llm_model,
             'history': recent_memory
-        })
+        },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
 
 
 # Initialization of indexing and embeddings
@@ -550,7 +566,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                     processed_results = index_service.result_processor.process_recommendations(
                         documents=mock_retrieved_docs,
                         query=search_query,
-                        top_k=min(len(mock_retrieved_docs), 10)
+                        top_k=min(len(mock_retrieved_docs), 3)
                     )
                     
                     # 格式化推荐结果
@@ -607,7 +623,10 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 'llm_model': "recommendation_processor",
                 'crawled': True,
                 'history': updated_memory
-            })
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
         
         # 非推荐类查询(2-6)，使用LLM处理
         else:
@@ -693,7 +712,10 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 'llm_model': llm_model,
                 'crawled': True,
                 'history': updated_memory
-            })
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
         
     except Exception as e:
         logger.error(f"实时抓取异常: {str(e)}", exc_info=True)
@@ -713,7 +735,7 @@ def real_time_crawl(request):
     search_query = data.get('search_query')
     platform = data.get('source', 'reddit')
     session_id = data.get('session_id')
-    llm_model = data.get('llm_model', 'gemini-1.5-flash')
+    llm_model = data.get('llm_model', 'gemini-2.0-flash')
     
     if not search_query:
         return JsonResponse({'error': '未提供搜索查询'}, status=400)

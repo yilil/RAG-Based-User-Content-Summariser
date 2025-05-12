@@ -14,7 +14,7 @@ const App: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
   const [showPlatformSelection, setShowPlatformSelection] = useState(true);
 
   // Create a new chat when user clicks "New Chat"

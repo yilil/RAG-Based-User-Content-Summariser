@@ -22,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectChat,
   onModelChange,
 }) => {
-  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newModel = e.target.value;
@@ -48,9 +48,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             border: "1px solid #ccc",
           }}
         >
-          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-          <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+          <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview</option>
+          <option value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</option>  
+          <option value="deepseek-1.0">Deepseek-1.0</option>
         </select>
       </div>
 

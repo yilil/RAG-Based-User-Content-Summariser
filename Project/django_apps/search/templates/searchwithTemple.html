@@ -168,10 +168,9 @@
         id="llm-model-select"
         required
       >
-        <option value="gemini-1.5-flash" {% if llm_model == 'gemini-1.5-flash' %}selected{% endif %}>Gemini 1.5 Flash</option>
-        <option value="gemini-1.0-pro" {% if llm_model == 'gemini-1.0-pro' %}selected{% endif %}>Gemini 1.0 Pro</option>
-        <option value="gemini-1.5-pro" {% if llm_model == 'gemini-1.5-pro' %}selected{% endif %}>Gemini 1.5 Pro</option>
-        <option value="gemini-2.0-flash-exp" {% if llm_model == 'gemini-2.0-flash-exp' %}selected{% endif %}>Gemini 2.0 Flash</option>
+        <option value="gemini-2.0-flash" {% if llm_model == 'gemini-2.0-flash' %}selected{% endif %}>Gemini 2.0 Flash</option>
+        <option value="gemini-2.5-pro-exp-03-25" {% if llm_model == 'gemini-2.5-pro-exp-03-25' %}selected{% endif %}>Gemini 2.5 Pro Experimental</option>
+        <option value="gemini-2.5-flash-preview-04-17" {% if llm_model == 'gemini-2.5-flash-preview-04-17' %}selected{% endif %}>Gemini 2.5 Flash Preview</option>
         <option value="deepseek-1.0" {% if llm_model == 'deepseek-1.0' %}selected{% endif %}>Deepseek-1.0</option>
       </select>
       <select

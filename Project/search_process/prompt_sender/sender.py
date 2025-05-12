@@ -4,7 +4,7 @@ import os
 import requests
 import openai
 
-def send_prompt_to_gemini(prompt, model_name="gemini-1.5-flash"):
+def send_prompt_to_gemini(prompt, model_name="gemini-2.0-flash"):
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         print("No API key found!")

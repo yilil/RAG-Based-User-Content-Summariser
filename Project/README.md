@@ -13,6 +13,7 @@ cd NextGen-AI
 git lfs pull          # 拉取 SQLite 与 FAISS 索引
 
 2. 后端启动
+cd Project
 python3 -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -84,7 +85,7 @@ npm run dev                       # http://localhost:5173
 The site automatically talks to the back-end through the proxy; everything works on two tabs.
 
 4. Using the search screen
-Pick a platform (Reddit, Stack Overflow, Rednote) and model (gemini-1.5-flash, pro etc.) from the left sidebar
+Pick a platform (Reddit, Stack Overflow, Rednote) and model (gemini-2.0-flash, pro etc.) from the left sidebar
 Optionally pick a topic (JavaScript, Travel …)
 Click on the search bar and start typing the enquiry; instant question templates will appear above the bar – click to autofill
 Press Enter or click the search button on the right side of the search bar. The conversation eg.

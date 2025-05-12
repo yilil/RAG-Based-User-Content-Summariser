@@ -101,4 +101,4 @@ def test(model_name):
 if __name__ == "__main__":
     #python -m search_process.query_classification.tester
     #deepseek-reasoner 才是R1
-    test("gemini-1.5-flash")
+    test("gemini-2.0-flash")

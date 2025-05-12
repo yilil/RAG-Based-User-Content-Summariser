@@ -28,6 +28,11 @@ class ResultProcessor:
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
         """处理推荐类查询"""
         try:
+            upvote_map = {
+                doc.page_content.strip(): doc.metadata.get('upvotes', 0)
+                for doc in documents
+            }
+            
             # 1) Extract items + qualitative sentiment labels from LLM
             prompt = self._build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
@@ -42,6 +47,11 @@ class ResultProcessor:
                     continue
 
                 posts = item['posts']
+
+                # —— 在这里，把每条 LLM 输出的 post['upvotes'] 用原始 upvote_map 覆盖
+                for p in posts:
+                    content = p.get('content', '').strip()
+                    p['upvotes'] = upvote_map.get(content, 0)
 
                 # Map qualitative sentiment → numeric once per post
                 numeric_ratings = []
@@ -88,8 +98,14 @@ class ResultProcessor:
     def _calculate_scores(self, recs: List[Dict]):
         """计算每个推荐项的分数"""
         # 找出最大值用于归一化
-        max_upvotes = max((r['total_upvotes'] for r in recs), default=1)
-        max_mentions = max((r['mentions'] for r in recs), default=1)
+        max_upvotes = max((r['total_upvotes'] for r in recs), default=0)
+        # 防止除以 0
+        if max_upvotes == 0:
+            max_upvotes = 1
+        max_mentions = max((r['mentions'] for r in recs), default=0)
+        # 防止除以 0
+        if max_mentions == 0:
+            max_mentions = 1
         max_rating = 5.0
         
         # 计算每个推荐项的分数
@@ -110,30 +126,15 @@ class ResultProcessor:
 
     def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
         """构建大模型提取信息的提示词"""
-        # 去重并合并相似帖子
-        unique = {}
-        for doc in documents:
-            content = doc.page_content
-            upvotes = doc.metadata.get('upvotes', 0)
-
-            # 如果内容已存在，更新点赞数
-            if content in unique:
-                unique[content]['count'] += 1
-                unique[content]['total_upvotes'] += upvotes
-            else:
-                unique[content] = {
-                    'count': 1,
-                    'total_upvotes': upvotes,
-                }
-        
-        # 构建去重后的帖子文本
         posts_text = ""
-        for content, stats in unique.items():
+        for doc in documents:
+            content = doc.page_content.strip()
+            upvotes = doc.metadata.get('upvotes', 0)
             posts_text += (
-                f"Post (Occurrences: {stats['count']}, Upvotes: {stats['total_upvotes']}):\n"
+                f"Post (Upvotes: {upvotes}):\n"
                 f"{content}\n\n"
             )
-        
+
         return f"""Please analyze these posts for query "{query}" and extract recommendation items.
 
 Input Posts:
@@ -164,7 +165,7 @@ Return ONLY a JSON array of items."""
     def _call_llm_for_extraction(self, prompt: str) -> str:
         """调用大模型进行提取"""
         try:
-            response = send_prompt_to_gemini(prompt, model_name="gemini-1.5-flash")
+            response = send_prompt_to_gemini(prompt, model_name="gemini-2.0-flash")
             response_text = response.text
             
             # 1. 首先尝试从 json 代码块中提取
@@ -178,7 +179,7 @@ Return ONLY a JSON array of items."""
                         fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
                         # 验证 JSON 是否有效
                         recommendations = json.loads(fixed_json)
-                        return json.dumps(recommendations, indent=2)
+                        return json.dumps(recommendations, indent=2, ensure_ascii=False)
                     except json.JSONDecodeError as e:
                         logger.warning(f"Failed to parse JSON from code block: {e}")
             
@@ -191,7 +192,7 @@ Return ONLY a JSON array of items."""
                     # 修复可能的无效转义序列
                     fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
                     recommendations = json.loads(fixed_json)
-                    return json.dumps(recommendations, indent=2)
+                    return json.dumps(recommendations, indent=2, ensure_ascii=False)
             except (json.JSONDecodeError, ValueError) as e:
                 logger.error(f"Failed to extract JSON array: {e}")
                 # 记录问题区域帮助调试
@@ -216,52 +217,18 @@ Return ONLY a JSON array of items."""
             raise
 
     def _get_mock_response(self) -> str:
-        """返回用于测试的模拟数据"""
         mock_data = [
             {
                 "name": "a",
                 "posts": [
-                    {
-                        "content": "a",
-                        "upvotes": 1,
-                        "rating": 5.0
-                    },
-                    {
-                        "content": "b",
-                        "upvotes": 2,
-                        "rating": 5.0
-                    },
-                    {
-                        "content": "c",
-                        "upvotes": 3,
-                        "rating": 5.0
-                    }
+                    {"content": "a", "upvotes": 1, "sentiment": "positive"},
+                    {"content": "b", "upvotes": 2, "sentiment": "positive"},
+                    {"content": "c", "upvotes": 3, "sentiment": "positive"},
                 ],
                 "summary": "a, b, c"
             },
-            {
-                "name": "a",
-                "posts": [
-                    {
-                        "content": "a",
-                        "upvotes": 2,
-                        "rating": 5.0
-                    },
-                    {
-                        "content": "b",
-                        "upvotes": 2,
-                        "rating": 4.0
-                    },
-                    {
-                        "content": "c",
-                        "upvotes": 2,
-                        "rating": 4.0
-                    }
-                ],
-                "summary": "a, b, c"
-            }
         ]
-        return json.dumps(mock_data, indent=2)
+        return json.dumps(mock_data, indent=2, ensure_ascii=False)
 
     def _format_results(self, items: List[Dict]) -> List[Document]:
         """格式化结果为Document对象"""
