@@ -102,7 +102,7 @@ def search(request):
 
         # 获取最终的 top_k retrieved_documents
         print(f"--- [views.search] 调用 hybrid_retriever.retrieve (Query: '{search_query}')... ---")
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=5, relevance_threshold=0.6) # 可以动态调整
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=5, relevance_threshold=0.7) # 可以动态调整
         print(f"--- [views.search] hybrid_retriever.retrieve 返回了 {len(retrieved_docs)} 个文档 ---")
 
         # --- 关键打印：检查传递给 generate_prompt 的文档元数据 ---
@@ -459,6 +459,15 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 
                 # 抓取帖子
                 crawled_posts = fetch_and_store_reddit_posts(reddit, optimized_query, limit=5)
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
+                
             except Exception as e:
                 logger.error(f"Reddit爬虫异常: {str(e)}", exc_info=True)
                 return JsonResponse({
@@ -474,6 +483,15 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 
                 # 对于StackOverflow不需要太多优化
                 crawled_posts = fetch_and_store_stackoverflow_data(search_query, limit=5)
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
+                
             except Exception as e:
                 logger.error(f"StackOverflow爬虫异常: {str(e)}", exc_info=True)
                 return JsonResponse({
@@ -498,6 +516,14 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
 
                 crawled_posts = crawl_rednote_page(url=target_url, cookies=cookies_to_use, immediate_indexing=False)
                 logger.info(f"RedNote crawler attempted search URL, found {len(crawled_posts)} potential posts.")
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
 
             except ImportError:
                  logger.error(f"RedNote crawler function not found.")
@@ -763,4 +789,109 @@ def generate_xhs_search_url(query: str) -> str:
 
     # 组合最终URL
     return f"https://www.xiaohongshu.com/search_result?keyword={double_encoded}&source=web_search_result_notes"
+
+def process_crawled_data_for_indexing(crawled_posts, platform):
+    """
+    处理实时抓取到的数据，将其保存到数据库并按照现有流程进行embedding。
+    增加对thread_id的检查，如果发现重复则删除数据库中的记录。
+    
+    Args:
+        crawled_posts: 抓取到的数据列表
+        platform: 平台名称 ('reddit', 'stackoverflow', 'rednote')
+        
+    Returns:
+        处理后的结果信息
+    """
+    try:
+        if not crawled_posts:
+            logger.info("没有数据需要处理")
+            return {"success": False, "message": "没有数据需要处理", "processed_count": 0}
+        
+        logger.info(f"开始处理{len(crawled_posts)}条抓取数据，平台: {platform}")
+        
+        # 获取平台对应的模型类
+        model_class_map = {
+            'reddit': RedditContent,
+            'stackoverflow': StackOverflowContent,
+            'rednote': RednoteContent
+        }
+        
+        if platform not in model_class_map:
+            logger.error(f"未知平台: {platform}")
+            return {"success": False, "message": f"未知平台: {platform}", "processed_count": 0}
+            
+        model_class = model_class_map[platform]
+        
+        # 创建或获取IndexService实例
+        global index_service
+        # 确保索引服务使用正确的平台
+        if index_service.platform != platform:
+            index_service.platform = platform
+            index_service.faiss_manager.set_platform(platform)
+        
+        # 确保已加载索引
+        index_service.faiss_manager.load_index()
+        
+        # 收集所有抓取的thread_ids，用于一次性查询已存在的记录
+        thread_ids = [post.thread_id for post in crawled_posts if hasattr(post, 'thread_id') and post.thread_id]
+        
+        # 查询数据库中已存在且已embedding的记录
+        existing_records = list(model_class.objects.filter(
+            thread_id__in=thread_ids, 
+            embedding_key__isnull=False  # 已经有embedding_key的记录
+        ).values_list('thread_id', flat=True))
+        
+        # 记录哪些post的ID是刚刚添加的但是与已有记录重复
+        duplicate_ids = []
+        
+        for post in crawled_posts:
+            if not hasattr(post, 'thread_id') or not post.thread_id:
+                continue
+                
+            if post.thread_id in existing_records:
+                logger.info(f"发现重复记录，thread_id: {post.thread_id}")
+                duplicate_ids.append(post.id)
+                
+        # 一次性删除所有重复记录
+        if duplicate_ids:
+            deletion_result = model_class.objects.filter(id__in=duplicate_ids).delete()
+            logger.info(f"已删除 {deletion_result[0]} 条重复记录")
+        
+        # 重新过滤crawled_posts，只保留未删除的记录
+        filtered_posts = [post for post in crawled_posts if post.id not in duplicate_ids]
+        
+        # 逐个处理抓取到的条目
+        processed_count = 0
+        skipped_count = 0
+        
+        for post in filtered_posts:
+            if not hasattr(post, 'content') or not post.content:
+                logger.warning(f"跳过没有内容的条目: {post.id}")
+                skipped_count += 1
+                continue
+                
+            # 现在处理确认不存在且有内容的条目
+            try:
+                # 使用项目中现有的index_crawled_item方法进行处理
+                # 这将生成embedding，添加到FAISS，并设置embedding_key
+                index_service.indexer.index_crawled_item(post, post.content, save_index=False)
+                processed_count += 1
+            except Exception as e:
+                logger.error(f"处理条目时出错 (ID: {post.id}): {str(e)}", exc_info=True)
+        
+        # 批量保存索引
+        if processed_count > 0:
+            index_service.faiss_manager.save_index()
+            logger.info(f"完成处理 {processed_count}/{len(filtered_posts)} 条数据，删除 {len(duplicate_ids)} 条重复数据，跳过 {skipped_count} 条无内容数据，平台: {platform}")
+        
+        return {
+            "success": True,
+            "message": f"成功处理 {processed_count} 条数据，删除 {len(duplicate_ids)} 条重复数据",
+            "processed_count": processed_count,
+            "deleted_count": len(duplicate_ids)
+        }
+        
+    except Exception as e:
+        logger.error(f"处理抓取数据时出错: {str(e)}", exc_info=True)
+        return {"success": False, "message": f"处理失败: {str(e)}", "processed_count": 0}
 
