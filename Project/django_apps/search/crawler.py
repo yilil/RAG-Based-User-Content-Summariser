@@ -8,7 +8,8 @@ import subprocess
 import shutil
 
 # 替换undetected_chromedriver导入
-from selenium import webdriver
+# from selenium import webdriver # REMOVE THIS or comment out
+import undetected_chromedriver as uc # ADD THIS
 from selenium.webdriver.chrome.service import Service
 # 避免使用WebDriverManager
 # from webdriver_manager.chrome import ChromeDriverManager
@@ -17,7 +18,7 @@ from selenium_stealth import stealth  # 需要先安装这两个包
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
 from selenium.webdriver import ActionChains
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # 处理时区
@@ -38,6 +39,41 @@ index_service.faiss_manager.load_index()
 logger.info("Global IndexService for rednote loaded in crawler.")
 ####################
 
+# --- Configuration Constants ---
+# COOKIES_FILE = "xhs_cookies.json" # We will add this in a later step
+# PROXY_SERVER = None # We will add this in a later step
+
+# --- Helper Function for Basic WebDriver Options ---
+
+def get_random_user_agent():
+    """获取一个随机的User-Agent"""
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    ]
+    return random.choice(user_agents)
+
+def setup_basic_driver_options():
+    """Sets up basic Chrome options for undetected_chromedriver."""
+    options = uc.ChromeOptions()
+    options.add_argument(f"--user-agent={get_random_user_agent()}")
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    
+    # Essential anti-detection flags
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    
+    # Basic fingerprint spoofing
+    options.add_argument("--lang=zh-CN,zh")
+    options.add_argument("--window-size=1920,1080")
+    
+    # prefs = {"profile.managed_default_content_settings.images": 2} # Optionally disable images later if needed
+    # options.add_experimental_option("prefs", prefs)
+    return options
+
 def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
     """
     使用 Selenium 爬取某个小红书页面, 将结果存入 RednoteContent 表中。
@@ -49,161 +85,127 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
 
     items_to_index = [] # crawled items to be indexed
 
-    # 使用ChromeOptions
-    options = ChromeOptions()
-    # options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-
-    # 反爬设置增强
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-    options.add_experimental_option("useAutomationExtension", False)
-
-    # 随机选择 User-Agent - 增加多样性
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ]
-    user_agent = random.choice(user_agents)
+    options = setup_basic_driver_options() # Use the new basic options function
+    driver = None
     
-    # 检测系统架构，针对M1/M2 Mac特殊处理
-    is_mac_arm = platform.system() == 'Darwin' and platform.machine() == 'arm64'
+    # The complex Mac ARM chromedriver path finding logic will be handled by undetected_chromedriver.
+    # We can remove or comment it out for now.
     
+    # is_mac_arm = platform.system() == 'Darwin' and platform.machine() == 'arm64' # No longer primary method
+
     try:
-        driver = None
-        driver_path = None
+        # driver = None # Already declared
+        # driver_path = None # No longer primary method
         
-        # 针对M1/M2 Mac的特殊处理
-        if is_mac_arm:
-            logger.info("检测到Mac ARM架构，使用特殊处理...")
-            
-            # 在常见位置查找chromedriver
-            possible_driver_paths = [
-                '/opt/homebrew/bin/chromedriver',  # Homebrew安装位置
-                '/usr/local/bin/chromedriver',     # 手动安装的常见位置
-                '/Applications/Google Chrome.app/Contents/MacOS/chromedriver'  # Chrome包内
-            ]
-            
-            # 查找已经存在的chromedriver
-            for path in possible_driver_paths:
-                if os.path.exists(path) and os.access(path, os.X_OK):
-                    driver_path = path
-                    logger.info(f"找到可用的chromedriver: {driver_path}")
-                    break
-            
-            # 如果没找到，尝试使用which命令
-            if not driver_path:
-                try:
-                    which_result = subprocess.check_output(['which', 'chromedriver']).decode('utf-8').strip()
-                    if which_result and os.path.exists(which_result):
-                        driver_path = which_result
-                        logger.info(f"通过which命令找到chromedriver: {driver_path}")
-                except:
-                    pass
-            
-            # 如果仍未找到，给出明确的错误提示
-            if not driver_path:
-                error_msg = """
-未找到适用于M1/M2 Mac的chromedriver！请执行以下步骤:
-1. 安装chromedriver: brew install --cask chromedriver
-2. 授予权限: xattr -d com.apple.quarantine /opt/homebrew/bin/chromedriver
-3. 确认安装成功: which chromedriver
-                """
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-            
-            # 找到Chrome浏览器
-            chrome_paths = [
-                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-                '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta'
-            ]
-            
-            chrome_path = None
-            for path in chrome_paths:
-                if os.path.exists(path):
-                    chrome_path = path
-                    break
-            
-            if chrome_path:
-                options.binary_location = chrome_path
-            
-            # 使用找到的chromedriver创建driver
-            logger.info(f"使用chromedriver: {driver_path}")
-            service = Service(executable_path=driver_path)
-            driver = webdriver.Chrome(service=service, options=options)
-            
-        else:
-            # 非ARM Mac/其他系统 - 尝试使用PATH中的chromedriver
-            chromedriver_path = shutil.which('chromedriver')
-            if chromedriver_path:
-                service = Service(executable_path=chromedriver_path)
-                driver = webdriver.Chrome(service=service, options=options)
-            else:
-                # 回退到基本方法 - 不使用WebDriverManager
-                driver = webdriver.Chrome(options=options)
+        # Simplified driver initialization using undetected_chromedriver
+        logger.info("Initializing undetected_chromedriver...")
+        # Ensure 'version_main' matches your installed Chrome's major version (e.g., 118, 120, 121).
+        # If you omit version_main, undetected_chromedriver will try to find a compatible version.
+        driver = uc.Chrome(options=options, version_main=135) 
+        logger.info("undetected_chromedriver initialized.")
         
-        # 应用stealth设置增强反检测能力
+        # Apply stealth settings (ensure user_agent matches the one in options)
+        current_user_agent = next((arg.split('user-agent=')[1] for arg in options.arguments if 'user-agent=' in arg), get_random_user_agent())
         stealth(driver,
-            user_agent=user_agent,
+            user_agent=current_user_agent,
             languages=["zh-CN", "zh"],
             vendor="Google Inc.",
-            platform="Win32", 
+            platform="Win32", # Or another common platform string
             webgl_vendor="Intel Inc.",
             renderer="Intel Iris OpenGL Engine",
-            fix_hairline=True
+            fix_hairline=True,
+            run_on_insecure_origins=False
         )
+        logger.info("Selenium Stealth applied.")
             
-        # 额外的WebDriver隐藏
+        # Additional WebDriver hiding (already present, good)
         driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
         
         try:
-
             # 设置我们想要爬取的笔记数量上限
-            MAX_POSTS = 10
+            MAX_POSTS = 40
 
             # 设置cookies和打开页面
-            driver.get("https://www.xiaohongshu.com/explore")
-            driver.delete_all_cookies()
+            # For this first step, we keep the existing cookie logic.
+            # Cookie file management will be the next step.
+            driver.get("https://www.xiaohongshu.com/explore") # Navigate to a base page first
+            time.sleep(random.uniform(1,3)) # Allow page to settle
+            driver.delete_all_cookies() # Clear any existing cookies from this generic page load
 
-            for c in cookies:
-                try:
-                    driver.add_cookie(c)
-                except Exception as e:
-                    logger.warning(f"Failed to add cookie: {e}")
-            driver.refresh()
+            if cookies:
+                for c in cookies:
+                    try:
+                        # Ensure cookies are added for the correct domain if possible
+                        # For now, direct add. More specific domain handling can be added later.
+                        driver.add_cookie(c)
+                    except Exception as e:
+                        logger.warning(f"Failed to add cookie: {c.get('name', 'N/A')}: {e}")
+            else:
+                logger.warning("No cookies provided for login.")
+            
+            driver.refresh() # Refresh to apply cookies
+            time.sleep(random.uniform(2, 4)) # Wait after refresh
             
             # 打开目标页面
+            logger.info(f"Navigating to target URL: {url}")
             driver.get(url)
-            time.sleep(random.uniform(3, 6))  # 在3到6秒之间随机等待页面加载
+            time.sleep(random.uniform(4, 7)) # Increased wait for page load
 
             # 在获取文章列表前，滚动页面加载更多内容
             logger.info("开始智能滚动以加载更多内容...")
-            human_like_scroll(driver, max_scrolls=12)  # 增加滚动次数以加载更多内容
+            human_like_scroll(driver, max_scrolls=12) # Existing scroll logic
             
             # 获取帖子数量
-            post_count = len(driver.find_elements(By.CSS_SELECTOR, "a.cover.ld.mask"))
+            post_elements_selector = "a.cover.ld.mask" # Your existing selector
+            
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, post_elements_selector))
+            )
+            post_count = len(driver.find_elements(By.CSS_SELECTOR, post_elements_selector))
             logger.info(f"Found {post_count} posts on the page.")
             
             new_items = []
+            processed_post_urls = set() # To avoid processing the same post
+
             for i in range(min(post_count, MAX_POSTS)):
+                if len(new_items) >= MAX_POSTS:
+                    logger.info(f"Reached target of {MAX_POSTS} items. Stopping.")
+                    break
+
                 # 休息频率和时长随机化
-                if len(new_items) > 0 and random.random() < 0.2:
+                if len(new_items) > 0 and random.random() < 0.2: # Existing rest logic
                     rest_time = random.uniform(5, 10)
                     logger.info(f"已爬取{len(new_items)}篇，执行随机休息{rest_time:.1f}秒...")
                     time.sleep(rest_time)
 
                 try:
-                    # 使用索引而不是保存元素引用
-                    if not safe_click_by_selector(driver, "a.cover.ld.mask", i):
+                    # Re-fetch elements before each click attempt to avoid staleness
+                    current_posts_on_page_elements = driver.find_elements(By.CSS_SELECTOR, post_elements_selector)
+                    if i >= len(current_posts_on_page_elements):
+                        logger.warning(f"Index {i} out of bounds for current post elements ({len(current_posts_on_page_elements)}). Skipping.")
+                        continue
+                    
+                    post_to_click = current_posts_on_page_elements[i]
+                    
+                    # Get post URL to check for duplicates before clicking
+                    try:
+                        post_url = post_to_click.get_attribute('href')
+                        if post_url in processed_post_urls:
+                            logger.info(f"Post {post_url} already processed or attempted. Skipping.")
+                            continue
+                        processed_post_urls.add(post_url)
+                    except StaleElementReferenceException:
+                        logger.warning("Stale element when trying to get post URL before click. Skipping this post.")
+                        continue # Skip this one, try next
+
+                    # Use the existing safe_click_by_selector by passing the selector and index
+                    if not safe_click_by_selector(driver, post_elements_selector, i):
                         logger.warning(f"点击第 {i+1} 个帖子失败，跳过")
                         continue
                     
-                    time.sleep(random.uniform(3, 10))
+                    time.sleep(random.uniform(2, 5)) # Existing wait
                     
                     # 使用显式等待确保元素加载完成
                     WebDriverWait(driver, 10).until(
@@ -313,41 +315,135 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         return []
 
 def simulate_human_behavior(driver):
-    """简化版本的人类行为模拟，只保留核心浏览模式"""
+    """模拟人类在帖子详情页的浏览行为，滚动帖子内容本身"""
+
+    scroll_target_selector = "div.note-scroller"
+    scroll_element = None 
+    is_target_scrollable = False # Flag to explicitly track if the target can be scrolled
+
     try:
+        # 尝试找到滚动目标元素
+        try:
+            logger.debug(f"Waiting up to 10 seconds for scroll target: '{scroll_target_selector}'")
+            scroll_element = WebDriverWait(driver, 10).until( 
+                EC.presence_of_element_located((By.CSS_SELECTOR, scroll_target_selector))
+            )
+            
+            is_scrollable_script = f"""
+            const element = arguments[0]; 
+            // Check if element exists, has positive offsetHeight, and its scrollHeight is greater than clientHeight
+            return element && element.offsetHeight > 0 && element.scrollHeight > element.clientHeight;
+            """
+            if scroll_element: # Ensure element was found before executing script
+                is_target_scrollable = driver.execute_script(is_scrollable_script, scroll_element)
+
+            if scroll_element and is_target_scrollable:
+                logger.info(f"Found scroll target element: '{scroll_target_selector}' and it IS scrollable.")
+            elif scroll_element and not is_target_scrollable:
+                logger.info(f"Found scroll target element: '{scroll_target_selector}' but it is NOT scrollable (e.g., short post, or content fits view). Scrolling actions will be skipped for this post.")
+            # If scroll_element is None, an exception would have been caught below.
+
+        except TimeoutException:
+             logger.error(f"CRITICAL: Could not find scroll target element '{scroll_target_selector}' within 10 seconds. Skipping interaction with this post.")
+             return 
+        except NoSuchElementException:
+             logger.error(f"CRITICAL: Scroll target element '{scroll_target_selector}' does not exist. Skipping interaction with this post.")
+             return 
+        except Exception as e_find: # Catch other potential errors during element check
+             logger.error(f"CRITICAL: Error finding or checking scroll target '{scroll_target_selector}': {e_find}. Skipping interaction.")
+             return
+
         # 文章初始阅读暂停
-        time.sleep(random.uniform(1.5, 3.5))
-        
-        # 1. 主要滚动行为 - 更自然的渐进式滚动
-        scroll_times = random.randint(2, 4)
-        
-        for i in range(scroll_times):
-            # 非线性滚动距离
-            progress = (i + 1) / scroll_times
-            scroll_amount = int(400 * (1 - 0.4 * progress**2))  # 开始快，后面慢
+        time.sleep(random.uniform(1.5, 3.5)) 
+
+        # --- MODIFICATION: Only perform scrolling if element was found AND is scrollable ---
+        if scroll_element and is_target_scrollable:
+            scroll_times = random.randint(1, 5) 
+            logger.debug(f"Planning {scroll_times} scroll segments for this scrollable post.")
+
+            for i in range(scroll_times):
+                progress = (i + 1) / scroll_times
+                scroll_amount = int(random.uniform(350, 700) * (1 - 0.4 * progress**2)) 
+
+                scroll_script = f"""
+                const element = arguments[0]; 
+                if (element) {{
+                    element.scrollBy({{ top: {scroll_amount}, behavior: 'smooth' }}); 
+                }}
+                """
+                try:
+                    driver.execute_script(scroll_script, scroll_element)
+                    logger.debug(f"Executed scroll on element, amount: {scroll_amount}")
+                except Exception as e_scroll:
+                     logger.error(f"Error executing scroll script on element: {e_scroll}")
+                
+                read_time = random.uniform(1.0, 2.5 + progress * 1.5) 
+
+                fidget_chance = 0.25
+                if random.random() < fidget_chance: 
+                    fidget_amount = random.randint(40, 120)
+                    fidget_direction = random.choice([-1, 1])
+                    logger.debug(f"Detail page: Fidgeting {'up' if fidget_direction == -1 else 'down'} by {fidget_amount}px")
+                    try:
+                        fidget_scroll_script_part1 = f"""
+                        const el = arguments[0];
+                        if (el) el.scrollBy({{ top: {fidget_amount * fidget_direction}, behavior: 'smooth' }});
+                        """
+                        driver.execute_script(fidget_scroll_script_part1, scroll_element)
+                        time.sleep(random.uniform(0.15, 0.4))
+
+                        fidget_scroll_script_part2 = f"""
+                        const el = arguments[0];
+                        if (el) el.scrollBy({{ top: {-fidget_amount * fidget_direction}, behavior: 'smooth' }});
+                        """
+                        driver.execute_script(fidget_scroll_script_part2, scroll_element)
+                        time.sleep(random.uniform(0.2, 0.6))
+                        read_time = max(0.1, read_time - (0.4 + 0.6))
+                    except Exception as e_fidget:
+                        logger.warning(f"Error during detail page fidget scroll: {e_fidget}")
+                
+                time.sleep(read_time)
+
+            if random.random() < 0.30: 
+                up_amount = random.randint(150, 400) 
+                logger.debug(f"Detail page: Looking back (scrolling up) by {up_amount}px")
+
+                scroll_script_up = f"""
+                 const element = arguments[0];
+                 if (element) {{
+                     element.scrollBy({{ top: -{up_amount}, behavior: 'smooth' }});
+                 }}
+                 """
+                try:
+                    driver.execute_script(scroll_script_up, scroll_element)
+                    logger.debug(f"Executed scroll up, amount: {up_amount}")
+                except Exception as e_scroll_up:
+                     logger.error(f"Error executing scroll up script: {e_scroll_up}")
+
+                time.sleep(random.uniform(1.0, 3.0))  
+
+                continue_down_amount = up_amount + random.randint(80, 200) 
+                scroll_script_down_again = f"""
+                 const element = arguments[0];
+                 if (element) {{
+                     element.scrollBy({{ top: {continue_down_amount}, behavior: 'smooth' }});
+                 }}
+                 """
+                try:
+                    driver.execute_script(scroll_script_down_again, scroll_element)
+                    logger.debug(f"Executed scroll down again, amount: {continue_down_amount}")
+                except Exception as e_scroll_down:
+                     logger.error(f"Error executing scroll down again script: {e_scroll_down}")
+
+                time.sleep(random.uniform(0.8, 2.0)) 
+        # If not scroll_element or not is_target_scrollable, the above block is skipped.
+        # The initial pause would have already happened. Now proceed to final pause.
             
-            # 执行滚动
-            driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
-            
-            # 阅读暂停，随着内容往下暂停时间变长
-            read_time = random.uniform(1.0, 2.0 + progress * 1.5)
-            time.sleep(read_time)
-        
-        # 2. 偶尔向上滚动，模拟回看内容
-        if random.random() < 0.5:  # 50%概率
-            up_amount = random.randint(100, 250)
-            driver.execute_script(f"window.scrollBy(0, -{up_amount});")
-            time.sleep(random.uniform(1.0, 2.5))  # 重新阅读暂停
-            
-            # 继续向下滚动
-            driver.execute_script(f"window.scrollBy(0, {up_amount + random.randint(50, 150)});")
-            time.sleep(random.uniform(0.7, 1.8))
-            
-        # 3. 最终随机暂停，模拟阅读完成
-        time.sleep(random.uniform(1.5, 3.0))
-        
+        # 3. 最终随机暂停，模拟阅读完成 (This will always run, regardless of scrolling)
+        time.sleep(random.uniform(1.0, 3.0)) 
+
     except Exception as e:
-        logger.debug(f"Error in simulate_human_behavior (non-critical): {str(e)[:100]}")
+        logger.error(f"Error in simulate_human_behavior: {e}", exc_info=True)
 
 def parse_xiaohongshu_date(date_text):
     """
@@ -588,7 +684,7 @@ def parse_xiaohongshu_date(date_text):
         return datetime.now(tz=ZoneInfo("Asia/Shanghai"))
     
 def parse_likes_count(likes_str):
-    """解析小红书点赞数格式，包括“万”, “千+”, “数字+”等变体"""
+    """解析小红书点赞数格式，包括"万", "千+", "数字+"等变体"""
     try:
         likes_str = likes_str.strip()
         
@@ -617,42 +713,85 @@ def validate_post_data(title, content_text, author):
         raise ValueError("Missing required post data")
     return True
 
-def human_like_scroll(driver, max_scrolls=15, scroll_pause_min=0.8, scroll_pause_max=2.5):
-    """模拟人类滚动行为，分段、随机停顿、少量回滚"""
+def human_like_scroll(driver, max_scrolls=15, scroll_pause_min=0.6, scroll_pause_max=1.8):
+    """模拟人类在帖子列表页滚动行为，分段、随机停顿、少量回滚，最后模拟滚回顶部"""
     scroll_count = 0
     last_height = driver.execute_script("return document.body.scrollHeight")
     no_change_count = 0
+    initial_max_scrolls = max_scrolls
+
+    logger.info(f"Starting human-like scroll for list page, max {max_scrolls} attempts.")
 
     while scroll_count < max_scrolls:
         # 随机滚动距离
         scroll_amount = random.randint(400, 900)
         driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
         scroll_count += 1
-        time.sleep(random.uniform(scroll_pause_min, scroll_pause_max))
+        time.sleep(random.uniform(scroll_pause_min, scroll_pause_max)) # 使用调整后的较短暂停
+
+        # --- ADD FIDGET SCROLL CHANCE DURING MAIN LIST SCROLL PAUSE ---
+        if scroll_count > 1 and random.random() < 0.3: # 30% chance to fidget, not on the very first scroll
+            fidget_list_amount = random.randint(30, 80) # Smaller amount for list fidget
+            fidget_list_direction = random.choice([-1, 1]) # -1 for up, 1 for down
+
+            logger.debug(f"List page: Fidgeting {'up' if fidget_list_direction == -1 else 'down'} by {fidget_list_amount}px")
+            try:
+                driver.execute_script(f"window.scrollBy(0, {fidget_list_amount * fidget_list_direction});")
+                time.sleep(random.uniform(0.1, 0.25)) # Very short pause
+                driver.execute_script(f"window.scrollBy(0, {-fidget_list_amount * fidget_list_direction});") # Scroll back
+                time.sleep(random.uniform(0.15, 0.35)) # Pause after fidget
+            except Exception as e_list_fidget:
+                logger.warning(f"Error during list page fidget scroll: {e_list_fidget}")
+        # --- END FIDGET SCROLL ---
 
         # 模拟偶尔向上回滚
-        if random.random() < 0.15:  # 15% 的概率向上滚动
+        if random.random() < 0.15:  # 15% 的概率向上滚动 (this is the existing larger "look back" scroll)
             up_amount = random.randint(50, 150)
             driver.execute_script(f"window.scrollBy(0, -{up_amount});")
-            time.sleep(random.uniform(0.5, 1.5))
+            time.sleep(random.uniform(0.5, 1.0)) # 回滚后暂停也短一点
 
         # 检查页面高度是否变化 (用于检测无限滚动结束)
         current_height = driver.execute_script("return document.body.scrollHeight")
         if current_height == last_height:
             no_change_count += 1
         else:
-            no_change_count = 0  # 高度变化，重置计数器
+            no_change_count = 0
         last_height = current_height
 
-        if no_change_count >= 3:  # 如果连续3次滚动后高度不变，可能到底了
+        if no_change_count >= 3:
             logger.info("Page height stopped changing, assuming end of scroll.")
             break
 
-    logger.info(f"Scrolling finished after {scroll_count} attempts.")
-    # 滚动回顶部，准备处理帖子
-    logger.info("Scrolling back to top...")
+    logger.info(f"Scrolling down finished after {scroll_count}/{initial_max_scrolls} attempts.")
+
+    # --- 修改这里：模拟滚动回顶部 ---
+    logger.info("Simulating scrolling back to top...")
+    current_scroll = driver.execute_script("return window.pageYOffset;")
+    scroll_step = -500 # 每次向上滚动的像素（负数表示向上）
+    while current_scroll > 0:
+        # 计算本次滚动的目标位置，防止滚过头
+        target_scroll = max(0, current_scroll + scroll_step)
+        scroll_amount_up = target_scroll - current_scroll # 实际滚动量（负数）
+        
+        driver.execute_script(f"window.scrollBy(0, {scroll_amount_up});")
+        time.sleep(random.uniform(0.05, 0.15)) # 滚动间极短暂停
+        
+        new_scroll = driver.execute_script("return window.pageYOffset;")
+        # 如果滚动位置没有变化（可能卡住或已到顶），则退出循环
+        if new_scroll >= current_scroll and current_scroll != 0: 
+             logger.warning("Scroll position did not decrease while scrolling up. Stopping scroll up.")
+             break
+        current_scroll = new_scroll
+        # 防止无限循环（例如，如果页面有奇怪的滚动行为）
+        if scroll_amount_up == 0:
+             break 
+            
+    # 确保最终在顶部
     driver.execute_script("window.scrollTo(0, 0);")
-    time.sleep(random.uniform(3, 5))  # 等待页面稳定
+    logger.info("Finished scrolling back to top.")
+    # --- 结束修改 ---
+    
+    time.sleep(random.uniform(1, 2))  # 回到顶部后短暂稳定时间
 
 def safe_click_by_selector(driver, selector, index, retries=3):
     """通过选择器和索引安全点击元素，每次尝试前都重新获取元素"""

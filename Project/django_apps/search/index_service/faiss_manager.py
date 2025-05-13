@@ -139,18 +139,41 @@ class FaissManager:
             return False
 
     def _get_all_docs_from_faiss(self):
-        """从self.faiss_store取出所有文档。若文档量大要小心性能。"""
-        if not self.faiss_store:
+        """
+        从 self.faiss_store 的 docstore 中直接提取所有文档。
+        这比 similarity_search("", k=HUGE_NUMBER) 更可靠。
+        """
+        if not self.faiss_store or not self.faiss_store.docstore:
+            logger.warning("_get_all_docs_from_faiss: faiss_store or docstore is not available.")
             return []
-        # LangChain's FAISS store 有时可以通过一下方式获取全部 docs
-        # 1) 你可以做一个 large similarity_search("", k=999999)
-        #    或者如果 store 有 docs attribute 直接拿
-        try:
-            ############ 用一个超大的k -> 逻辑可能需要修改，但暂时是用这种方式来提取embedding库中的所有documents
-            docs = self.faiss_store.similarity_search("", k=999999)
-            return docs
-        except:
-            return []
+
+        all_doc_objects = []
+        # Langchain 的 FAISS 对象通常包含一个 InMemoryDocstore，它在 _dict 中存储文档
+        if hasattr(self.faiss_store.docstore, '_dict') and isinstance(self.faiss_store.docstore._dict, dict):
+            all_doc_objects = list(self.faiss_store.docstore._dict.values())
+            print(f"_get_all_docs_from_faiss: Directly retrieved {len(all_doc_objects)} documents from InMemoryDocstore._dict.")
+        else:
+            # 如果不是 InMemoryDocstore 或者没有 _dict，尝试迭代 (这部分可能需要根据实际的 docstore 类型调整)
+            print("_get_all_docs_from_faiss: docstore._dict not found or not a dict. Attempting to iterate docstore if possible, otherwise falling back.")
+            # 作为最后的备选方案，如果其他方法失败，并且知道总文档数，可以尝试用旧方法
+            # 但更希望能有一个标准的方式来获取所有文档
+            # 暂时保留原来的 similarity_search 作为最后的 fallback，但发出警告
+            try:
+                num_vectors = self.faiss_store.index.ntotal if self.faiss_store.index else 999999
+                if num_vectors > 0 :
+                    print(f"_get_all_docs_from_faiss: Falling back to similarity_search with k={num_vectors}.")
+                    all_doc_objects = self.faiss_store.similarity_search("", k=num_vectors)
+                else:
+                    print("_get_all_docs_from_faiss: FAISS index appears empty, similarity_search fallback skipped.")
+                    all_doc_objects = []
+            except Exception as e:
+                print(f"_get_all_docs_from_faiss: Error during fallback similarity_search: {e}", exc_info=True)
+                all_doc_objects = []
+        
+        if not all_doc_objects:
+            logger.warning("_get_all_docs_from_faiss: No documents retrieved from docstore.")
+            
+        return all_doc_objects
 
     def verify_index(self):
         if not self.faiss_store:
