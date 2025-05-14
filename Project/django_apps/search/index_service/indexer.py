@@ -53,6 +53,8 @@ class Indexer:
             
             # 生成唯一ID
             doc_id = str(uuid.uuid4())
+            with open("doc_id.txt", "a", encoding="utf-8") as f:
+                    f.write(f"{doc_id}\n")
             
             # 准备元数据
             metadata = {

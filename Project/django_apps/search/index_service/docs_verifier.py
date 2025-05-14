@@ -111,53 +111,52 @@ from langchain.schema import Document
 #     index_service = IndexService(platform="rednote")
 #     index_service.faiss_manager.set_platform("rednote")
 
-#     hybrid_retriever = HybridRetriever(
-#         faiss_manager=index_service.faiss_manager,
-#         embedding_model=index_service.embedding_model,
-#         bm25_weight=0.55,
-#         embedding_weight=0.35,
-#         vote_weight=0.1,
-#         l2_decay_beta=6.0
-#     )
+#     # hybrid_retriever = HybridRetriever(
+#     #     faiss_manager=index_service.faiss_manager,
+#     #     embedding_model=index_service.embedding_model,
+#     #     bm25_weight=0.55,
+#     #     embedding_weight=0.35,
+#     #     vote_weight=0.1,
+#     #     l2_decay_beta=6.0
+#     # )
 
-#     # 读取 JSON 文件
-#     file_path = os.path.join(os.path.dirname(__file__), 'test_data.json')
-#     with open(file_path, "r", encoding="utf-8") as f:
-#         queries = json.load(f)
+#     # # 读取 JSON 文件
+#     # file_path = os.path.join(os.path.dirname(__file__), 'test_data_rednote.json')
+#     # with open(file_path, "r", encoding="utf-8") as f:
+#     #     queries = json.load(f)
 
-#     all_evaluated_results = []
+#     # all_evaluated_results = []
+#     # for item in queries:
+#     #     query = item["query"]
+#     #     relevant_ids = set(item["relevant_doc_ids"])
 
-#     for item in queries:
-#         query = item["query"]
-#         relevant_ids = set(item["relevant_doc_ids"])
+#     #     docs = hybrid_retriever.retrieve(query=query, top_k=5, relevance_threshold=0.6)
 
-#         docs = hybrid_retriever.retrieve(query=query, top_k=5, relevance_threshold=0.6)
+#     #     print(f"\n=== Query: {query} ===")
+#     #     for doc in docs:
+#     #         print(f" Doc ID: {doc.metadata.get('doc_id')}")
+#     #         print(f" Content: {doc.page_content}")
+#     #     print("=== End of Query ===")
 
-#         print(f"\n=== Query: {query} ===")
-#         for doc in docs:
-#             print(f" Doc ID: {doc.metadata.get('doc_id')}")
-#             print(f" Content: {doc.page_content}")
-#         print("=== End of Query ===")
+#     #     evaluated_docs = convert_to_evaluated_documents(docs, relevant_ids)
+#     #     all_evaluated_results.append(evaluated_docs)
 
-#         evaluated_docs = convert_to_evaluated_documents(docs, relevant_ids)
-#         all_evaluated_results.append(evaluated_docs)
+#     #     # 评估当前 query
+#     #     relevant_count_total = sum(1 for doc in evaluated_docs if doc.relevant)
+#     #     k = 5
+#     #     precision = RetrieverEvaluator.precision_at_k(evaluated_docs, k)
+#     #     recall = RetrieverEvaluator.recall_at_k(evaluated_docs, relevant_count_total, k)
+#     #     f1 = RetrieverEvaluator.f1_at_k(evaluated_docs, relevant_count_total, k)
+#     #     avg_precision = RetrieverEvaluator.average_precision(evaluated_docs, k)
 
-#         # 评估当前 query
-#         relevant_count_total = sum(1 for doc in evaluated_docs if doc.relevant)
-#         k = 5
-#         precision = RetrieverEvaluator.precision_at_k(evaluated_docs, k)
-#         recall = RetrieverEvaluator.recall_at_k(evaluated_docs, relevant_count_total, k)
-#         f1 = RetrieverEvaluator.f1_at_k(evaluated_docs, relevant_count_total, k)
-#         avg_precision = RetrieverEvaluator.average_precision(evaluated_docs, k)
+#     #     print(f"Precision@{k}: {precision:.4f}")
+#     #     print(f"Recall@{k}: {recall:.4f}")
+#     #     print(f"F1@{k}: {f1:.4f}")
+#     #     print(f"Average Precision@{k}: {avg_precision:.4f}")
 
-#         print(f"Precision@{k}: {precision:.4f}")
-#         print(f"Recall@{k}: {recall:.4f}")
-#         print(f"F1@{k}: {f1:.4f}")
-#         print(f"Average Precision@{k}: {avg_precision:.4f}")
-
-#     # 最终总体 MAP@k
-#     map_at_k = RetrieverEvaluator.mean_average_precision(all_evaluated_results, k)
-#     print(f"\nOverall Mean Average Precision@{k}: {map_at_k:.4f}")
+#     # # 最终总体 MAP@k
+#     # map_at_k = RetrieverEvaluator.mean_average_precision(all_evaluated_results, k)
+#     # print(f"\nOverall Mean Average Precision@{k}: {map_at_k:.4f}")
 
 # if __name__ == "__main__":
 #     main()
@@ -169,7 +168,7 @@ def main():
     """
     主函数，用于演示调用 crawl_rednote_page。
     """
-    query = "深圳的餐厅"  # 示例查询词
+    query = "如果我喜欢《星际穿越》，还有哪些类似电影推荐？"  # 示例查询词
     keyword_temp_code = quote(query.encode('utf-8'))
     keyword_encode = quote(keyword_temp_code.encode('gb2312'))
     target_url = f"https://www.xiaohongshu.com/search_result?keyword={keyword_encode}&source=web_search_result_notes" # 实际使用时请替换为更精确的URL
@@ -190,7 +189,7 @@ def main():
     # 调用爬虫函数，并指明立即进行索引
     # 在这个演示中，由于我们是模拟爬取，所以 `crawl_rednote_page` 会返回模拟的 doc_id
     # 实际运行时，它会与数据库和索引服务交互
-    crawled_doc_ids = crawl_rednote_page(url=target_url, cookies=mock_cookies, immediate_indexing=True)
+    crawled_doc_ids = crawl_rednote_page(url=target_url, cookies=mock_cookies, immediate_indexing=False)
 
     if crawled_doc_ids:
         logger.info(f"成功爬取并模拟存入数据库的文档ID列表 (共 {len(crawled_doc_ids)} 个):")
@@ -202,16 +201,4 @@ def main():
     logger.info("演示完成。")
 
 if __name__ == "__main__":
-    # 设置 DJANGO_SETTINGS_MODULE 环境变量（如果你的Django项目需要）
-    # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'your_project.settings')
-    # try:
-    #     import django
-    #     django.setup() # 初始化Django环境
-    # except ImportError:
-    #     logger.warning("Django未安装或未配置，将以纯Python模式运行（使用模拟对象）。")
-    #     # 此时，顶部的模拟类将生效
-    # except Exception as e:
-    #     logger.error(f"Django setup failed: {e}. Running with mocks.")
-
-
     main()

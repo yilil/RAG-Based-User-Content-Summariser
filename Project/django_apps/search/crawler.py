@@ -125,14 +125,14 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
         
         try:
             # 设置我们想要爬取的笔记数量上限
-            MAX_POSTS = 40
+            MAX_POSTS = 5
 
             # 设置cookies和打开页面
             # For this first step, we keep the existing cookie logic.
             # Cookie file management will be the next step.
             driver.get("https://www.xiaohongshu.com/explore") # Navigate to a base page first
-            time.sleep(random.uniform(1,3)) # Allow page to settle
-            driver.delete_all_cookies() # Clear any existing cookies from this generic page load
+            time.sleep(random.uniform(3,5)) # Allow page to settle
+            #driver.delete_all_cookies() # Clear any existing cookies from this generic page load
 
             if cookies:
                 for c in cookies:
@@ -145,13 +145,13 @@ def crawl_rednote_page(url, cookies=None, immediate_indexing=False):
             else:
                 logger.warning("No cookies provided for login.")
             
-            driver.refresh() # Refresh to apply cookies
-            time.sleep(random.uniform(2, 4)) # Wait after refresh
+            #driver.refresh() # Refresh to apply cookies
+            time.sleep(random.uniform(20,30)) # Wait after refresh
             
             # 打开目标页面
             logger.info(f"Navigating to target URL: {url}")
             driver.get(url)
-            time.sleep(random.uniform(4, 7)) # Increased wait for page load
+            time.sleep(random.uniform(15, 20)) # Increased wait for page load
 
             # 在获取文章列表前，滚动页面加载更多内容
             logger.info("开始智能滚动以加载更多内容...")
