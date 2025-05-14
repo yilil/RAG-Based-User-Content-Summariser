@@ -1,0 +1,182 @@
+[
+  {
+    "id": "R1",
+    "query": "悉尼大学附近有哪些好吃的餐厅推荐？",
+    "relevant_doc_ids": ["doc1", "doc3", "doc5"]
+  },
+  {
+    "id": "R2",
+    "query": "有没有适合初学者的人工智能项目推荐？",
+    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+  },
+  {
+    "id": "R3",
+    "query": "如果我喜欢《星际穿越》，还有哪些类似电影推荐？",
+    "relevant_doc_ids": ["doc7", "doc9", "doc11"]
+  },
+  {
+    "id": "R4",
+    "query": "2025年适合做Web开发的编程语言有哪些？",
+    "relevant_doc_ids": ["doc2", "doc5", "doc8"]
+  },
+  {
+    "id": "R5",
+    "query": "新镇（Newtown）有哪些评分高的咖啡店？",
+    "relevant_doc_ids": ["doc1", "doc3", "doc6"]
+  },
+  {
+    "id": "R6",
+    "query": "学习数据科学有哪些值得关注的YouTube频道？",
+    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+  },
+  {
+    "id": "K1",
+    "query": "Transformer架构是如何在深度学习中运作的？",
+    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+  },
+  {
+    "id": "K2",
+    "query": "监督学习和无监督学习有什么区别？",
+    "relevant_doc_ids": ["doc3", "doc5", "doc9"]
+  },
+  {
+    "id": "K3",
+    "query": "量子计算和经典计算有何不同？",
+    "relevant_doc_ids": ["doc6", "doc8", "doc10"]
+  },
+  {
+    "id": "K4",
+    "query": "什么是机器学习中的过拟合（overfitting）现象？",
+    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+  },
+  {
+    "id": "K5",
+    "query": "CRISPR基因编辑的原理是什么？",
+    "relevant_doc_ids": ["doc5", "doc7", "doc9"]
+  },
+  {
+    "id": "K6",
+    "query": "生成对抗网络（GAN）的工作原理是什么？",
+    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+  },
+  {
+    "id": "O1",
+    "query": "政府是否应该更严格地监管AI的发展？",
+    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+  },
+  {
+    "id": "O2",
+    "query": "远程办公是否真的和现场办公一样高效？",
+    "relevant_doc_ids": ["doc5", "doc7", "doc9"]
+  },
+  {
+    "id": "O3",
+    "query": "大学教育应该免费吗？",
+    "relevant_doc_ids": ["doc3", "doc5", "doc10"]
+  },
+  {
+    "id": "O4",
+    "query": "电动车真的更环保吗？",
+    "relevant_doc_ids": ["doc4", "doc6", "doc7"]
+  },
+  {
+    "id": "O5",
+    "query": "社交媒体是否正在破坏人际关系？",
+    "relevant_doc_ids": ["doc3", "doc6", "doc9"]
+  },
+  {
+    "id": "O6",
+    "query": "AI生成的艺术作品算真正的艺术吗？",
+    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+  },
+  {
+    "id": "T1",
+    "query": "如何在Windows上安装Python？",
+    "relevant_doc_ids": ["doc1", "doc3", "doc5"]
+  },
+  {
+    "id": "T2",
+    "query": "如何使用Hugging Face对BERT模型进行微调？",
+    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+  },
+  {
+    "id": "T3",
+    "query": "如何申请澳大利亚的学生签证？",
+    "relevant_doc_ids": ["doc2", "doc5", "doc9"]
+  },
+  {
+    "id": "T4",
+    "query": "如何将MacBook恢复出厂设置？",
+    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+  },
+  {
+    "id": "T5",
+    "query": "如何使用Spring Boot创建一个REST API？",
+    "relevant_doc_ids": ["doc4", "doc7", "doc9"]
+  },
+  {
+    "id": "T6",
+    "query": "如何使用Adobe Acrobat将PDF转换为Word？",
+    "relevant_doc_ids": ["doc2", "doc6", "doc10"]
+  },
+  {
+    "id": "S1",
+    "query": "我计划明年去悉尼留学，不确定该住校内还是校外，应该考虑哪些因素？",
+    "relevant_doc_ids": ["doc1", "doc5", "doc9"]
+  },
+  {
+    "id": "S2",
+    "query": "我做了一个App，一个月有500下载但没人付费，下一步该怎么办？",
+    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+  },
+  {
+    "id": "S3",
+    "query": "我正在做一个创业项目，但合伙人想退出，我该如何处理？",
+    "relevant_doc_ids": ["doc4", "doc7", "doc9"]
+  },
+  {
+    "id": "S4",
+    "query": "我自学编程三个月了但感到很困惑，下一步该怎么做？",
+    "relevant_doc_ids": ["doc2", "doc5", "doc8"]
+  },
+  {
+    "id": "S5",
+    "query": "我刚失业，考虑转行做技术，应该从哪里入手？",
+    "relevant_doc_ids": ["doc3", "doc6", "doc9"]
+  },
+  {
+    "id": "S6",
+    "query": "我的博士申请被拒两次了，是该继续申请还是考虑去业界？",
+    "relevant_doc_ids": ["doc5", "doc7", "doc10"]
+  },
+  {
+    "id": "I1",
+    "query": "2025年人工智能的发展趋势有哪些？",
+    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+  },
+  {
+    "id": "I2",
+    "query": "关于欧盟AI法案的最新进展有哪些？",
+    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+  },
+  {
+    "id": "I3",
+    "query": "目前澳大利亚对国际学生入境有什么限制？",
+    "relevant_doc_ids": ["doc1", "doc3", "doc7"]
+  },
+  {
+    "id": "I4",
+    "query": "澳大利亚目前的通货膨胀率是多少？",
+    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+  },
+  {
+    "id": "I5",
+    "query": "最近在聚变能源研究方面有哪些突破？",
+    "relevant_doc_ids": ["doc2", "doc6", "doc9"]
+  },
+  {
+    "id": "I6",
+    "query": "最近有新款iPhone发布吗？",
+    "relevant_doc_ids": ["doc5", "doc8", "doc10"]
+  }
+]
