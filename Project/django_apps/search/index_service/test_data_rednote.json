@@ -2,181 +2,399 @@
   {
     "id": "R1",
     "query": "悉尼大学附近有哪些好吃的餐厅推荐？",
-    "relevant_doc_ids": ["doc1", "doc3", "doc5"]
+    "relevant_doc_ids": [
+      "cf3bcd0f-1b87-426b-bc59-9720b31e58f8",
+      "3334e9dd-b752-4443-8cf4-ba6cf1db4521",
+      "b77549c7-568c-47ca-b1aa-f2e7433a394d",
+      "4c2d6408-27da-44fa-a0b6-3a8359443417",
+      "71eb7faf-8911-47f5-b9aa-329beb5057c9"
+    ]
   },
   {
     "id": "R2",
     "query": "有没有适合初学者的人工智能项目推荐？",
-    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+    "relevant_doc_ids": [
+      "56a1ecda-77a9-4948-9f1c-626b0bf39ab1",
+      "4e10a5db-7efd-443f-964d-581afc761788",
+      "0d04d021-4e5b-456b-afc5-baf68505f7c3",
+      "0860b801-5662-43e6-8eac-a195f3d5854c",
+      "e7d15c17-78ee-43b3-bf29-e883a905b9da"
+    ]
   },
   {
     "id": "R3",
     "query": "如果我喜欢《星际穿越》，还有哪些类似电影推荐？",
-    "relevant_doc_ids": ["doc7", "doc9", "doc11"]
+    "relevant_doc_ids": [
+      "c9792767-0f65-46bd-a2ca-6973ad6b11e6",
+      "7b454e92-385d-4b7c-886f-c2b48c9302ad",
+      "6ff291aa-23b2-4445-b47d-25148bc59834",
+      "971a495f-4bd7-43bc-b44c-922056aa9c69",
+      "2fd79d19-f88c-4999-abf3-a0f1219db568"
+    ]
   },
   {
     "id": "R4",
-    "query": "2025年适合做Web开发的编程语言有哪些？",
-    "relevant_doc_ids": ["doc2", "doc5", "doc8"]
+    "query": "推荐一些科幻小说",
+    "relevant_doc_ids": [
+      "0441fd59-661f-4d39-aaaa-a4c2f0430dd5",
+      "8c9020ba-70b2-427c-a897-da246ac0d6ca",
+      "0f71c32e-83b3-48d4-bd55-88a3211c9b65",
+      "4f33b4d1-f27f-4f79-bffd-4fff107a1b44",
+      "cedc2758-5d6f-494c-a153-7d65e702b354"
+    ]
   },
   {
     "id": "R5",
     "query": "新镇（Newtown）有哪些评分高的咖啡店？",
-    "relevant_doc_ids": ["doc1", "doc3", "doc6"]
+    "relevant_doc_ids": [
+      "b9331be1-7b69-4519-99dc-0869741d526b",
+      "d5fba605-3cfd-4883-9f13-80088493dbd9",
+      "6a560e3a-a878-4c6e-bbe8-282eb99720b0",
+      "407f11f8-81d7-4901-9238-0330b49f99ff",
+      "900463d2-b381-40e5-8246-6fc4f6202598"
+    ]
   },
   {
     "id": "R6",
-    "query": "学习数据科学有哪些值得关注的YouTube频道？",
-    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+    "query": "推荐一些单车品牌",
+    "relevant_doc_ids": [
+      "121b1a92-b68c-4c6c-a5f2-0e74352bba65",
+      "69d35e21-618c-4b5e-9516-8d4e91bfdce1",
+      "dbc8ced4-95b2-4c4b-8554-da0aa4ab88b0",
+      "099c79de-cf0d-4c0a-ba65-d9d6febec52d",
+      "4bf60221-3c06-43ae-b8a8-35892115c352"
+    ]
   },
   {
     "id": "K1",
     "query": "Transformer架构是如何在深度学习中运作的？",
-    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+    "relevant_doc_ids": [
+      "5b1939b4-0e4c-4777-b98b-652ea0397c6c",
+      "c63705c6-4ef2-4f40-a4e8-03d4f0a640ff",
+      "3ea11b13-e2a7-4714-a636-396f8b827bea",
+      "d5f5bab6-4d96-46b6-ad86-c4fdf24b5c67",
+      "9172b486-4412-4589-87a0-14677b7e353e"
+    ]
   },
   {
     "id": "K2",
     "query": "监督学习和无监督学习有什么区别？",
-    "relevant_doc_ids": ["doc3", "doc5", "doc9"]
+    "relevant_doc_ids": [
+      "9dbe8906-5237-46d1-8db3-753d3aba59de",
+      "214a83d8-217e-47f4-9bd5-dee6b9683807",
+      "47452ae5-4f4d-43a4-8c15-b0d233057bc8",
+      "4e3f00c6-e503-4223-b2f8-5793ca45f9d5",
+      "1f9cc75f-6d13-4263-b16c-977c62cb9aab"
+    ]
   },
   {
     "id": "K3",
     "query": "量子计算和经典计算有何不同？",
-    "relevant_doc_ids": ["doc6", "doc8", "doc10"]
+    "relevant_doc_ids": [
+      "9a27b78b-fb9d-465e-ac2e-b8a4aea27798",
+      "574c49fd-5d98-4d5c-bde7-6c86befc9e61",
+      "396d870e-2514-4cc6-a487-53e3ff24c849",
+      "222d7b49-4b2f-479d-821e-3b49116ed1ca",
+      "3310d316-d30a-4659-82c5-8e7b568eabf1"
+    ]
   },
   {
     "id": "K4",
     "query": "什么是机器学习中的过拟合（overfitting）现象？",
-    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+    "relevant_doc_ids": [
+      "17323257-b570-4e3c-b3b6-465ef78d333b",
+      "c20840c9-4ebb-4af7-9387-21f72cde4f01",
+      "d6da1b8d-e252-4279-8416-9e582bbe80b2",
+      "85a38750-b940-4af8-a4ba-cae5b6b65581",
+      "cc8e64a7-346a-4cd1-ae89-07008ae8efaf"
+    ]
   },
   {
     "id": "K5",
     "query": "CRISPR基因编辑的原理是什么？",
-    "relevant_doc_ids": ["doc5", "doc7", "doc9"]
+    "relevant_doc_ids": [
+      "344d824e-1666-4a59-82e8-a9f96f53a101",
+      "885ba24e-0d6c-4a0f-bf10-3412c8a345a7",
+      "177f0a5f-9f39-47d8-ba5f-71ee0a4f91d6",
+      "74c891ae-c4b2-4e94-9fbc-e91d3b9f74e8",
+      "c8b9b92a-74d9-4ed2-bb88-1eebfd2d3907"
+    ]
   },
   {
     "id": "K6",
     "query": "生成对抗网络（GAN）的工作原理是什么？",
-    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+    "relevant_doc_ids": [
+      "c4f226f9-3a45-4573-b696-ae8da146296e",
+      "287c16fc-997f-450a-98bc-48f59fde224a",
+      "012b6383-2631-421d-af58-1d76825afbce",
+      "82945730-234b-4f05-b5a9-42f15f1a146f",
+      "b4bc3123-3651-412a-aacc-6fe0fa6808f1",
+      "a45a465c-8479-4566-97dc-48bb0c9dba2d"
+    ]
   },
   {
     "id": "O1",
     "query": "政府是否应该更严格地监管AI的发展？",
-    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+    "relevant_doc_ids": [
+      "918e69c1-eed4-4af7-9ad3-3a07179da65b",
+      "c7e2603c-4a84-4555-b3b1-142b6556dc95",
+      "5188a7de-d731-49f3-99a9-397e6b8c5e6a",
+      "e96f7bbb-4957-43a9-8f57-f32834a63c96",
+      "52b62edc-95df-474d-9bce-985a7cb56324"
+    ]
   },
   {
     "id": "O2",
-    "query": "远程办公是否真的和现场办公一样高效？",
-    "relevant_doc_ids": ["doc5", "doc7", "doc9"]
+    "query": "先有鸡还是先有蛋？",
+    "relevant_doc_ids": [
+      "7746c276-55a9-4da0-be28-1f85645d3442",
+      "34ae650f-6d58-476e-be59-f9261ca236cd",
+      "852755ff-01df-4eb7-8bd0-4e761383fb3c",
+      "b3ce0cb6-a58e-47be-af66-d8e7161e28b1",
+      "dbc6384a-0450-4b00-818e-d806296d4ea9"
+    ]
   },
   {
     "id": "O3",
     "query": "大学教育应该免费吗？",
-    "relevant_doc_ids": ["doc3", "doc5", "doc10"]
+    "relevant_doc_ids": [
+      "976f75a1-97f1-4530-a0ff-e960f84db292",
+      "f5a9a4b1-238c-4b71-ab78-544de4870345",
+      "432b970c-7ec1-4c59-9b7b-6cf2e5100c19",
+      "bc8fedab-f2ad-4187-b41c-e396594763d8",
+      "2bfaeab0-ce21-48af-81a9-b1e5621e1043"
+    ]
   },
   {
     "id": "O4",
     "query": "电动车真的更环保吗？",
-    "relevant_doc_ids": ["doc4", "doc6", "doc7"]
+    "relevant_doc_ids": [
+      "b30fe6b9-b67e-4d0a-801a-f238cdc3903b",
+      "f0bacf38-c4b8-4061-933d-f3b3dc590a48",
+      "447dc7de-12cf-4526-a0ff-1d3eb18b8bf8",
+      "6ce22728-e4f0-4955-b054-44223c3348e3",
+      "8fc5354a-2ca5-47bb-9862-76d3b9f33762"
+    ]
   },
   {
     "id": "O5",
     "query": "社交媒体是否正在破坏人际关系？",
-    "relevant_doc_ids": ["doc3", "doc6", "doc9"]
+    "relevant_doc_ids": [
+      "3815c96a-bf7a-4c5b-a5b9-99ab6432247d",
+      "bb8a8dc8-35e5-4109-aa8d-03604672fc55",
+      "b358763a-f620-4e95-a554-7b187fb9893d",
+      "80730028-72ab-4687-9e9e-1a6239f8514f",
+      "afaffcf8-e94b-4f43-8c2d-2dc5205d7129"
+    ]
   },
   {
     "id": "O6",
     "query": "AI生成的艺术作品算真正的艺术吗？",
-    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+    "relevant_doc_ids": [
+      "d86283a8-99a3-4520-a397-8ef9c97b6c18",
+      "652a9577-1d65-4507-b215-e3d74da2afc7",
+      "58671295-acee-48e6-995e-fb24da040fc3",
+      "56b879a3-f20c-40ae-b308-57c1fecc2bb4",
+      "bd240307-7a34-4883-aadd-cc26615c4abe"
+    ]
   },
   {
     "id": "T1",
     "query": "如何在Windows上安装Python？",
-    "relevant_doc_ids": ["doc1", "doc3", "doc5"]
+    "relevant_doc_ids": [
+      "e1eb9f0c-589d-4fcc-ac71-d5e5e0b29745",
+      "ae78631e-2069-4bca-b2b7-63177caf7f24",
+      "45b66a1e-9a45-48ca-96ee-a2ae94b4f9a9",
+      "eb56f34e-6379-481e-a15f-b2c4a7e4a843",
+      "bedba383-4d8a-4547-bc4f-589a33008d6f"
+    ]
   },
   {
     "id": "T2",
     "query": "如何使用Hugging Face对BERT模型进行微调？",
-    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+    "relevant_doc_ids": [
+      "2fb8b61c-4ee4-480b-9a9f-0cb83e0fc7d3",
+      "7324654e-9f43-4ecf-9c9e-c2e00d206e64",
+      "56483742-cbf8-45a3-8784-f471efc5bb85",
+      "b034e694-c0ca-4569-b495-860fea54d579",
+      "ebb11042-a250-4933-bdac-326a16e7fbb3"
+    ]
   },
   {
     "id": "T3",
     "query": "如何申请澳大利亚的学生签证？",
-    "relevant_doc_ids": ["doc2", "doc5", "doc9"]
+    "relevant_doc_ids": [
+      "7fc5325d-6594-4720-a161-7e7d5db1adce",
+      "8d96735d-7347-45b4-a48e-dcea1d2ff428",
+      "b04e246b-3b6e-49cc-94af-0f2f6fbd3d69",
+      "862058a1-1517-4de6-b5ce-fde3702034e9",
+      "70de2009-c6f9-442c-905d-4af370c97e18",
+      "1d34d9ea-fa0d-4549-b86f-7e8ab33bd224"
+    ]
   },
   {
     "id": "T4",
     "query": "如何将MacBook恢复出厂设置？",
-    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+    "relevant_doc_ids": [
+      "94f771ae-b4f1-4d3f-a485-064ec316f83a",
+      "6ef54eb2-4c82-4426-abc3-28d8e1368bb4",
+      "c03c1cf8-070a-49bc-bed7-96d3522865e0",
+      "bb9ea97c-acff-4b72-8275-32abff603853",
+      "f2e91506-c02d-42f7-aa53-2836b4ce0699"
+    ]
   },
   {
     "id": "T5",
     "query": "如何使用Spring Boot创建一个REST API？",
-    "relevant_doc_ids": ["doc4", "doc7", "doc9"]
+    "relevant_doc_ids": [
+      "b04d3f46-ee74-4bdf-871f-e1489556cacd",
+      "fbabe86a-d603-4849-b6f2-8ea79221080d",
+      "d1f51242-e281-44ce-9fd7-7c98707d2fc5",
+      "f237f5b5-58c1-4e41-8369-0eb9eea38b5f",
+      "87a81aa4-324d-4492-a723-73653a32c250"
+    ]
   },
   {
     "id": "T6",
     "query": "如何使用Adobe Acrobat将PDF转换为Word？",
-    "relevant_doc_ids": ["doc2", "doc6", "doc10"]
+    "relevant_doc_ids": [
+      "177a103e-5105-477b-9134-d2955b693573",
+      "c642aeb8-f8d5-4e8d-9292-eab5b7cbb95c",
+      "7f6e87cd-8cf1-4565-b946-205e11a15ad1",
+      "d23f0e5c-6498-4a91-9068-104759637b31",
+      "573910bb-5bcb-4055-95a9-a7c74932ddae"
+    ]
   },
   {
     "id": "S1",
     "query": "我计划明年去悉尼留学，不确定该住校内还是校外，应该考虑哪些因素？",
-    "relevant_doc_ids": ["doc1", "doc5", "doc9"]
+    "relevant_doc_ids": [
+      "66884c06-c578-4c27-8720-d2e36a4861ee",
+      "43f5c468-27fd-4ff1-9d58-e6b0607427d0",
+      "4036b348-7678-4e9b-8e48-5374096aca9b",
+      "5228b125-cdf5-4187-a9f0-101366b6499c",
+      "27939bb1-e502-4ae7-ad7f-89460cada349"
+    ]
   },
   {
     "id": "S2",
     "query": "我做了一个App，一个月有500下载但没人付费，下一步该怎么办？",
-    "relevant_doc_ids": ["doc3", "doc6", "doc10"]
+    "relevant_doc_ids": [
+      "0f35ed24-7fb4-4295-8284-30b46e75b76e",
+      "ddfd6b99-5ee5-46d5-9ccf-767854be74cf",
+      "10a05bc2-e77a-4e63-80e5-9ada5f4c4b9c",
+      "cdf08256-0054-4d87-a8ca-bd1604a61d9b",
+      "1e5752e4-bf38-4e3a-a4b8-f53384c0ae2a"
+    ]
   },
   {
     "id": "S3",
     "query": "我正在做一个创业项目，但合伙人想退出，我该如何处理？",
-    "relevant_doc_ids": ["doc4", "doc7", "doc9"]
+    "relevant_doc_ids": [
+      "6af442a0-b8df-4add-8f03-0f9f65011d04",
+      "5e5df2a4-d037-492c-aaab-606e03165193",
+      "a2ec2a0f-4d25-488c-ae4f-4ed26174a3af",
+      "38da6461-bab5-4140-8618-163f5edb36c9",
+      "1ac7fab5-1649-4c27-9d2b-80bb8fd1f2a5"
+    ]
   },
   {
     "id": "S4",
     "query": "我自学编程三个月了但感到很困惑，下一步该怎么做？",
-    "relevant_doc_ids": ["doc2", "doc5", "doc8"]
+    "relevant_doc_ids": [
+      "4a58ed3f-ca10-4925-9f6e-635773b1cb69",
+      "3de5c5c2-76e4-457b-ac5b-abbe557382f3",
+      "51496453-36ab-4d27-a33f-9ef0c6581b38",
+      "16d1090f-b43d-4068-b8a9-90f7493dcb53",
+      "6300ed21-9e71-4a1a-851d-490fc91e962e"
+    ]
   },
   {
     "id": "S5",
-    "query": "我刚失业，考虑转行做技术，应该从哪里入手？",
-    "relevant_doc_ids": ["doc3", "doc6", "doc9"]
+    "query": "我刚失业，考虑转行编程，应该从哪里入手？",
+    "relevant_doc_ids": [
+      "68f42d7d-16cb-4446-91b9-f2fcc5b658c8",
+      "1270e55d-41e9-4139-ba73-f1a8d0860d25",
+      "9e0f09bc-356a-48dc-907f-67a03a16d4f1",
+      "c525f9e2-2c18-44d8-94f1-31297fa71193",
+      "cae55d1c-e65f-4509-bade-776e97b8ef85"
+    ]
   },
   {
     "id": "S6",
     "query": "我的博士申请被拒两次了，是该继续申请还是考虑去业界？",
-    "relevant_doc_ids": ["doc5", "doc7", "doc10"]
+    "relevant_doc_ids": [
+      "df766aab-d026-4865-9041-d3e119dd9a74",
+      "ed9e35aa-c2b3-4aed-a37a-755ead54b708",
+      "cc7edbad-b984-4f5d-bb31-950be8456e3a",
+      "d75d5068-3367-41d7-9b8b-5ec0969add3a",
+      "f905f372-1cb4-4847-872a-a128953f2285"
+    ]
   },
   {
     "id": "I1",
     "query": "2025年人工智能的发展趋势有哪些？",
-    "relevant_doc_ids": ["doc2", "doc4", "doc6"]
+    "relevant_doc_ids": [
+      "7f10d142-6934-4321-a3a4-a2caa0a33c70",
+      "39b0e8f2-78e3-4a22-9ee7-07c852bcffcd",
+      "23f7a868-eb6a-4312-80b0-56efff77e5b8",
+      "0a255cb3-0674-4d49-812c-ecd1d03440a9",
+      "c7730ca7-f3e7-46f3-8883-7e243c55cdc3"
+    ]
   },
   {
     "id": "I2",
-    "query": "关于欧盟AI法案的最新进展有哪些？",
-    "relevant_doc_ids": ["doc4", "doc6", "doc8"]
+    "query": "最近发售的3A游戏有哪些？",
+    "relevant_doc_ids": [
+      "0d61ee60-2168-429c-a570-152716070927",
+      "74afb017-ad44-4804-b9e5-60627f1ddff5",
+      "963e7085-49a4-4a71-a400-98ef7ab97ff7",
+      "ef2bb990-2b28-4eb3-8872-85ba8e694ac6",
+      "3ad4dfe8-a0b9-48af-96d3-7a5c419fa02f"
+    ]
   },
   {
     "id": "I3",
-    "query": "目前澳大利亚对国际学生入境有什么限制？",
-    "relevant_doc_ids": ["doc1", "doc3", "doc7"]
+    "query": "目前金价的走势如何？",
+    "relevant_doc_ids": [
+      "d79932a8-82fb-4c39-97cf-f089d49a4377",
+      "83ac2cb8-392c-48ef-9b17-09f8b8b7a407",
+      "f314ddda-8222-45fa-aa2e-add4b1eef585",
+      "6a2c9f36-477e-42bb-a53e-0949933bb16d",
+      "2d16da08-5eb1-4806-a3f8-1deef1f65339"
+    ]
   },
   {
     "id": "I4",
     "query": "澳大利亚目前的通货膨胀率是多少？",
-    "relevant_doc_ids": ["doc4", "doc7", "doc10"]
+    "relevant_doc_ids": [
+      "3002eb29-8117-4836-b7aa-46a666baf7a1",
+      "e41e320a-5c13-4b78-ac9e-8b9b51b137f4",
+      "0880b8be-7e84-4600-97bb-c5be202bcaee",
+      "2aa90d7a-4034-41bc-b0f8-543179800b5f",
+      "127f1da1-e76e-43a6-9f52-4a399252b13e"
+    ]
   },
   {
     "id": "I5",
-    "query": "最近在聚变能源研究方面有哪些突破？",
-    "relevant_doc_ids": ["doc2", "doc6", "doc9"]
+    "query": "最近在能源研究方面有哪些突破？",
+    "relevant_doc_ids": [
+      "996735aa-19c7-4c49-adfd-6f5b579cdb55",
+      "e2ed1118-8074-45dc-bfc2-14ed81deb67c",
+      "757c6d00-77ce-4c1c-956c-38bdcbcfdf3f",
+      "4a3b1660-8a15-441a-95e9-a29f9f4ca099",
+      "e49782e0-6839-40d9-a703-0f8c39eeced5"
+    ]
   },
   {
     "id": "I6",
     "query": "最近有新款iPhone发布吗？",
-    "relevant_doc_ids": ["doc5", "doc8", "doc10"]
+    "relevant_doc_ids": [
+      "4c0c1225-f598-4093-b29b-e5fe0f27dee0",
+      "b52498d3-7f36-4f4b-9bef-657f7d516572",
+      "e04d9bee-abca-41d8-94db-639760c3ac5b",
+      "b96df2e6-5c41-4b85-b8c1-d6fe1a798d61",
+      "9c44c3c8-0282-4c81-900f-f08903088ebd"
+    ]
   }
 ]

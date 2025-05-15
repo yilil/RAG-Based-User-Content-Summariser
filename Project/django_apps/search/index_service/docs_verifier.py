@@ -168,7 +168,7 @@ def main():
     """
     主函数，用于演示调用 crawl_rednote_page。
     """
-    query = "如果我喜欢《星际穿越》，还有哪些类似电影推荐？"  # 示例查询词
+    query = "最近有新款iPhone发布吗？"  # 示例查询词
     keyword_temp_code = quote(query.encode('utf-8'))
     keyword_encode = quote(keyword_temp_code.encode('gb2312'))
     target_url = f"https://www.xiaohongshu.com/search_result?keyword={keyword_encode}&source=web_search_result_notes" # 实际使用时请替换为更精确的URL
@@ -189,16 +189,8 @@ def main():
     # 调用爬虫函数，并指明立即进行索引
     # 在这个演示中，由于我们是模拟爬取，所以 `crawl_rednote_page` 会返回模拟的 doc_id
     # 实际运行时，它会与数据库和索引服务交互
-    crawled_doc_ids = crawl_rednote_page(url=target_url, cookies=mock_cookies, immediate_indexing=False)
-
-    if crawled_doc_ids:
-        logger.info(f"成功爬取并模拟存入数据库的文档ID列表 (共 {len(crawled_doc_ids)} 个):")
-        for doc_id in crawled_doc_ids:
-            logger.info(f"- {doc_id}")
-    else:
-        logger.warning("没有新的文档被爬取或存入数据库。")
-
-    logger.info("演示完成。")
+    crawl_rednote_page(url=target_url, cookies=mock_cookies, immediate_indexing=False)
+    print("爬取完成！请检查日志以获取详细信息。")
 
 if __name__ == "__main__":
     main()
