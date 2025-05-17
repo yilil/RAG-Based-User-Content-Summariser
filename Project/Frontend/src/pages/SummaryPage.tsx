@@ -23,7 +23,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionKey, setSessionKey] = useState<string | null>(null);
-  const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false); // NEW
+  const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false);
+  const [mixedSearchEnabled, setMixedSearchEnabled] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -83,9 +84,16 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   const RealTimeToggle = () => (
     <button
       type="button"
-      onClick={() => setRealTimeCrawlingEnabled((f) => !f)}
+      onClick={() => {
+        setRealTimeCrawlingEnabled((prev) => !prev);
+        // 如果开启实时抓取，关闭混合搜索(互斥)
+        if (!realTimeCrawlingEnabled) {
+          setMixedSearchEnabled(false);
+        }
+      }}
       style={{
         padding: "6px 12px",
+        marginRight: "10px",
         marginBottom: "12px",
         borderRadius: "4px",
         border: "1px solid #188a8d",
@@ -96,6 +104,32 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       aria-pressed={realTimeCrawlingEnabled}
     >
       {realTimeCrawlingEnabled ? "Real-time Crawl: On" : "Real-time Crawl: Off"}
+    </button>
+  );
+
+  // 添加新的MixedSearchToggle组件
+  const MixedSearchToggle = () => (
+    <button
+      type="button"
+      onClick={() => {
+        setMixedSearchEnabled((prev) => !prev);
+        // 如果开启混合搜索，关闭实时抓取(互斥)
+        if (!mixedSearchEnabled) {
+          setRealTimeCrawlingEnabled(false);
+        }
+      }}
+      style={{
+        padding: "6px 12px",
+        marginBottom: "12px",
+        borderRadius: "4px",
+        border: "1px solid #6a5acd",
+        background: mixedSearchEnabled ? "#6a5acd" : "white",
+        color: mixedSearchEnabled ? "white" : "#6a5acd",
+        cursor: "pointer",
+      }}
+      aria-pressed={mixedSearchEnabled}
+    >
+      {mixedSearchEnabled ? "Mixed Search: On" : "Mixed Search: Off"}
     </button>
   );
 
@@ -110,21 +144,36 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
 
     try {
       const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
+      
+      // 确定API端点
+      let endpoint = "http://127.0.0.1:8000/search/";
+      
+      // 如果开启了实时抓取，使用real_time_crawl端点
+      if (realTimeCrawlingEnabled) {
+        endpoint = "http://127.0.0.1:8000/real_time_crawl/";
+      } 
+      // 如果开启了混合搜索，使用mix_search端点
+      else if (mixedSearchEnabled) {
+        endpoint = "http://127.0.0.1:8000/mix_search/";
+      }
+      
       const requestBody = {
         search_query: searchText,
         llm_model: selectedModel,
         source: normalizedSource,
         chosen_topic: topic,
         session_id: sessionKey,
-        real_time_crawling_enabled: realTimeCrawlingEnabled, // ← sent here
+        // 仅在使用普通搜索时需要这个参数
+        real_time_crawling_enabled: false
       };
 
-      const res = await fetch("http://127.0.0.1:8000/search/", {
+      const res = await fetch(endpoint, {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
+      
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
       onUpdateMessages(
@@ -191,8 +240,11 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         </select>
       </div>
 
-      {/* Real-time crawling toggle */}
-      <RealTimeToggle />
+      {/* 搜索选项区域 */}
+      <div style={{ display: "flex", marginBottom: "10px" }}>
+        <RealTimeToggle />
+        <MixedSearchToggle />
+      </div>
 
       {/* Chat history + results */}
       <div

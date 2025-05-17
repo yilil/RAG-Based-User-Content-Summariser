@@ -117,15 +117,15 @@ def search(request):
         # 2. 生成prompt
         classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
 
-        # 检查是否有搜索结果，如果没有且开启了实时抓取，则调用实时抓取
+        # 检查是否有搜索结果，如果没有且开启了实时抓取，则调用混合搜索
         if not retrieved_docs or len(retrieved_docs) < 1: # 改top_k的时候注意这里
             print(f"数据库中没有找到结果: {search_query}")
             logger.info(f"数据库中没有找到结果: {search_query}")
             
-            # 如果开启了实时抓取功能，调用实时抓取
+            # 如果开启了实时抓取功能，调用混合搜索
             if real_time_crawling_enabled:
-                logger.info(f"实时抓取已启用，开始为查询抓取: {search_query}")
-                return handle_real_time_crawling(
+                logger.info(f"混合搜索已启用，开始为查询抓取: {search_query}")
+                return handle_mixed_search(
                     search_query, 
                     platform, 
                     session_id, 
@@ -421,12 +421,12 @@ def format_recommendation_results(results: List[Document]) -> str:
 
     return "\n".join(lines)
 
-def handle_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory, classification=None):
+def handle_mixed_search(search_query, platform, session_id, llm_model, recent_memory, classification=None):
     """
-    处理实时抓取功能的辅助函数。
-    当数据库搜索无结果且开启了实时抓取时调用。
+    处理混合搜索功能的辅助函数。
+    先尝试从数据库搜索，如果无结果则进行实时抓取。
     """
-    logger.info(f"开始实时抓取: {search_query}, 平台: {platform}")
+    logger.info(f"开始混合搜索: {search_query}, 平台: {platform}")
     
     try:
         # 如果分类未提供，进行分类
@@ -501,7 +501,6 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                     'history': recent_memory
                 })
             
-        # --- Update RedNote real-time crawling ---
         elif platform == 'rednote':
             try:
                 from django_apps.search.crawler import crawl_rednote_page
@@ -541,8 +540,6 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                     'llm_model': llm_model,
                     'history': recent_memory
                 })
-        # --- End RedNote update ---
-
         else:
             return JsonResponse({
                 'result': f"抱歉，平台'{platform}'不支持实时抓取功能。",
@@ -599,7 +596,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                     answer = format_recommendation_results(processed_results)
                     
                     # 添加实时抓取标记
-                    answer = f"## 实时搜索结果\n*以下是通过实时搜索获取的最新推荐*\n\n{answer}"
+                    answer = f"## 实时搜索结果\n*以下是通过混合搜索获取的最新推荐*\n\n{answer}"
                 else:
                     # 没有足够的文档用于推荐
                     raise ValueError("没有足够的文档用于生成推荐")
@@ -608,7 +605,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 logger.error(f"使用推荐处理器时出错: {str(e)}", exc_info=True)
                 
                 # 回退到简单的推荐格式
-                answer = "# 推荐结果 (实时抓取)\n\n"
+                answer = "# 推荐结果 (混合搜索)\n\n"
                 for i, post in enumerate(crawled_posts, 1):
                     title = post.thread_title if hasattr(post, 'thread_title') and post.thread_title else "无标题"
                     url = post.url if hasattr(post, 'url') and post.url else "#"
@@ -628,6 +625,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
                 'processing': 'direct',
                 'crawled': True,
                 'real_time': True,
+                'pure_real_time': False,
                 'platform': platform,
                 'query': search_query,
             }
@@ -660,7 +658,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
             try:
                 # 创建标准的Document对象列表
                 docs_for_prompt = []
-                for post in crawled_posts:
+                for i, post in enumerate(crawled_posts):
                     doc = Document(
                         page_content=post.content,
                         metadata={
@@ -722,6 +720,7 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
             metadata.update({
                 'crawled': True, 
                 'real_time': True,
+                'pure_real_time': False,
                 'platform': platform, 
                 'posts_count': len(crawled_posts)
             })
@@ -744,7 +743,337 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
 
         
     except Exception as e:
-        logger.error(f"实时抓取异常: {str(e)}", exc_info=True)
+        logger.error(f"混合搜索异常: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'result': f"抱歉，在尝试获取关于'{search_query}'的最新信息时遇到了问题。",
+            'metadata': {'error': str(e), 'crawl_attempted': True},
+            'llm_model': llm_model,
+            'history': recent_memory
+        })
+
+def handle_pure_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory, classification=None):
+    """
+    处理纯实时抓取功能的辅助函数。
+    直接从外部平台抓取数据，不考虑数据库中是否已有数据。
+    """
+    logger.info(f"开始纯实时抓取: {search_query}, 平台: {platform}")
+    
+    try:
+        # 如果分类未提供，进行分类
+        if classification is None:
+            classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
+            logger.info(f"查询'{search_query}'被分类为: {classification}")
+        
+        # 根据平台选择适当的爬虫
+        if platform == 'reddit':
+            try:
+                from django_apps.search.reddit_crawler import create_reddit_instance, fetch_and_store_reddit_posts
+                
+                # 创建Reddit实例
+                reddit = create_reddit_instance()
+                
+                # 优化查询词
+                query_words = search_query.split()
+                if len(query_words) > 3:
+                    # 移除常见停用词
+                    stopwords = {'a', 'an', 'the', 'is', 'are', 'was', 'were', 'what', 'which', 'how', 'why', 'when', 'who'}
+                    optimized_query = ' '.join([word for word in query_words if word.lower() not in stopwords])
+                else:
+                    optimized_query = search_query
+                    
+                # 对于推荐类查询添加搜索修饰符
+                if 'recommend' in search_query.lower() or 'suggest' in search_query.lower() or classification == '1':
+                    optimized_query += ' recommend OR suggest OR best'
+                
+                logger.info(f"优化后的Reddit查询: {optimized_query}")
+                
+                # 抓取帖子
+                crawled_posts = fetch_and_store_reddit_posts(reddit, optimized_query, limit=5)
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
+                
+            except Exception as e:
+                logger.error(f"Reddit爬虫异常: {str(e)}", exc_info=True)
+                return JsonResponse({
+                    'result': f"抱歉，在抓取Reddit信息时遇到问题: {str(e)}",
+                    'metadata': {'crawler_error': str(e)},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+            
+        elif platform == 'stackoverflow':
+            try:
+                from django_apps.search.stackoverflow_crawler import fetch_and_store_stackoverflow_data
+                
+                # 对于StackOverflow不需要太多优化
+                crawled_posts = fetch_and_store_stackoverflow_data(search_query, limit=5)
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
+                
+            except Exception as e:
+                logger.error(f"StackOverflow爬虫异常: {str(e)}", exc_info=True)
+                return JsonResponse({
+                    'result': f"抱歉，在抓取StackOverflow信息时遇到问题: {str(e)}",
+                    'metadata': {'crawler_error': str(e)},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+            
+        elif platform == 'rednote':
+            try:
+                from django_apps.search.crawler import crawl_rednote_page
+
+                target_url = generate_xhs_search_url(search_query)
+                logger.info(f"Generated RedNote search URL: {target_url}")
+
+                # 使用从 crawler_config 导入的 Cookies
+                cookies_to_use = REDNOTE_LOGIN_COOKIES
+                if not cookies_to_use:
+                     raise ValueError("RedNote cookies not configured or empty in crawler_config.py.")
+
+                crawled_posts = crawl_rednote_page(url=target_url, cookies=cookies_to_use, immediate_indexing=False)
+                logger.info(f"RedNote crawler attempted search URL, found {len(crawled_posts)} potential posts.")
+                
+                # 在后台处理数据，进行embedding
+                import threading
+                threading.Thread(
+                    target=process_crawled_data_for_indexing,
+                    args=(crawled_posts, platform),
+                    daemon=True
+                ).start()
+
+            except ImportError:
+                 logger.error(f"RedNote crawler function not found.")
+                 return JsonResponse({
+                    'result': f"抱歉，RedNote实时抓取功能配置错误。",
+                    'metadata': {'crawler_error': 'ImportError', 'crawl_attempted': True, 'platform': platform},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+            except Exception as e:
+                logger.error(f"RedNote爬虫异常 (URL: {target_url}): {str(e)}", exc_info=True) # Log URL
+                return JsonResponse({
+                    'result': f"抱歉，在抓取RedNote信息时遇到问题: {str(e)}",
+                    'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
+                    'llm_model': llm_model,
+                    'history': recent_memory
+                })
+        else:
+            return JsonResponse({
+                'result': f"抱歉，平台'{platform}'不支持实时抓取功能。",
+                'metadata': {'error': 'unsupported_platform'},
+                'llm_model': llm_model,
+                'history': recent_memory
+            })
+        
+        if not crawled_posts:
+            logger.warning(f"未找到查询结果: {search_query}, 平台: {platform}")
+            return JsonResponse({
+                'result': f"抱歉，我无法在{platform}找到关于'{search_query}'的相关信息。",
+                'metadata': {'no_results': True, 'crawl_attempted': True},
+                'llm_model': llm_model,
+                'history': recent_memory
+            })
+        
+        logger.info(f"成功抓取 {len(crawled_posts)} 条内容，查询: {search_query}, 平台: {platform}")
+        
+        # 如果是推荐类查询(1)，则使用直接处理方式
+        if classification == '1':
+            logger.info("使用推荐类处理逻辑处理实时抓取结果")
+            
+            # 创建标准格式的文档对象
+            mock_retrieved_docs = []
+            for post in crawled_posts:
+                # 创建符合Document格式的对象
+                mock_doc = Document(
+                    page_content=post.content,
+                    metadata={
+                        "source": platform,
+                        "score": post.upvotes if hasattr(post, 'upvotes') else 0,
+                        "url": post.url,
+                        "title": post.thread_title,
+                        "thread_id": post.thread_id,
+                        "author": post.author_name,
+                        "upvotes": post.upvotes if hasattr(post, 'upvotes') else 0
+                    }
+                )
+                mock_retrieved_docs.append(mock_doc)
+            
+            # 使用ResultProcessor处理推荐
+            try:
+                # 尝试使用ResultProcessor，但准备好直接备用方案
+                if len(mock_retrieved_docs) > 0:
+                    # 调用处理推荐
+                    processed_results = index_service.result_processor.process_recommendations(
+                        documents=mock_retrieved_docs,
+                        query=search_query,
+                        top_k=min(len(mock_retrieved_docs), 3)
+                    )
+                    
+                    # 格式化推荐结果
+                    answer = format_recommendation_results(processed_results)
+                    
+                    # 添加实时抓取标记
+                    answer = f"## 实时搜索结果\n*以下是通过纯实时搜索获取的最新推荐*\n\n{answer}"
+                else:
+                    # 没有足够的文档用于推荐
+                    raise ValueError("没有足够的文档用于生成推荐")
+                    
+            except Exception as e:
+                logger.error(f"使用推荐处理器时出错: {str(e)}", exc_info=True)
+                
+                # 回退到简单的推荐格式
+                answer = "# 推荐结果 (纯实时抓取)\n\n"
+                for i, post in enumerate(crawled_posts, 1):
+                    title = post.thread_title if hasattr(post, 'thread_title') and post.thread_title else "无标题"
+                    url = post.url if hasattr(post, 'url') and post.url else "#"
+                    upvotes = post.upvotes if hasattr(post, 'upvotes') else 0
+                    
+                    # 提取摘要
+                    content = post.content if hasattr(post, 'content') and post.content else ""
+                    summary = content[:200] + "..." if len(content) > 200 else content
+                    
+                    answer += f"## {i}. **{title}**\n\n"
+                    answer += f"- upvotes: {upvotes}\n"
+                    answer += f"- [url]({url})\n\n"
+                    answer += f"{summary}\n\n---\n\n"
+            
+            metadata = {
+                'query_type': 'recommendation', 
+                'processing': 'direct',
+                'crawled': True,
+                'real_time': True,
+                'pure_real_time': True,
+                'platform': platform,
+                'query': search_query,
+            }
+            
+            # 将对话添加到记忆
+            if session_id:
+                MemoryService.add_to_memory(
+                    session_id,
+                    search_query,
+                    answer
+                )
+            
+            updated_memory = MemoryService.get_recent_memory(session_id) if session_id else []
+            
+            # 直接返回结果，不经过LLM处理
+            return JsonResponse({
+                'result': answer,
+                'metadata': metadata,
+                'llm_model': "recommendation_processor",
+                'crawled': True,
+                'history': updated_memory
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
+        
+        # 非推荐类查询(2-6)，使用LLM处理
+        else:
+            # 构建提示词，确保与generate_prompt的期望格式一致
+            try:
+                # 创建标准的Document对象列表
+                docs_for_prompt = []
+                for i, post in enumerate(crawled_posts):
+                    doc = Document(
+                        page_content=post.content,
+                        metadata={
+                            "source": platform,
+                            "url": post.url,
+                            "title": post.thread_title,
+                            "id": f"rt-{i}",  # 添加一个唯一ID
+                            "upvotes": post.upvotes if hasattr(post, 'upvotes') else 0
+                        }
+                    )
+                    docs_for_prompt.append(doc)
+                
+                # 使用标准的generate_prompt函数
+                prompt = generate_prompt(
+                    search_query, 
+                    docs_for_prompt, 
+                    recent_memory, 
+                    platform, 
+                    classification
+                )
+            except Exception as e:
+                logger.error(f"生成提示词异常: {str(e)}", exc_info=True)
+                # 备用简易提示词
+                combined_content = ""
+                for post in crawled_posts:
+                    combined_content += f"标题: {post.thread_title}\n\n"
+                    combined_content += f"内容: {post.content}\n\n"
+                    combined_content += f"URL: {post.url}\n\n"
+                    combined_content += "---\n\n"
+                
+                prompt = f"""
+基于以下从{platform}获取的最新实时信息，回答用户的问题:
+
+用户问题: {search_query}
+
+搜索结果:
+{combined_content}
+
+请根据上述信息提供准确、有帮助的回答。如果信息不足，请坦诚告知。
+"""
+            
+            # 发送至AI
+            future = executor.submit(
+                send_prompt, 
+                prompt, 
+                llm_model
+            )
+            response = future.result()
+            
+            # 解析响应
+            try:
+                answer, metadata = parse_langchain_response(response)
+            except Exception as e:
+                logger.error(f"解析响应异常: {str(e)}", exc_info=True)
+                # 简单响应
+                answer = response if isinstance(response, str) else str(response)
+                metadata = {}
+            
+            metadata.update({
+                'crawled': True, 
+                'real_time': True,
+                'pure_real_time': True,
+                'platform': platform, 
+                'posts_count': len(crawled_posts)
+            })
+            
+            # 保存到记忆
+            if session_id:
+                MemoryService.add_to_memory(session_id, search_query, answer)
+            
+            updated_memory = MemoryService.get_recent_memory(session_id) if session_id else []
+            
+            return JsonResponse({
+                'result': answer,
+                'metadata': metadata,
+                'llm_model': llm_model,
+                'crawled': True,
+                'history': updated_memory
+            },
+            json_dumps_params={'ensure_ascii': False}
+        )
+
+        
+    except Exception as e:
+        logger.error(f"纯实时抓取异常: {str(e)}", exc_info=True)
         return JsonResponse({
             'result': f"抱歉，在尝试获取关于'{search_query}'的最新信息时遇到了问题。",
             'metadata': {'error': str(e), 'crawl_attempted': True},
@@ -755,7 +1084,8 @@ def handle_real_time_crawling(search_query, platform, session_id, llm_model, rec
 @require_POST
 def real_time_crawl(request):
     """
-    实时抓取端点，用于前端直接调用实时抓取功能。
+    纯实时抓取端点，用于前端直接调用实时抓取功能。
+    直接从外部平台抓取数据，不检查数据库。
     """
     data = json.loads(request.body.decode('utf-8'))
     search_query = data.get('search_query')
@@ -771,8 +1101,31 @@ def real_time_crawl(request):
     if session_id:
         recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform)
     
-    # 调用实时抓取处理函数
-    return handle_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory)
+    # 调用纯实时抓取处理函数
+    return handle_pure_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory)
+
+@require_POST
+def mix_search(request):
+    """
+    混合搜索端点，用于前端调用混合搜索功能。
+    先检查数据库，如果没有结果再进行实时抓取。
+    """
+    data = json.loads(request.body.decode('utf-8'))
+    search_query = data.get('search_query')
+    platform = data.get('source', 'reddit')
+    session_id = data.get('session_id')
+    llm_model = data.get('llm_model', 'gemini-2.0-flash')
+    
+    if not search_query:
+        return JsonResponse({'error': '未提供搜索查询'}, status=400)
+    
+    # 获取记忆
+    recent_memory = []
+    if session_id:
+        recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform)
+    
+    # 调用混合搜索处理函数
+    return handle_mixed_search(search_query, platform, session_id, llm_model, recent_memory)
 
 def generate_xhs_search_url(query: str) -> str:
     """
