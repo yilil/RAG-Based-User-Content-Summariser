@@ -78,3 +78,211 @@
     margin: 4px 0;
   }
   
+/* Bot message container */
+.bot-message {
+  white-space: normal; /* Changed from pre-wrap to normal for better table rendering */
+  word-wrap: break-word; /* Breaks long words to prevent overflow */
+  text-align: left; /* Align text to the left */
+  padding: 10px;
+  background-color: #f0f0f0; /* Light background */
+  border-radius: 5px;
+  margin: 5px 0;
+}
+
+/* User message styling */
+.user-message {
+  text-align: right;
+  padding: 10px;
+  background-color: #e6f7ff;
+  border-radius: 5px;
+  margin: 5px 0;
+}
+
+/* Main recommendation details card */
+.bot-message .recommendation-details-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Comparison table card */
+.bot-message .comparison-table-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Item name styling */
+.bot-message .recommendation-details-card h4 {
+  font-size: 1.2em;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+/* Rating, upvotes, mentions line styling - increased vertical margins */
+.bot-message .recommendation-details-card p[style*="font-size: 0.9em"] {
+  margin-top: 8px; /* Increased */
+  margin-bottom: 8px; /* Increased */
+  line-height: 1.5;
+}
+
+/* Sentiment line specific styling - increased bottom margin */
+.bot-message .recommendation-details-card p[style*="font-size: 0.9em"]:has(.sentiment-positive) {
+  margin-bottom: 12px; /* Increased specifically for sentiment line */
+}
+
+/* Styling for sentiment color blocks */
+.bot-message .recommendation-details-card .sentiment-positive {
+  background-color: #d4edda; /* Light green */
+  color: #155724; /* Dark green */
+  padding: 3px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+.bot-message .recommendation-details-card .sentiment-neutral {
+  background-color: #fff3cd; /* Light yellow */
+  color: #856404; /* Dark yellow */
+  padding: 3px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+.bot-message .recommendation-details-card .sentiment-negative {
+  background-color: #f8d7da; /* Light red */
+  color: #721c24; /* Dark red */
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+/* Section titles styling */
+.bot-message .recommendation-details-card p[style*="font-weight: bold"] {
+  font-size: 16px;
+  color: #333;
+  margin-top: 15px;
+  margin-bottom: 8px;
+}
+
+/* Lists styling within recommendation details */
+.bot-message .recommendation-details-card ul {
+  list-style-type: disc;
+  padding-left: 20px;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.bot-message .recommendation-details-card li {
+  margin-bottom: 5px;
+  line-height: 1.6;
+  color: #444;
+}
+
+/* Comparison Table title */
+.bot-message .comparison-table-card h3 {
+  margin-bottom: 15px;
+  font-size: 1.25em;
+  color: #333;
+}
+
+.bot-message .comparison-table-card h3 strong {
+  font-weight: bold;
+}
+
+/* Table styling - critical for proper borders */
+.bot-message table.comparison-table,
+.bot-message .comparison-table-card table {
+  width: 100% !important; /* Ensure full width */
+  border-collapse: collapse;
+  border: 2px solid #999 !important;
+  margin-top: 10px;
+  white-space: normal !important;
+}
+
+/* Table cells and headers */
+.bot-message table.comparison-table th,
+.bot-message table.comparison-table td,
+.bot-message .comparison-table-card table th,
+.bot-message .comparison-table-card table td {
+  border: 1px solid #999 !important;
+  padding: 10px 12px; /* Adjusted padding for better look */
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Table header styling */
+.bot-message table.comparison-table th,
+.bot-message .comparison-table-card table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Emoji styling to match reference exactly */
+.bot-message span {
+  margin-right: 15px;
+  display: inline-block;
+}
+
+/* Ensure table data rows are white */
+.bot-message table.comparison-table tbody tr,
+.bot-message .comparison-table-card table tbody tr {
+  background-color: #ffffff !important;
+}
+
+/* Hide any old/unused container classes */
+.bot-message .recommendation-item,
+.bot-message .comparison-table-container {
+  display: none;
+}
+
+/* 响应式表格容器 */
+.table-responsive {
+  overflow-x: auto; /* 在小屏幕上允许水平滚动 */
+  margin: 15px 0;
+}
+
+/* 表格基础样式 */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 2px solid #999 !important; /* 较深的外边框 */
+}
+
+/* 表格标题和单元格共享的边框样式 */
+.comparison-table th,
+.comparison-table td {
+  border: 1px solid #999 !important; /* 确保边框可见 */
+  padding: 10px;
+  text-align: left;
+}
+
+/* 表格标题特殊样式 */
+.comparison-table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+  font-size: 1em;
+}
+
+/* 表格行样式 */
+.comparison-table .table-row:nth-child(even) {
+  background-color: #f9f9f9; /* 奇偶行颜色交替 */
+}
+
+/* 确保表格父容器中不继承特殊字体或空白处理 */
+.bot-message .comparison-table-card {
+  white-space: normal !important;
+  font-family: inherit;
+  margin-top: 20px; /* 补回被移除的行内样式 */
+}
+
+/* 表格标题样式 */
+.bot-message .comparison-table-card h3 {
+  margin-bottom: 15px;
+  font-size: 1.3em;
+}

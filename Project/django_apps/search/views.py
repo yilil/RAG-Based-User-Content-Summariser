@@ -352,74 +352,110 @@ def getAllChat(request):
 
 def format_recommendation_results(results: List[Document]) -> str:
     if not results:
-        return "未找到相关推荐。"
+        return "<p>未找到相关推荐。</p>"
 
-    lines = ["# 根据您的查询，为您推荐以下选项：\n"]
+    # Introductory text - outside any card
+    output_lines = ["<p>根据您的查询，为您推荐以下选项：</p>"]
+
+    # ---- Start: Main Card for ALL Recommendation Details ----
+    output_lines.append('<div class="recommendation-details-card">')
+
     for i, doc in enumerate(results, 1):
         m = doc.metadata
-        # Use .get for safety, providing default values
-        name = m.get('name', 'N/A')
+        name = m.get('name', 'N/A').replace('\\n', ' ')
         avg_rating = m.get('avg_rating', 0.0)
         total_upvotes = m.get('total_upvotes', 0)
         mentions = m.get('mentions', 0)
-        # Ensure sentiment_counts exists and has the expected structure, default if missing
-        sentiment_counts = m.get('sentiment_counts', {'positive': 0, 'neutral': 0, 'negative': 0})
-        summary = m.get('summary', 'No summary available.')
-        posts = m.get('posts', []) # Default to empty list if 'posts' key is missing
+        sentiment_counts = m.get('sentiment_counts', {})
 
-        # Header line using sentiment_counts safely
-        lines.append(
-            f"{i}. **{name}**  🌟{avg_rating:.1f}  👍{total_upvotes}  📝{mentions}"
-            f"   Sentiment: +{sentiment_counts.get('positive', 0)}, ~{sentiment_counts.get('neutral', 0)}, -{sentiment_counts.get('negative', 0)}"
+        if i > 1:
+            output_lines.append('<hr style="margin: 20px 0; border-top: 1px solid #eee;">')
+
+        output_lines.append(f'<h4 style="margin-bottom: 8px; font-size: 1.15em;">{i}. {name}</h4>')
+
+        # Rating line with emojis exactly as in reference image
+        rating_display = f"{avg_rating:.1f}/5.0"
+        output_lines.append(
+            f'<p style="font-size: 0.9em; color: #555; margin-top: 8px; margin-bottom: 8px;">'
+            f'<span>⭐ Rating: {rating_display}</span> '
+            f'<span>👍 Upvotes: {total_upvotes}</span> '
+            f'<span>📝 Mentions: {mentions}</span>'
+            f'</p>'
         )
 
-        # Sentiment breakdown line using sentiment_counts safely
-        lines.append(
-            f"▶️ Sentiment Breakdown: Positive {sentiment_counts.get('positive', 0)} | Neutral {sentiment_counts.get('neutral', 0)} | Negative {sentiment_counts.get('negative', 0)}"
+        # Sentiment line with proper spacing and spans for color blocks
+        output_lines.append(
+            f'<p style="font-size: 0.9em; color: #555; margin-bottom: 12px;">'
+            f"Sentiment: <span class='sentiment-positive'>Positive: {sentiment_counts.get('positive', 0)}</span>, "
+            f"<span class='sentiment-neutral'>Neutral: {sentiment_counts.get('neutral', 0)}</span>, "
+            f"<span class='sentiment-negative'>Negative: {sentiment_counts.get('negative', 0)}</span>"
+            f'</p>' 
         )
 
-        # General Summary
-        lines.append("General Summary:")
-        try:
-            # Split summary into sentences (adjust regex if needed)
-            bullets = re.split(r'(?<=[.?!])\s+', summary)
-        except Exception:
-             bullets = [summary] # Fallback if regex fails
+        # General Summary section with proper styling
+        output_lines.append("<p style='margin-top: 15px; font-weight: bold;'>General Summary:</p>")
+        output_lines.append("<ul>")
+        general_summary_text = m.get('summary', 'No summary available.')
+        summary_points = [s.strip() for s in general_summary_text.split('\n') if s.strip()]
+        if not summary_points and general_summary_text.strip():
+            summary_points = [general_summary_text.strip()]
+        
+        if not summary_points:
+            output_lines.append("<li>No summary available.</li>")
+        else:
+            for point in summary_points:
+                output_lines.append(f"<li>{point}</li>")
+        output_lines.append("</ul>")
 
-        for sentence in bullets:
-            # Ensure sentence is not None or empty before stripping/appending
-            if sentence and sentence.strip():
-                lines.append(f"- {sentence.strip()}")
+        # Detailed Reviews section with proper styling
+        output_lines.append("<p style='margin-top: 15px; font-weight: bold;'>Detailed Reviews:</p>")
+        output_lines.append("<ul>")
+        posts = m.get('posts', [])
+        if not posts:
+            output_lines.append("<li>No detailed reviews available.</li>")
+        else:
+            for review_item in posts[:3]:
+                content = review_item.get('content', 'N/A').replace('\n', '<br />')
+                original_upvotes = review_item.get('upvotes', 0)
+                # Use exact emoji format as in reference
+                output_lines.append(f"<li>{content} (👍{original_upvotes})</li>")
+        output_lines.append("</ul>")
 
-        # Detailed Reviews
-        lines.append("\nDetailed Reviews:")
-        # Iterate safely over posts (which defaults to [] if missing)
-        for post in posts[:10]:
-             # Use .get for safety within the post dictionary
-             content = post.get('content', 'N/A')
-             upvotes = post.get('upvotes', 0)
-             # No 'sentiment' variable is used here in the correct version
-             lines.append(f"- {content}  (👍{upvotes})")
+    output_lines.append('</div>')
 
-        lines.append("")  # 空行
+    if results:
+        # Add comparison table section with proper heading and styling
+        output_lines.append('<div class="comparison-table-card">')
+        output_lines.append('<h3><strong>Comparison Table</strong></h3>')
+        
+        # Full HTML table with proper border attributes and width
+        output_lines.append('<table class="comparison-table" border="1" cellspacing="0" cellpadding="0" style="width:100%;">')
+        
+        # Table header row
+        output_lines.append('<thead><tr>')
+        output_lines.append('<th>Name</th>')
+        output_lines.append('<th>Avg. Rating</th>')
+        output_lines.append('<th>Total Upvotes</th>')
+        output_lines.append('<th>Mentions</th>')
+        output_lines.append('</tr></thead>')
+        
+        # Table body
+        output_lines.append('<tbody>')
+        for doc_table in results:
+            m_table = doc_table.metadata
+            name_table = m_table.get('name', 'N/A').replace('\\n', ' ')
+            avg_rating_val = m_table.get('avg_rating', 0.0)
+            total_upvotes = m_table.get("total_upvotes", 0)
+            mentions = m_table.get("mentions", 0)
+            
+            output_lines.append(
+                f'<tr><td>{name_table}</td><td>{avg_rating_val:.1f}</td><td>{total_upvotes}</td><td>{mentions}</td></tr>'
+            )
+        output_lines.append('</tbody>')
+        output_lines.append('</table>')
+        output_lines.append('</div>')
 
-    # Comparison Table
-    lines.append("## Comparison Table\n")
-    lines.append("| Name | 🌟Rating | 👍Upvotes | 📝Mentions |")
-    lines.append("|------|----------|----------|-----------|")
-    for doc in results:
-        m = doc.metadata
-        # Use .get for safety here too
-        name = m.get('name', 'N/A')
-        avg_rating = m.get('avg_rating', 0.0)
-        total_upvotes = m.get('total_upvotes', 0)
-        mentions = m.get('mentions', 0)
-        # Ensure score and rank are handled safely if needed for the table later
-        # score = m.get('score', 0.0)
-        # rank = m.get('rank', 99)
-        lines.append(f"| {name} | {avg_rating:.1f} | {total_upvotes} | {mentions} |")
-
-    return "\n".join(lines)
+    return "".join(output_lines)
 
 def handle_mixed_search(search_query, platform, session_id, llm_model, recent_memory, classification=None):
     """
