@@ -1,0 +1,318 @@
+[
+    {
+      "id": "R1",
+      "query": "Budget-friendly travel destination recommendations.",
+      "relevant_doc_ids": [
+        "reddit_5735",
+        "reddit_5736",
+        "reddit_5738",
+        "reddit_5740",
+        "reddit_5741"
+      ]
+    },
+    {
+      "id": "R2",
+      "query": "Life-changing book recommendations.",
+      "relevant_doc_ids": [
+        "reddit_5744",
+        "reddit_5745",
+        "reddit_5746",
+        "reddit_5747",
+        "reddit_5748"
+      ]
+    },
+    {
+      "id": "R3",
+      "query": "Interesting movie recommendations.",
+      "relevant_doc_ids": [
+        "reddit_5754",
+        "reddit_5755",
+        "reddit_5756",
+        "reddit_5757",
+        "reddit_5760"
+      ]
+    },
+    {
+      "id": "R4",
+      "query": "Fun co-op game recommendations.",
+      "relevant_doc_ids": [
+        "reddit_5764",
+        "reddit_5765",
+        "reddit_5766",
+        "reddit_5768",
+        "reddit_5772"
+      ]
+    },
+    {
+      "id": "R5",
+      "query": "Favorite easy recipes.",
+      "relevant_doc_ids": [
+        "reddit_5774",
+        "reddit_5777",
+        "reddit_5778",
+        "reddit_5779",
+        "reddit_5780"
+      ]
+    },
+    {
+      "id": "K1",
+      "query": "ELI5 cool explanations.",
+      "relevant_doc_ids": [
+        "reddit_5784",
+        "reddit_5785",
+        "reddit_5786",
+        "reddit_5787",
+        "reddit_5788"
+      ]
+    },
+    {
+      "id": "K2",
+      "query": "ELI5 immune system.",
+      "relevant_doc_ids": [
+        "reddit_5794",
+        "reddit_5795",
+        "reddit_5796",
+        "reddit_5797",
+        "reddit_5798"
+      ]
+    },
+    {
+      "id": "K3",
+      "query": "Common historical misconceptions.",
+      "relevant_doc_ids": [
+        "reddit_5804",
+        "reddit_5805",
+        "reddit_5807",
+        "reddit_5808",
+        "reddit_5811"
+      ]
+    },
+    {
+      "id": "K4",
+      "query": "Explaining a common but complex topic simply.",
+      "relevant_doc_ids": [
+        "reddit_5820"
+      ]
+    },
+    {
+      "id": "K5",
+      "query": "ELI5 interesting space explanations.",
+      "relevant_doc_ids": [
+        "reddit_5828"
+      ]
+    },
+    {
+      "id": "O1",
+      "query": "What is overrated?",
+      "relevant_doc_ids": [
+        "reddit_5834",
+        "reddit_5835",
+        "reddit_5836",
+        "reddit_5837",
+        "reddit_5838"
+      ]
+    },
+    {
+      "id": "O2",
+      "query": "Discussion about Universal Basic Income.",
+      "relevant_doc_ids": [
+        "reddit_5844",
+        "reddit_5845",
+        "reddit_5846",
+        "reddit_5847",
+        "reddit_5849"
+      ]
+    },
+    {
+      "id": "O3",
+      "query": "Controversial food opinions.",
+      "relevant_doc_ids": [
+        "reddit_5854",
+        "reddit_5855",
+        "reddit_5856",
+        "reddit_5857",
+        "reddit_5858"
+      ]
+    },
+    {
+      "id": "O4",
+      "query": "AI future predictions.",
+      "relevant_doc_ids": [
+        "reddit_5864",
+        "reddit_5865",
+        "reddit_5866",
+        "reddit_5867",
+        "reddit_5868"
+      ]
+    },
+    {
+      "id": "O5",
+      "query": "Favorite sport GOAT discussion.",
+      "relevant_doc_ids": [
+        "reddit_5875",
+        "reddit_5876",
+        "reddit_5878",
+        "reddit_5881",
+        "reddit_5883"
+      ]
+    },
+    {
+      "id": "T1",
+      "query": "General money-saving tips.",
+      "relevant_doc_ids": [
+        "reddit_5884",
+        "reddit_5887",
+        "reddit_5888",
+        "reddit_5890",
+        "reddit_5893"
+      ]
+    },
+    {
+      "id": "T2",
+      "query": "Life hacks everyone should know.",
+      "relevant_doc_ids": [
+        "reddit_5894",
+        "reddit_5895",
+        "reddit_5896",
+        "reddit_5898",
+        "reddit_5903"
+      ]
+    },
+    {
+      "id": "T3",
+      "query": "Improve social skills and conversation.",
+      "relevant_doc_ids": [
+        "reddit_5904",
+        "reddit_5907",
+        "reddit_5909",
+        "reddit_5910",
+        "reddit_5912"
+      ]
+    },
+    {
+      "id": "T4",
+      "query": "Effective home decluttering methods.",
+      "relevant_doc_ids": [
+        "reddit_5914",
+        "reddit_5916",
+        "reddit_5919",
+        "reddit_5923",
+        "reddit_5920"
+      ]
+    },
+    {
+      "id": "T5",
+      "query": "Tips for staying focused and productive.",
+      "relevant_doc_ids": [
+        "reddit_5924",
+        "reddit_5925",
+        "reddit_5929",
+        "reddit_5932",
+        "reddit_5933"
+      ]
+    },
+    {
+      "id": "S1",
+      "query": "Addressing a chronically late friend.",
+      "relevant_doc_ids": [
+        "reddit_5934",
+        "reddit_5939"
+      ]
+    },
+    {
+      "id": "S2",
+      "query": "Job interview preparation and impression tips.",
+      "relevant_doc_ids": [
+        "reddit_5944",
+        "reddit_5945",
+        "reddit_5946",
+        "reddit_5951",
+        "reddit_5948"
+      ]
+    },
+    {
+      "id": "S3",
+      "query": "Advice for moving to a new city alone.",
+      "relevant_doc_ids": [
+        "reddit_5963",
+        "reddit_5962",
+        "reddit_5957",
+        "reddit_5960",
+        "reddit_5954"
+      ]
+    },
+    {
+      "id": "S4",
+      "query": "Overcoming weight loss plateau advice.",
+      "relevant_doc_ids": [
+        "reddit_5964",
+        "reddit_5966",
+        "reddit_5967",
+        "reddit_5968",
+        "reddit_5969"
+      ]
+    },
+    {
+      "id": "S5",
+      "query": "Managing dog separation anxiety.",
+      "relevant_doc_ids": [
+        "reddit_5975",
+        "reddit_5980",
+        "reddit_5981",
+        "reddit_5982",
+        "reddit_5983"
+      ]
+    },
+    {
+      "id": "I1",
+      "query": "Video game news and discussion sources.",
+      "relevant_doc_ids": [
+        "reddit_5984",
+        "reddit_5991",
+        "reddit_5987",
+        "reddit_5985",
+        "reddit_5986"
+      ]
+    },
+    {
+      "id": "I2",
+      "query": "Latest smartphone and gadget tech rumors.",
+      "relevant_doc_ids": [
+        "reddit_5995",
+        "reddit_6002",
+        "reddit_5994",
+        "reddit_5997",
+        "reddit_5999"
+      ]
+    },
+    {
+      "id": "I3",
+      "query": "Most anticipated upcoming movies discussion.",
+      "relevant_doc_ids": [
+        "reddit_6008",
+        "reddit_6011"
+      ]
+    },
+    {
+      "id": "I4",
+      "query": "Significant recent environmental news.",
+      "relevant_doc_ids": [
+        "reddit_6014",
+        "reddit_6019",
+        "reddit_6015",
+        "reddit_6017",
+        "reddit_6021"
+      ]
+    },
+    {
+      "id": "I5",
+      "query": "Notable recent medical research breakthroughs.",
+      "relevant_doc_ids": [
+        "reddit_6026",
+        "reddit_6027",
+        "reddit_6024",
+        "reddit_6032",
+        "reddit_6033"
+      ]
+    }
+  ]
