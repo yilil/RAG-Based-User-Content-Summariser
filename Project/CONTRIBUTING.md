@@ -36,7 +36,10 @@ Project/
 │   │   │   ├── faiss_manager.py  # FAISS 和 BM25 索引管理 (空索引库初始化，索引加载、保存、搜索)
 │   │   │   ├── indexer.py        # 内容索引器 (Embedding 生成、写入 FAISS 和 ContentIndex)
 │   │   │   ├── hybrid_retriever.py # 混合检索器 (结合key words score(BM25), embedding score, Votes/Likes Score, 归一化后合并排序)
-│   │   │   ├── result_processor.py # 结果处理器 (特别是推荐类查询的排序和格式化)
+│   │   │   ├── result_processor.py # 结果处理器 (协调推荐处理流程)
+│   │   │   ├── result_formatter.py # 推荐结果格式化 (生成 HTML 输出)
+│   │   │   ├── score_calculator.py # 推荐项评分计算 (计算综合得分)
+│   │   │   ├── prompt_templates.py # 提示词模板管理 (构建 LLM 提示词)
 │   │   │   ├── rating_processor.py # 情感/评分处理器 (用于推荐排序)
 │   │   │   └── text_preprocessor.py # 文本预处理器 (用于 BM25 等)
 │   │   ├── management/       # Django 管理命令
@@ -67,7 +70,7 @@ Project/
 │   └── prompt_sender.py      # 发送 Prompt 给 LLM (Gemini)
 ├── faiss_index/              # FAISS 索引存储目录 (Git LFS 跟踪)
 │   ├── reddit/
-│   │   ├── index.faiss (在下方“RAG模块/索引构建与存储”部分具体介绍)
+│   │   ├── index.faiss (在下方"RAG模块/索引构建与存储"部分具体介绍)
 │   │   └── index.pkl
 │   ├── stackoverflow/
 │   │   ├── index.faiss
@@ -534,9 +537,9 @@ RedNote (小红书) 爬虫利用 `Selenium` 及其反检测扩展 `selenium-stea
             -   **保存到磁盘**: 当一批或所有未索引条目处理完毕后，调用 `faiss_manager.save_index()` 将内存中更新后的 FAISS 索引 (`index.faiss`) 和元数据存储 (`index.pkl`) 原子性地写入磁盘文件。
     -   **"Skipping object..." 日志**: (以下是针对出现该日志的情况说明)
         -   **现象**: 在运行索引命令时，可能会看到类似 `Skipping object with ID xx due to empty content` 的日志信息。
-        -   **原因**: 这通常发生在以下情况：某个内容条目**之前已经被成功索引过**，因此其在数据库中的 `content` 字段已被清空（设为 `None`）。但后来由于某种原因（例如数据库手动操作、迁移问题或其他未知错误），该条目在 `ContentIndex` 表中对应的记录**被意外删除了**。当索引流程再次运行时，它根据 `ContentIndex` 表判断该条目是“未索引”的，但在尝试读取其 `content` 字段以生成 Embedding 时发现是空的，因此只能跳过处理并打印此日志。
+        -   **原因**: 这通常发生在以下情况：某个内容条目**之前已经被成功索引过**，因此其在数据库中的 `content` 字段已被清空（设为 `None`）。但后来由于某种原因（例如数据库手动操作、迁移问题或其他未知错误），该条目在 `ContentIndex` 表中对应的记录**被意外删除了**。当索引流程再次运行时，它根据 `ContentIndex` 表判断该条目是"未索引"的，但在尝试读取其 `content` 字段以生成 Embedding 时发现是空的，因此只能跳过处理并打印此日志。
         -   **影响**: 这通常不影响系统的正常检索功能（因为该条目的向量和元数据仍在 FAISS 文件中），但它提示可能存在数据不一致的情况。
-    -   **弃用命令**: **请勿使用** 旧的管理命令 `python manage.py initialize_index` 或 `python manage.py index_content`。这些已被弃用。当前正确的触发方式是使用上面描述的 `/index_content/` POST 请求。
+        -   **弃用命令**: **请勿使用** 旧的管理命令 `python manage.py initialize_index` 或 `python manage.py index_content`。这些已被弃用。当前正确的触发方式是使用上面描述的 `/index_content/` POST 请求。
 
 
 ### 混合检索
@@ -695,4 +698,57 @@ RedNote (小红书) 爬虫利用 `Selenium` 及其反检测扩展 `selenium-stea
 cd Frontend
 npm run dev
 ```
+
+## 推荐系统重构说明
+
+### 架构设计
+
+推荐系统采用模块化设计，将不同功能拆分为独立的类：
+
+1. **ResultProcessor** (`result_processor.py`)
+   - 职责：协调整个推荐流程
+   - 主要功能：处理推荐类查询，协调其他组件工作
+
+2. **ResultFormatter** (`result_formatter.py`)
+   - 职责：生成格式化的 HTML 输出
+   - 主要功能：将推荐数据转换为美观的 HTML 展示
+
+3. **ScoreCalculator** (`score_calculator.py`)
+   - 职责：计算推荐项的分数
+   - 主要功能：基于评分、点赞数、提及次数计算综合得分
+
+4. **PromptBuilder** (`prompt_templates.py`)
+   - 职责：管理提示词模板
+   - 主要功能：构建 LLM 提示词，提供测试数据
+
+5. **RatingProcessor** (`rating_processor.py`)
+   - 职责：处理情感评分转换
+   - 主要功能：将文本情感转换为数值评分
+
+### 数据流程
+
+1. 接收查询与文档
+2. 使用 PromptBuilder 构建提示词
+3. 调用 LLM 提取推荐项
+4. 使用 RatingProcessor 进行情感分析
+5. 使用 ScoreCalculator 计算综合分数
+6. 使用 ResultFormatter 生成 HTML 输出
+
+### 开发指南
+
+1. **添加新功能**
+   - 遵循单一职责原则
+   - 在适当的类中添加新方法
+   - 保持接口一致性
+
+2. **修改现有功能**
+   - 确保向后兼容
+   - 更新相关测试
+   - 维护文档说明
+
+3. **测试建议**
+   - 为每个类编写单元测试
+   - 测试边界情况
+   - 验证 HTML 输出格式
+
 

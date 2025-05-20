@@ -8,6 +8,9 @@ import json
 import logging
 from django.conf import settings
 from .rating_processor import RatingProcessor
+from .result_formatter import ResultFormatter
+from .score_calculator import ScoreCalculator
+from .prompt_templates import PromptBuilder
 from search_process.prompt_sender.sender import send_prompt_to_gemini
 
 logger = logging.getLogger(__name__)
@@ -15,43 +18,42 @@ logger = logging.getLogger(__name__)
 class ResultProcessor:
     def __init__(self):
         self.rating_processor = RatingProcessor()
-        
-        # 默认权重配置（综合排序）
-        self.default_weights = {
-            'rating': 0.4,      # 情感评分权重
-            'upvotes': 0.35,    # 点赞权重
-            'mentions': 0.25    # 提及次数权重
-        }
-        
-        self.weights = self.default_weights  # 初始使用默认权重
+        self.result_formatter = ResultFormatter()
+        self.score_calculator = ScoreCalculator()
+        self.prompt_builder = PromptBuilder()
 
-    def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> List[Document]:
-        """处理推荐类查询"""
+    def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> str:
+        """处理推荐类查询，直接返回格式化后的 HTML 内容"""
         try:
-            upvote_map = {
-                doc.page_content.strip(): doc.metadata.get('upvotes', 0)
-                for doc in documents
-            }
-            
-            # 1) Extract items + qualitative sentiment labels from LLM
-            prompt = self._build_extraction_prompt(documents, query)
+            # 1. Extract items + qualitative sentiment labels from LLM
+            prompt = self.prompt_builder.build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
             extracted_items = json.loads(response)
             
-            # 2) Local aggregation
+            # 2. Local aggregation
             recommendations = []
-            for item in extracted_items:
-                
+            for item_idx, item in enumerate(extracted_items, 1):
                 if 'name' not in item or 'posts' not in item:
                     logger.warning(f"Skipping invalid item: {item}")
                     continue
 
                 posts = item['posts']
+                total_upvotes = 0  # 初始化总点赞数
 
-                # —— 在这里，把每条 LLM 输出的 post['upvotes'] 用原始 upvote_map 覆盖
-                for p in posts:
-                    content = p.get('content', '').strip()
-                    p['upvotes'] = upvote_map.get(content, 0)
+                print(f"\n=== Debug 2: Processing Item {item_idx} ===")
+                print(f"Item name: {item['name']}")
+                
+                # 直接使用 LLM 返回的点赞数
+                for post_idx, p in enumerate(posts, 1):
+                    likes = p.get('likes', 0)  # 从 LLM 返回的数据中获取点赞数
+                    p['upvotes'] = likes  # 保持字段名一致
+                    total_upvotes += likes
+                    
+                    print(f"\nPost {post_idx}:")
+                    print(f"Content (first 50 chars): {p.get('content', '')[:50]}...")
+                    print(f"Likes from LLM: {likes}")
+                    print(f"Current total_upvotes: {total_upvotes}")
+                print("=== End Debug 2 ===\n")
 
                 # Map qualitative sentiment → numeric once per post
                 numeric_ratings = []
@@ -61,7 +63,6 @@ class ResultProcessor:
                     p['numeric_rating'] = num
                     numeric_ratings.append(num)
 
-                total_upvotes = sum(p.get('upvotes', 0) for p in posts)
                 avg_rating = sum(numeric_ratings) / len(numeric_ratings) if numeric_ratings else 3.0
                 mentions = len(posts)
 
@@ -74,6 +75,15 @@ class ResultProcessor:
                     'negative': counter.get('negative',0) + counter.get('very negative',0)
                 }
 
+                print(f"\n=== Debug 3: Final Item {item_idx} Summary ===")
+                print(f"Item name: {item['name']}")
+                print(f"Total upvotes: {total_upvotes}")
+                print(f"Number of posts: {len(posts)}")
+                print("Posts with likes:")
+                for post_idx, post in enumerate(posts, 1):
+                    print(f"Post {post_idx}: {post.get('upvotes', 0)} likes")
+                print("=== End Debug 3 ===\n")
+
                 recommendations.append({
                     'name': item['name'],
                     'total_upvotes': total_upvotes,
@@ -84,84 +94,17 @@ class ResultProcessor:
                     'summary': item.get('summary', 'No summary available')
                 })
             
-            # 2) Score & rank
-            self._calculate_scores(recommendations)
+            # 3. Score & rank
+            self.score_calculator.calculate_scores(recommendations)
             top_recs = sorted(recommendations, key=lambda r: r['score'], reverse=True)[:top_k]
 
-            # 3) Format into Document objects
-            return self._format_results(top_recs)
+            # 4. Format into HTML using the new ResultFormatter
+            return self.result_formatter.format_recommendations(top_recs)
             
         except Exception as e:
             logger.error(f"Error processing recommendations: {e}")
-            return []
+            return "<p>处理推荐时发生错误。</p>"
     
-    def _calculate_scores(self, recs: List[Dict]):
-        """计算每个推荐项的分数"""
-        # 找出最大值用于归一化
-        max_upvotes = max((r['total_upvotes'] for r in recs), default=0)
-        # 防止除以 0
-        if max_upvotes == 0:
-            max_upvotes = 1
-        max_mentions = max((r['mentions'] for r in recs), default=0)
-        # 防止除以 0
-        if max_mentions == 0:
-            max_mentions = 1
-        max_rating = 5.0
-        
-        # 计算每个推荐项的分数
-        for rec in recs:
-            # 归一化各个组件
-            rating_component = self.weights['rating'] * (rec['avg_rating'] / max_rating)
-            upvote_component = self.weights['upvotes'] * (rec['total_upvotes'] / max_upvotes)
-            mention_component = self.weights['mentions'] * (rec['mentions'] / max_mentions)
-            # 计算总分
-            score = rating_component + upvote_component + mention_component    
-            # 更新推荐项
-            rec['score'] = round(score, 3)
-            rec['score_components'] = {
-                'rating': round(rating_component, 3),
-                'upvotes': round(upvote_component, 3),
-                'mentions': round(mention_component, 3)
-            }
-
-    def _build_extraction_prompt(self, documents: List[Document], query: str) -> str:
-        """构建大模型提取信息的提示词"""
-        posts_text = ""
-        for doc in documents:
-            content = doc.page_content.strip()
-            upvotes = doc.metadata.get('upvotes', 0)
-            posts_text += (
-                f"Post (Upvotes: {upvotes}):\n"
-                f"{content}\n\n"
-            )
-
-        return f"""Please analyze these posts for query "{query}" and extract recommendation items.
-
-Input Posts:
-{posts_text}
-
-For each item, output:
-- name
-- posts: list of {{content, upvotes, sentiment}}
-- summary (2-3 sentences)
-
-Output Format:
-[
-    {{
-        "name": "item name",
-        "posts": [
-            {{
-                "content": "the exact post text",
-                "upvotes": number_of_upvotes,
-                "sentiment": "very positive/positive/neutral/negative/very negative"
-            }}
-        ],
-        "summary": "Brief summary of all reviews for this item"
-    }}
-]
-
-Return ONLY a JSON array of items."""
-
     def _call_llm_for_extraction(self, prompt: str) -> str:
         """调用大模型进行提取"""
         try:
@@ -206,67 +149,12 @@ Return ONLY a JSON array of items."""
             
             if settings.DEBUG:
                 logger.warning("Using mock data for testing")
-                return self._get_mock_response()
+                return self.prompt_builder.get_mock_response()
             raise ValueError("Failed to extract valid recommendations from model response")
                 
         except Exception as e:
             logger.error(f"Gemini API 调用失败: {str(e)}")
             if settings.DEBUG:
                 logger.warning("Using mock data for testing")
-                return self._get_mock_response()
+                return self.prompt_builder.get_mock_response()
             raise
-
-    def _get_mock_response(self) -> str:
-        mock_data = [
-            {
-                "name": "a",
-                "posts": [
-                    {"content": "a", "upvotes": 1, "sentiment": "positive"},
-                    {"content": "b", "upvotes": 2, "sentiment": "positive"},
-                    {"content": "c", "upvotes": 3, "sentiment": "positive"},
-                ],
-                "summary": "a, b, c"
-            },
-        ]
-        return json.dumps(mock_data, indent=2, ensure_ascii=False)
-
-    def _format_results(self, items: List[Dict]) -> List[Document]:
-        """格式化结果为Document对象"""
-        results = []
-        for i, item in enumerate(items, 1):
-            # 创建格式化的内容字符串
-            content = (
-                f"{i}. {item['name'].title()}\n"
-                f"   Rating: {item['avg_rating']}/5 ({item['mentions']} reviews)\n"
-                f"   Upvotes: {item['total_upvotes']}\n"
-                f"   Sentiment: +{item['sentiment_counts']['positive']}, ~{item['sentiment_counts']['neutral']}, -{item['sentiment_counts']['negative']}\n"
-                f"   Score: {item['score']}\n"
-                f"   Summary: {item['summary']}\n\n"
-                f"   Reviews:\n"
-            )
-            
-            # 添加评论
-            for post in item['posts']:
-                r = int(round(post.get('rating', 3)))
-                txt = self.rating_processor.get_sentiment_text(r)
-                content += f"   - {post['content']} ({txt}, {post.get('upvotes',0)} upvotes)\n"
-            
-            # 创建Document对象
-            doc = Document(
-                page_content=content,
-                metadata={
-                    'name': item['name'],
-                    'rank': i,
-                    'total_upvotes': item['total_upvotes'],
-                    'avg_rating': item['avg_rating'],
-                    'mentions': item['mentions'],
-                    'sentiment_counts': item['sentiment_counts'],
-                    'score': item['score'],
-                    'score_components': item['score_components'],
-                    'summary': item['summary'],
-                    'posts': item['posts']
-                }
-            )
-            results.append(doc)
-        
-        return results
