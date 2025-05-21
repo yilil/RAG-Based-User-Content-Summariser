@@ -43,15 +43,30 @@ class ResultProcessor:
                 print(f"\n=== Debug 2: Processing Item {item_idx} ===")
                 print(f"Item name: {item['name']}")
                 
-                # 直接使用 LLM 返回的点赞数
+                # 处理不同平台的点赞/投票字段
                 for post_idx, p in enumerate(posts, 1):
-                    likes = p.get('likes', 0)  # 从 LLM 返回的数据中获取点赞数
-                    p['upvotes'] = likes  # 保持字段名一致
-                    total_upvotes += likes
+                    # 获取平台信息
+                    platform = p.get('platform', '').lower()
+                    
+                    # 根据不同平台获取对应的点赞/投票数
+                    if platform == 'reddit':
+                        upvotes = p.get('upvotes', 0)
+                    elif platform == 'stackoverflow':
+                        upvotes = p.get('vote_score', 0)
+                    elif platform == 'rednote':
+                        upvotes = p.get('likes', 0)
+                    else:
+                        # 默认尝试所有可能的字段
+                        upvotes = p.get('upvotes', p.get('vote_score', p.get('likes', 0)))
+                    
+                    # 统一使用 upvotes 字段
+                    p['upvotes'] = upvotes
+                    total_upvotes += upvotes
                     
                     print(f"\nPost {post_idx}:")
+                    print(f"Platform: {platform}")
                     print(f"Content (first 50 chars): {p.get('content', '')[:50]}...")
-                    print(f"Likes from LLM: {likes}")
+                    print(f"Upvotes: {upvotes}")
                     print(f"Current total_upvotes: {total_upvotes}")
                 print("=== End Debug 2 ===\n")
 

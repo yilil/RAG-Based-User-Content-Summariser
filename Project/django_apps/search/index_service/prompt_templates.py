@@ -30,7 +30,7 @@ Input Posts:
 
 For each item, output:
 - name
-- posts: list of {{content, likes, sentiment}}
+- posts: list of {{content, platform, likes, sentiment}}
 - summary (2-3 sentences)
 
 Output Format:
@@ -40,7 +40,8 @@ Output Format:
         "posts": [
             {{
                 "content": "the exact post text",
-                "likes": number_of_likes, 
+                "platform": "reddit/stackoverflow/rednote", 
+                "upvotes": number_of_upvotes, 
                 "sentiment": "very positive/positive/neutral/negative/very negative"
             }}
         ],
