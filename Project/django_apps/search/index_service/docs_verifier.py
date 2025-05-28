@@ -30,7 +30,7 @@ class EvaluatedDocument:
     def metadata(self):
         return self.doc.metadata
 
-def convert_to_evaluated_documents(top_docs: list, relevant_ids: set) -> list:
+def convert_to_evaluated_documents(platform: str, top_docs: list, relevant_ids: set) -> list:
     """
     将原始top_docs（List[Document]）转换为 EvaluatedDocument 列表，并根据 relevant_ids 打标签
     :param top_docs: List[Document]
@@ -39,7 +39,10 @@ def convert_to_evaluated_documents(top_docs: list, relevant_ids: set) -> list:
     """
     evaluated_docs = []
     for doc in top_docs:
-        doc_id = str(doc.metadata.get("doc_id") or doc.metadata.get("id"))
+        if platform == "rednote":
+            doc_id = str(doc.metadata.get("doc_id"))
+        else:
+            doc_id = str(doc.metadata.get("id"))
         is_relevant = doc_id in relevant_ids
         evaluated_docs.append(EvaluatedDocument(doc, is_relevant))
     return evaluated_docs
@@ -93,7 +96,7 @@ from langchain.schema import Document
 
 def main():
 
-    platform = "reddit"
+    platform = "stackoverflow"
     index_service = IndexService(platform=platform)
     index_service.faiss_manager.set_platform(platform)
 
@@ -124,7 +127,7 @@ def main():
 
         docs = hybrid_retriever.retrieve(query=query, top_k=5, relevance_threshold=0.5)
 
-        evaluated_docs = convert_to_evaluated_documents(docs, relevant_ids)
+        evaluated_docs = convert_to_evaluated_documents(platform, docs, relevant_ids)
         all_evaluated_results.append(evaluated_docs)
 
         # 评估当前 query
