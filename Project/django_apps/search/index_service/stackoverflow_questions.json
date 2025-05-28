@@ -1,0 +1,320 @@
+[
+  {
+    "id": "R1",
+    "query": "Django search library",
+    "relevant_doc_ids": [
+      "stackoverflow_56",
+      "stackoverflow_57",
+      "stackoverflow_58",
+      "stackoverflow_59",
+      "stackoverflow_60"
+    ]
+  },
+  {
+    "id": "R2",
+    "query": "VS Code Django extension",
+    "relevant_doc_ids": [
+      "stackoverflow_61",
+      "stackoverflow_62",
+      "stackoverflow_63",
+      "stackoverflow_64",
+      "stackoverflow_65"
+    ]
+  },
+  {
+    "id": "R3",
+    "query": "How to use PyTest?",
+    "relevant_doc_ids": [
+      "stackoverflow_66",
+      "stackoverflow_67",
+      "stackoverflow_68",
+      "stackoverflow_69",
+      "stackoverflow_70"
+    ]
+  },
+  {
+    "id": "R4",
+    "query": "Python Chinese NLP",
+    "relevant_doc_ids": [
+      "stackoverflow_71",
+      "stackoverflow_72",
+      "stackoverflow_73",
+      "stackoverflow_74",
+      "stackoverflow_75"
+    ]
+  },
+  {
+    "id": "R5",
+    "query": "Django Celery monitoring",
+    "relevant_doc_ids": [
+      "stackoverflow_76",
+      "stackoverflow_77",
+      "stackoverflow_78",
+      "stackoverflow_79",
+      "stackoverflow_80"
+    ]
+  },
+  {
+    "id": "K1",
+    "query": "PostgreSQL connection pool",
+    "relevant_doc_ids": [
+      "stackoverflow_81",
+      "stackoverflow_82",
+      "stackoverflow_83",
+      "stackoverflow_84",
+      "stackoverflow_85"
+    ]
+  },
+  {
+    "id": "K2",
+    "query": "Django select_related",
+    "relevant_doc_ids": [
+      "stackoverflow_86",
+      "stackoverflow_87",
+      "stackoverflow_88",
+      "stackoverflow_89",
+      "stackoverflow_90"
+    ]
+  },
+  {
+    "id": "K3",
+    "query": "TF-IDF document relevance",
+    "relevant_doc_ids": [
+      "stackoverflow_91",
+      "stackoverflow_92",
+      "stackoverflow_93",
+      "stackoverflow_94",
+      "stackoverflow_95"
+    ]
+  },
+  {
+    "id": "K4",
+    "query": "Inverted index search",
+    "relevant_doc_ids": [
+      "stackoverflow_96",
+      "stackoverflow_97",
+      "stackoverflow_98",
+      "stackoverflow_99",
+      "stackoverflow_100"
+    ]
+  },
+  {
+    "id": "K5",
+    "query": "What is object-oriented programming (OOP)?",
+    "relevant_doc_ids": [
+      "stackoverflow_101",
+      "stackoverflow_102",
+      "stackoverflow_103",
+      "stackoverflow_104",
+      "stackoverflow_105"
+    ]
+  },
+  {
+    "id": "O1",
+    "query": "Python global vs local variables scope",
+    "relevant_doc_ids": [
+      "stackoverflow_106",
+      "stackoverflow_107",
+      "stackoverflow_108",
+      "stackoverflow_109",
+      "stackoverflow_110"
+    ]
+  },
+  {
+    "id": "O2",
+    "query": "What is a Python lambda?",
+    "relevant_doc_ids": [
+      "stackoverflow_111",
+      "stackoverflow_112",
+      "stackoverflow_113",
+      "stackoverflow_114",
+      "stackoverflow_115"
+    ]
+  },
+  {
+    "id": "O3",
+    "query": "Django project structure utils",
+    "relevant_doc_ids": [
+      "stackoverflow_116",
+      "stackoverflow_117",
+      "stackoverflow_118",
+      "stackoverflow_119",
+      "stackoverflow_120"
+    ]
+  },
+  {
+    "id": "O4",
+    "query": "What are Python type hints?",
+    "relevant_doc_ids": [
+      "stackoverflow_121",
+      "stackoverflow_122",
+      "stackoverflow_123",
+      "stackoverflow_124",
+      "stackoverflow_125"
+    ]
+  },
+  {
+    "id": "O5",
+    "query": "Python MyPy Django",
+    "relevant_doc_ids": [
+      "stackoverflow_126",
+      "stackoverflow_127",
+      "stackoverflow_128",
+      "stackoverflow_129",
+      "stackoverflow_130"
+    ]
+  },
+  {
+    "id": "T1",
+    "query": "Django Celery production",
+    "relevant_doc_ids": [
+      "stackoverflow_131",
+      "stackoverflow_132",
+      "stackoverflow_133",
+      "stackoverflow_134",
+      "stackoverflow_135"
+    ]
+  },
+  {
+    "id": "T2",
+    "query": "Django faceted search",
+    "relevant_doc_ids": [
+      "stackoverflow_136",
+      "stackoverflow_137",
+      "stackoverflow_138",
+      "stackoverflow_139",
+      "stackoverflow_140"
+    ]
+  },
+  {
+    "id": "T3",
+    "query": "Django mock external API",
+    "relevant_doc_ids": [
+      "stackoverflow_141",
+      "stackoverflow_142",
+      "stackoverflow_143",
+      "stackoverflow_144",
+      "stackoverflow_145"
+    ]
+  },
+  {
+    "id": "T4",
+    "query": "Django Docker Nginx deploy",
+    "relevant_doc_ids": [
+      "stackoverflow_146",
+      "stackoverflow_147",
+      "stackoverflow_148",
+      "stackoverflow_149",
+      "stackoverflow_150"
+    ]
+  },
+  {
+    "id": "T5",
+    "query": "How to read and write files in Python?",
+    "relevant_doc_ids": [
+      "stackoverflow_151",
+      "stackoverflow_152",
+      "stackoverflow_153",
+      "stackoverflow_154",
+      "stackoverflow_155"
+    ]
+  },
+  {
+    "id": "S1",
+    "query": "Django optimize slow query",
+    "relevant_doc_ids": [
+      "stackoverflow_156",
+      "stackoverflow_157",
+      "stackoverflow_158",
+      "stackoverflow_159",
+      "stackoverflow_160"
+    ]
+  },
+  {
+    "id": "S2",
+    "query": "Python ImportError: No module named 'X'",
+    "relevant_doc_ids": [
+      "stackoverflow_161",
+      "stackoverflow_162",
+      "stackoverflow_163",
+      "stackoverflow_164",
+      "stackoverflow_165"
+    ]
+  },
+  {
+    "id": "S3",
+    "query": "How to handle exceptions in Python try-except",
+    "relevant_doc_ids": [
+      "stackoverflow_166",
+      "stackoverflow_167",
+      "stackoverflow_168",
+      "stackoverflow_169",
+      "stackoverflow_170"
+    ]
+  },
+  {
+    "id": "S4",
+    "query": "Celery task timeout retry",
+    "relevant_doc_ids": [
+      "stackoverflow_171",
+      "stackoverflow_172",
+      "stackoverflow_173",
+      "stackoverflow_174",
+      "stackoverflow_175"
+    ]
+  },
+  {
+    "id": "S5",
+    "query": "Django query JSONField",
+    "relevant_doc_ids": [
+      "stackoverflow_176",
+      "stackoverflow_177",
+      "stackoverflow_178",
+      "stackoverflow_179",
+      "stackoverflow_180"
+    ]
+  },
+  {
+    "id": "I1",
+    "query": "Django 5 features",
+    "relevant_doc_ids": [
+      "stackoverflow_181",
+      "stackoverflow_182",
+      "stackoverflow_183",
+      "stackoverflow_184",
+      "stackoverflow_185"
+    ]
+  },
+  {
+    "id": "I2",
+    "query": "Python security vulnerability",
+    "relevant_doc_ids": [
+      "stackoverflow_186",
+      "stackoverflow_187",
+      "stackoverflow_188",
+      "stackoverflow_189",
+      "stackoverflow_190"
+    ]
+  },
+  {
+    "id": "I3",
+    "query": "Python programming language history and versions",
+    "relevant_doc_ids": [
+      "stackoverflow_191",
+      "stackoverflow_192",
+      "stackoverflow_193",
+      "stackoverflow_194",
+      "stackoverflow_195"
+    ]
+  },
+  {
+    "id": "I4",
+    "query": "How to loop through a dictionary in Python?",
+    "relevant_doc_ids": []
+  },
+  {
+    "id": "I5",
+    "query": "Commonly used Python data structures",
+    "relevant_doc_ids": []
+  }
+]
