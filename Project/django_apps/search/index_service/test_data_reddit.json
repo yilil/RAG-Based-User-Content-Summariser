@@ -3,330 +3,210 @@
     "id": "R1",
     "query": "Budget-friendly travel destination recommendations.",
     "relevant_doc_ids": [
-      "reddit_5782",
-      "reddit_5783",
-      "reddit_5784",
-      "reddit_5785",
-      "reddit_5786"
+      "5783", "5783", "5784", "5785", "5786"
     ]
   },
   {
     "id": "R2",
     "query": "Life-changing book recommendations.",
     "relevant_doc_ids": [
-      "reddit_5787",
-      "reddit_5788",
-      "reddit_5789",
-      "reddit_5790",
-      "reddit_5791"
+      "5787", "5788", "5789", "5790", "5791"
     ]
   },
   {
     "id": "R3",
     "query": "Interesting movie recommendations.",
     "relevant_doc_ids": [
-      "reddit_5792",
-      "reddit_5793",
-      "reddit_5794",
-      "reddit_5795",
-      "reddit_5796"
+      "5792", "5793", "5794", "5795", "5796"
     ]
   },
   {
     "id": "R4",
     "query": "Fun co-op game recommendations.",
     "relevant_doc_ids": [
-      "reddit_5797",
-      "reddit_5798",
-      "reddit_5799",
-      "reddit_5800",
-      "reddit_5801"
+      "5797", "5798", "5799", "5800", "5801"
     ]
   },
   {
     "id": "R5",
     "query": "Favorite easy recipes.",
     "relevant_doc_ids": [
-      "reddit_5802",
-      "reddit_5803",
-      "reddit_5804",
-      "reddit_5805",
-      "reddit_5806"
+      "5802", "5803", "5804", "5805", "5806"
     ]
   },
   {
     "id": "K1",
     "query": "ELI5 cool explanations.",
     "relevant_doc_ids": [
-      "reddit_5807",
-      "reddit_5808",
-      "reddit_5809",
-      "reddit_5810",
-      "reddit_5811"
+      "5807", "5808", "5809", "5810", "5811"
     ]
   },
   {
     "id": "K2",
     "query": "ELI5 immune system.",
     "relevant_doc_ids": [
-      "reddit_5812",
-      "reddit_5813",
-      "reddit_5814",
-      "reddit_5815",
-      "reddit_5816"
+      "5812", "5813", "5814", "5815", "5816"
     ]
   },
   {
     "id": "K3",
     "query": "Common historical misconceptions.",
     "relevant_doc_ids": [
-      "reddit_5817",
-      "reddit_5818",
-      "reddit_5819",
-      "reddit_5820",
-      "reddit_5821"
+      "5817", "5818", "5819", "5820", "5821"
     ]
   },
   {
     "id": "K4",
     "query": "how does the internet work?",
     "relevant_doc_ids": [
-      "reddit_5762",
-      "reddit_5763",
-      "reddit_5764",
-      "reddit_5765",
-      "reddit_5766"
+      "5762", "5763", "5764", "5765", "5766"
     ]
   },
   {
     "id": "K5",
     "query": "how the stock market works",
     "relevant_doc_ids": [
-      "reddit_5767",
-      "reddit_5768",
-      "reddit_5769",
-      "reddit_5770",
-      "reddit_5771"
+      "5767", "5768", "5769", "5770", "5771"
     ]
   },
   {
     "id": "O1",
     "query": "What is overrated?",
     "relevant_doc_ids": [
-      "reddit_5822",
-      "reddit_5823",
-      "reddit_5824",
-      "reddit_5825",
-      "reddit_5826"
+      "5822", "5823", "5824", "5825", "5826"
     ]
   },
   {
     "id": "O2",
     "query": "Discussion about Universal Basic Income.",
     "relevant_doc_ids": [
-      "reddit_5827",
-      "reddit_5828",
-      "reddit_5829",
-      "reddit_5830",
-      "reddit_5831"
+      "5827", "5828", "5829", "5830", "5831"
     ]
   },
   {
     "id": "O3",
     "query": "Controversial food opinions.",
     "relevant_doc_ids": [
-      "reddit_5832",
-      "reddit_5833",
-      "reddit_5834",
-      "reddit_5835",
-      "reddit_5836"
+      "5832", "5833", "5834", "5835", "5836"
     ]
   },
   {
     "id": "O4",
     "query": "AI future predictions.",
     "relevant_doc_ids": [
-      "reddit_5837",
-      "reddit_5838",
-      "reddit_5839",
-      "reddit_5840",
-      "reddit_5841"
+      "5837", "5838", "5839", "5840", "5841"
     ]
   },
   {
     "id": "O5",
     "query": "Favorite sport GOAT discussion.",
     "relevant_doc_ids": [
-      "reddit_5842",
-      "reddit_5843",
-      "reddit_5844",
-      "reddit_5845",
-      "reddit_5846"
+      "5842", "5843", "5844", "5845", "5846"
     ]
   },
   {
     "id": "T1",
     "query": "General money-saving tips.",
     "relevant_doc_ids": [
-      "reddit_5847",
-      "reddit_5848",
-      "reddit_5849",
-      "reddit_5850",
-      "reddit_5851"
+      "5847", "5848", "5849", "5850", "5851"
     ]
   },
   {
     "id": "T2",
     "query": "Life hacks everyone should know.",
     "relevant_doc_ids": [
-      "reddit_5852",
-      "reddit_5853",
-      "reddit_5854",
-      "reddit_5855",
-      "reddit_5856"
+      "5852", "5853", "5854", "5855", "5856"
     ]
   },
   {
     "id": "T3",
     "query": "Improve social skills and conversation.",
     "relevant_doc_ids": [
-      "reddit_5857",
-      "reddit_5858",
-      "reddit_5859",
-      "reddit_5860",
-      "reddit_5861"
+      "5857", "5858", "5859", "5860", "5861"
     ]
   },
   {
     "id": "T4",
     "query": "Effective home decluttering methods.",
     "relevant_doc_ids": [
-      "reddit_5862",
-      "reddit_5863",
-      "reddit_5864",
-      "reddit_5865",
-      "reddit_5866"
+      "5862", "5863", "5864", "5865", "5866"
     ]
   },
   {
     "id": "T5",
     "query": "Tips for staying focused and productive.",
     "relevant_doc_ids": [
-      "reddit_5867",
-      "reddit_5868",
-      "reddit_5869",
-      "reddit_5870",
-      "reddit_5871"
+      "5867", "5868", "5869", "5870", "5871"
     ]
   },
   {
     "id": "S1",
     "query": "Advice for getting over a breakup",
     "relevant_doc_ids": [
-      "reddit_5772",
-      "reddit_5773",
-      "reddit_5774",
-      "reddit_5775",
-      "reddit_5776"
+      "5772", "5773", "5774", "5775", "5776"
     ]
   },
   {
     "id": "S2",
     "query": "Job interview preparation and impression tips.",
     "relevant_doc_ids": [
-      "reddit_5872",
-      "reddit_5873",
-      "reddit_5874",
-      "reddit_5875",
-      "reddit_5876"
+      "5872", "5873", "5874", "5875", "5876"
     ]
   },
   {
     "id": "S3",
     "query": "Advice for moving to a new city alone.",
     "relevant_doc_ids": [
-      "reddit_5877",
-      "reddit_5878",
-      "reddit_5879",
-      "reddit_5880",
-      "reddit_5881"
+      "5877", "5878", "5879", "5880", "5881"
     ]
   },
   {
     "id": "S4",
     "query": "Overcoming weight loss plateau advice.",
     "relevant_doc_ids": [
-      "reddit_5882",
-      "reddit_5883",
-      "reddit_5884",
-      "reddit_5885",
-      "reddit_5886"
+      "5882", "5883", "5884", "5885", "5886"
     ]
   },
   {
     "id": "S5",
     "query": "Managing dog separation anxiety.",
     "relevant_doc_ids": [
-      "reddit_5887",
-      "reddit_5888",
-      "reddit_5889",
-      "reddit_5890",
-      "reddit_5891"
+      "5887", "5888", "5889", "5890", "5891"
     ]
   },
   {
     "id": "I1",
     "query": "Video game news and discussion sources.",
     "relevant_doc_ids": [
-      "reddit_5892",
-      "reddit_5893",
-      "reddit_5894",
-      "reddit_5895",
-      "reddit_5896"
+      "5892", "5893", "5894", "5895", "5896"
     ]
   },
   {
     "id": "I2",
     "query": "Latest smartphone and gadget tech rumors.",
     "relevant_doc_ids": [
-      "reddit_5897",
-      "reddit_5898",
-      "reddit_5899",
-      "reddit_5900",
-      "reddit_5901"
+      "5897", "5898", "5899", "5900", "5901"
     ]
   },
   {
     "id": "I3",
     "query": "most anticipated upcoming movies film releases cinema",
     "relevant_doc_ids": [
-      "reddit_5902",
-      "reddit_5903",
-      "reddit_5904",
-      "reddit_5905",
-      "reddit_5906"
+      "5902", "5903", "5904", "5905", "5906"
     ]
   },
   {
     "id": "I4",
     "query": "Significant recent environmental news.",
     "relevant_doc_ids": [
-      "reddit_5907",
-      "reddit_5908",
-      "reddit_5909",
-      "reddit_5910",
-      "reddit_5911"
+      "5907", "5908", "5909", "5910", "5911"
     ]
   },
   {
     "id": "I5",
     "query": "Notable recent medical research breakthroughs.",
     "relevant_doc_ids": [
-      "reddit_5912",
-      "reddit_5913",
-      "reddit_5914",
-      "reddit_5915",
-      "reddit_5916"
+      "5912", "5913", "5914", "5915", "5916"
     ]
   }
 ]

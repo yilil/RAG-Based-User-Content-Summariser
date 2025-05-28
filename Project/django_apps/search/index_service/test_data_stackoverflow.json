@@ -1,0 +1,152 @@
+[
+  {
+    "id": "R1",
+    "query": "Django search library",
+    "relevant_doc_ids": ["56", "57", "58", "59", "60"]
+  },
+  {
+    "id": "R2",
+    "query": "VS Code Django extension",
+    "relevant_doc_ids": ["61", "62", "63", "64", "65"]
+  },
+  {
+    "id": "R3",
+    "query": "How to use PyTest?",
+    "relevant_doc_ids": ["66", "67", "68", "69", "70"]
+  },
+  {
+    "id": "R4",
+    "query": "Python Chinese NLP",
+    "relevant_doc_ids": ["71", "72", "73", "74", "75"]
+  },
+  {
+    "id": "R5",
+    "query": "Django Celery monitoring",
+    "relevant_doc_ids": ["76", "77", "78", "79", "80"]
+  },
+  {
+    "id": "K1",
+    "query": "PostgreSQL connection pool",
+    "relevant_doc_ids": ["81", "82", "83", "84", "85"]
+  },
+  {
+    "id": "K2",
+    "query": "Django select_related",
+    "relevant_doc_ids": ["86", "87", "88", "89", "90"]
+  },
+  {
+    "id": "K3",
+    "query": "TF-IDF document relevance",
+    "relevant_doc_ids": ["91", "92", "93", "94", "95"]
+  },
+  {
+    "id": "K4",
+    "query": "Inverted index search",
+    "relevant_doc_ids": ["96", "97", "98", "99", "100"]
+  },
+  {
+    "id": "K5",
+    "query": "What is object-oriented programming (OOP)?",
+    "relevant_doc_ids": ["101", "102", "103", "104", "105"]
+  },
+  {
+    "id": "O1",
+    "query": "Python global vs local variables scope",
+    "relevant_doc_ids": ["106", "107", "108", "109", "110"]
+  },
+  {
+    "id": "O2",
+    "query": "What is a Python lambda?",
+    "relevant_doc_ids": ["111", "112", "113", "114", "115"]
+  },
+  {
+    "id": "O3",
+    "query": "Django project structure utils",
+    "relevant_doc_ids": ["116", "117", "118", "119", "120"]
+  },
+  {
+    "id": "O4",
+    "query": "What are Python type hints?",
+    "relevant_doc_ids": ["121", "122", "123", "124", "125"]
+  },
+  {
+    "id": "O5",
+    "query": "Python MyPy Django",
+    "relevant_doc_ids": ["126", "127", "128", "129", "130"]
+  },
+  {
+    "id": "T1",
+    "query": "Django Celery production",
+    "relevant_doc_ids": ["131", "132", "133", "134", "135"]
+  },
+  {
+    "id": "T2",
+    "query": "Django faceted search",
+    "relevant_doc_ids": ["136", "137", "138", "139", "140"]
+  },
+  {
+    "id": "T3",
+    "query": "Django mock external API",
+    "relevant_doc_ids": ["141", "142", "143", "144", "145"]
+  },
+  {
+    "id": "T4",
+    "query": "Django Docker Nginx deploy",
+    "relevant_doc_ids": ["146", "147", "148", "149", "150"]
+  },
+  {
+    "id": "T5",
+    "query": "How to read and write files in Python?",
+    "relevant_doc_ids": ["151", "152", "153", "154", "155"]
+  },
+  {
+    "id": "S1",
+    "query": "Django optimize slow query",
+    "relevant_doc_ids": ["156", "157", "158", "159", "160"]
+  },
+  {
+    "id": "S2",
+    "query": "Python ImportError: No module named 'X'",
+    "relevant_doc_ids": ["161", "162", "163", "164", "165"]
+  },
+  {
+    "id": "S3",
+    "query": "How to handle exceptions in Python try-except",
+    "relevant_doc_ids": ["166", "167", "168", "169", "170"]
+  },
+  {
+    "id": "S4",
+    "query": "Celery task timeout retry",
+    "relevant_doc_ids": ["171", "172", "173", "174", "175"]
+  },
+  {
+    "id": "S5",
+    "query": "Django query JSONField",
+    "relevant_doc_ids": ["176", "177", "178", "179", "180"]
+  },
+  {
+    "id": "I1",
+    "query": "Django 5 features",
+    "relevant_doc_ids": ["181", "182", "183", "184", "185"]
+  },
+  {
+    "id": "I2",
+    "query": "Python security vulnerability",
+    "relevant_doc_ids": ["186", "187", "188", "189", "190"]
+  },
+  {
+    "id": "I3",
+    "query": "Python programming language history and versions",
+    "relevant_doc_ids": ["191", "192", "193", "194", "195"]
+  },
+  {
+    "id": "I4",
+    "query": "How to loop through a dictionary in Python?",
+    "relevant_doc_ids": []
+  },
+  {
+    "id": "I5",
+    "query": "Commonly used Python data structures",
+    "relevant_doc_ids": []
+  }
+]

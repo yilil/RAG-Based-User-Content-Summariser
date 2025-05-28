@@ -39,25 +39,10 @@ def convert_to_evaluated_documents(top_docs: list, relevant_ids: set) -> list:
     """
     evaluated_docs = []
     for doc in top_docs:
-        doc_id = doc.metadata.get("doc_id") or doc.metadata.get("id")
+        doc_id = str(doc.metadata.get("doc_id") or doc.metadata.get("id"))
         is_relevant = doc_id in relevant_ids
         evaluated_docs.append(EvaluatedDocument(doc, is_relevant))
     return evaluated_docs
-
-
-def convert_to_evaluated_documents_random(top_docs: list, true_ratio: float = 0.5) -> list:
-    """
-    随机将 top_docs 标记为相关或不相关，用于测试
-    :param top_docs: List[Document]
-    :param true_ratio: 相关（True）标签的比例，默认 50%
-    :return: List[EvaluatedDocument]
-    """
-    evaluated_docs = []
-    for doc in top_docs:
-        is_relevant = random.random() < true_ratio
-        evaluated_docs.append(EvaluatedDocument(doc, is_relevant))
-    return evaluated_docs
-
 
 class RetrieverEvaluator:
     @staticmethod
@@ -108,8 +93,9 @@ from langchain.schema import Document
 
 def main():
 
-    index_service = IndexService(platform="rednote")
-    index_service.faiss_manager.set_platform("rednote")
+    platform = "reddit"
+    index_service = IndexService(platform=platform)
+    index_service.faiss_manager.set_platform(platform)
 
     hybrid_retriever = HybridRetriever(
         faiss_manager=index_service.faiss_manager,
@@ -121,8 +107,8 @@ def main():
     )
 
     # 读取 JSON 文件
-    file_path = os.path.join(os.path.dirname(__file__), 'test_data_rednote.json')
-    output_path = os.path.join(os.path.dirname(__file__), 'test_data_rednote_output.txt')
+    file_path = os.path.join(os.path.dirname(__file__), f"test_data_{platform}.json")
+    output_path = os.path.join(os.path.dirname(__file__), f"results.txt")
     with open(file_path, "r", encoding="utf-8") as f:
         queries = json.load(f)
 
@@ -157,6 +143,7 @@ def main():
         print(f"F1@{k}: {f1:.4f}")
         print(f"Average Precision@{k}: {avg_precision:.4f}")
         with open(output_path, "a", encoding="utf-8") as f_out:
+            f_out.write(relevant_ids.__str__() + "\n")
             f_out.write(f"Query: {query}\n")
             f_out.write(f"Precision@{k}: {precision:.4f}\n")
             f_out.write(f"Recall@{k}: {recall:.4f}\n")
