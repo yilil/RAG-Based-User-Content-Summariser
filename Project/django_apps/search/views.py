@@ -18,6 +18,7 @@ from typing import List, Dict
 from langchain.docstore.document import Document
 from urllib.parse import quote
 from django_apps.search.crawler_config import REDNOTE_LOGIN_COOKIES
+from datetime import datetime
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -58,14 +59,27 @@ def search(request):
     llm_model = data.get('llm_model', llm_model)
     session_id = data.get('session_id')
     topic = data.get('topic')
+
+    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open('benchmark.txt', 'w') as file:
+        file.write(f"{log_time}\n")
+        file.write(f"Received search query: {search_query}\n")
+        file.write(f"Platform: {platform}\n")
+        file.write(f"LLM model: {llm_model}\n\n")
+
     
     # 获取实时抓取设置
+    start_time = datetime.now()
     real_time_crawling_enabled = data.get('real_time_crawling_enabled', False)
+    log_benchmark('Real time crawling', start_time)
+
 
     if not session_id:
         request.session.create()  # 创建新会话
         session_id = request.session.session_key
+    start_time = datetime.now()
     recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform, topic=topic)
+    log_benchmark('Get memory', start_time)
 
     if not search_query:
         return JsonResponse({
@@ -91,6 +105,7 @@ def search(request):
         logger.info(f"当前{platform}平台索引包含{index_count}条记录")
 
         # 初始化 HybridRetriever
+        start_time = datetime.now()
         hybrid_retriever = HybridRetriever(
             faiss_manager=index_service.faiss_manager,
             embedding_model=index_service.embedding_model,
@@ -99,10 +114,13 @@ def search(request):
             vote_weight=0.1,
             l2_decay_beta=6.0
         )
+        log_benchmark('Initialize Hybrid Retriever', start_time)
 
         # 获取最终的 top_k retrieved_documents
         print(f"--- [views.search] 调用 hybrid_retriever.retrieve (Query: '{search_query}')... ---")
+        start_time = datetime.now()
         retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=5, relevance_threshold=0.7) # 可以动态调整
+        log_benchmark('Retrieve docs', start_time)
         print(f"--- [views.search] hybrid_retriever.retrieve 返回了 {len(retrieved_docs)} 个文档 ---")
 
         # --- 关键打印：检查传递给 generate_prompt 的文档元数据 ---
@@ -115,7 +133,9 @@ def search(request):
         # --- 结束关键打印 ---
 
         # 2. 生成prompt
+        start_time = datetime.now()
         classification = re.search(r">(\d+)<", classify_query(search_query, llm_model)).group(1)
+        log_benchmark('Classify query', start_time)
 
         # 检查是否有搜索结果，如果没有且开启了实时抓取，则调用混合搜索
         if not retrieved_docs or len(retrieved_docs) < 1: # 改top_k的时候注意这里
@@ -125,7 +145,8 @@ def search(request):
             # 如果开启了实时抓取功能，调用混合搜索
             if real_time_crawling_enabled:
                 logger.info(f"混合搜索已启用，开始为查询抓取: {search_query}")
-                return handle_mixed_search(
+                start_time = datetime.now()
+                result =  handle_mixed_search(
                     search_query, 
                     platform, 
                     session_id, 
@@ -133,6 +154,8 @@ def search(request):
                     recent_memory,
                     classification
                 )
+                log_benchmark('Handle mixed search', start_time)
+                return result
             
             # 如果没有开启实时抓取，返回无结果提示
             answer = f"抱歉，我无法找到关于'{search_query}'的相关信息。试试开启实时搜索获取最新结果。"
@@ -150,6 +173,7 @@ def search(request):
 
         # *** -> 如果是推荐类查询，直接使用process_recommendations处理 ***
         if classification == '1':  # 推荐类查询
+            start_time = datetime.now()
             logger.info("使用推荐类处理逻辑处理查询")
             
             # 使用ResultProcessor处理推荐 -> 这里页面的显示上还有问题 & 貌似只有跑mock数据，但是retrieve到了文档
@@ -174,7 +198,7 @@ def search(request):
                 search_query,
                 answer
             )
-            
+            log_benchmark('推荐类处理', start_time)
             # 直接返回结果，不经过LLM处理
             return JsonResponse({
                 'result': answer,
@@ -189,13 +213,14 @@ def search(request):
         # *** -> 如果是非推荐类查询，走正常处理逻辑 ***
         prompt = generate_prompt(search_query, retrieved_docs, recent_memory, platform, classification)
 
+        start_time = datetime.now()
         future = executor.submit(
             send_prompt, 
             prompt, 
             llm_model
         )
         response = future.result()
-
+        log_benchmark('Send prompt to LLM', start_time)
         answer, metadata = parse_langchain_response(response)
         MemoryService.add_to_memory(session_id, search_query, answer)
 
@@ -1033,6 +1058,12 @@ def real_time_crawl(request):
     platform = data.get('source', 'reddit')
     session_id = data.get('session_id')
     llm_model = data.get('llm_model', 'gemini-2.0-flash')
+    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open('benchmark.txt', 'w') as file:
+        file.write(f"{log_time}\n")
+        file.write(f"Received search query: {search_query}\n")
+        file.write(f"Platform: {platform}\n")
+        file.write(f"LLM model: {llm_model}\n\n")
     
     if not search_query:
         return JsonResponse({'error': '未提供搜索查询'}, status=400)
@@ -1043,7 +1074,10 @@ def real_time_crawl(request):
         recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform)
     
     # 调用纯实时抓取处理函数
-    return handle_pure_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory)
+    start_time = datetime.now()
+    result = handle_pure_real_time_crawling(search_query, platform, session_id, llm_model, recent_memory)
+    log_benchmark("纯实时抓取", start_time)
+    return result
 
 @require_POST
 def mix_search(request):
@@ -1056,6 +1090,12 @@ def mix_search(request):
     platform = data.get('source', 'reddit')
     session_id = data.get('session_id')
     llm_model = data.get('llm_model', 'gemini-2.0-flash')
+    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open('benchmark.txt', 'w') as file:
+        file.write(f"{log_time}\n")
+        file.write(f"Received search query: {search_query}\n")
+        file.write(f"Platform: {platform}\n")
+        file.write(f"LLM model: {llm_model}\n\n")
     
     if not search_query:
         return JsonResponse({'error': '未提供搜索查询'}, status=400)
@@ -1066,7 +1106,10 @@ def mix_search(request):
         recent_memory = MemoryService.get_recent_memory(session_id, limit=10, platform=platform)
     
     # 调用混合搜索处理函数
-    return handle_mixed_search(search_query, platform, session_id, llm_model, recent_memory)
+    start_time = datetime.now()
+    result = handle_mixed_search(search_query, platform, session_id, llm_model, recent_memory)
+    log_benchmark("混合搜索",start_time)
+    return result
 
 def generate_xhs_search_url(query: str) -> str:
     """
@@ -1189,3 +1232,17 @@ def process_crawled_data_for_indexing(crawled_posts, platform):
         logger.error(f"处理抓取数据时出错: {str(e)}", exc_info=True)
         return {"success": False, "message": f"处理失败: {str(e)}", "processed_count": 0}
 
+def log_benchmark(description: str, start_time: datetime):
+    """
+    Append benchmark log to 'benchmark.txt'.
+
+    Parameters:
+    - description (str): A custom description or label for the benchmark entry.
+    - start_time (datetime): The start time to calculate elapsed duration from.
+    """
+    end_time = datetime.now()
+    running_time = (end_time - start_time).total_seconds()
+
+    with open('benchmark.txt', 'a') as file:
+        file.write(f"{description}\n")
+        file.write(f"Running time: {running_time:.6f} seconds\n\n")

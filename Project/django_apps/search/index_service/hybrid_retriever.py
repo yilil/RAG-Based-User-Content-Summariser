@@ -18,8 +18,8 @@ class HybridRetriever:
 
         # --- 获取原始结果 ---
         # 稍微增加 BM25 获取数量，可能捕获更多相关 ID
-        bm25_docs = self.faiss_manager.search_bm25(query, top_k * 3)
-        embedding_docs = self.faiss_manager.search(query, top_k * 10) # Embedding 搜索 (返回 L2 距离)
+        bm25_docs = self.faiss_manager.search_bm25(query, 200)
+        embedding_docs = self.faiss_manager.search(query, 200) # Embedding 搜索 (返回 L2 距离)
 
         print(f"--- [HybridRetriever.retrieve] 原始 BM25 结果数: {len(bm25_docs)}, 原始 Embedding 结果数: {len(embedding_docs)} ---")
 
