@@ -56,7 +56,7 @@ def get_embeddings_new():
     )
     return embeddings
 
-platform = "reddit" 
+platform = "stackoverflow" 
 embeddings = get_embeddings()
 vector_store = FAISS.load_local(
     f"{platform}", embeddings, allow_dangerous_deserialization=True
@@ -74,11 +74,15 @@ new_documents = []
 for doc_id in doc_ids:
     doc = vector_store.docstore._dict[doc_id]
     try:
-        if doc.metadata['id'] in test_id_set:
-            new_documents.append(Document(
-                page_content=doc.page_content,
-                metadata=doc.metadata
-            ))
+        # if doc.metadata['id'] in test_id_set:
+        #     new_documents.append(Document(
+        #         page_content=doc.page_content,
+        #         metadata=doc.metadata
+        #     ))
+        new_documents.append(Document(
+            page_content=doc.page_content,
+            metadata=doc.metadata
+        ))
     except KeyError:
         print(f"Document ID {doc_id} does not have 'id' in metadata.")
         continue
