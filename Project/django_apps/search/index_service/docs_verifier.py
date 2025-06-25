@@ -92,19 +92,35 @@ class RetrieverEvaluator:
         return sum(ap_values) / len(ap_values) if ap_values else 0.0
 from langchain.schema import Document
 
+# full bm25
+# Overall Precision@5: 0.8333
+# Overall Recall@5: 1.0000
+# Overall F1@5: 0.8990
+# Overall Mean Average Precision@5: 0.9581
 
+# full embedding
+# Overall Precision@5: 0.8000
+# Overall Recall@5: 0.9722
+# Overall F1@5: 0.8591
+# Overall Mean Average Precision@5: 0.9569
+
+#0.45 0.45
+# Overall Precision@5: 0.8944
+# Overall Recall@5: 1.0000
+# Overall F1@5: 0.9390
+# Overall Mean Average Precision@5: 0.9800
 
 def main():
 
-    platform = "stackoverflow"
+    platform = "rednote"
     index_service = IndexService(platform=platform)
     index_service.faiss_manager.set_platform(platform)
 
     hybrid_retriever = HybridRetriever(
         faiss_manager=index_service.faiss_manager,
         embedding_model=index_service.embedding_model,
-        bm25_weight=0.55,
-        embedding_weight=0.35,
+        bm25_weight=0.45,
+        embedding_weight=0.45,
         vote_weight=0.1,
         l2_decay_beta=6.0
     )
@@ -125,7 +141,7 @@ def main():
         query = item["query"]
         relevant_ids = set(item["relevant_doc_ids"])
 
-        docs = hybrid_retriever.retrieve(query=query, top_k=5, relevance_threshold=0.5)
+        docs = hybrid_retriever.retrieve(query=query, top_k=5, relevance_threshold=0.1)
 
         evaluated_docs = convert_to_evaluated_documents(platform, docs, relevant_ids)
         all_evaluated_results.append(evaluated_docs)
