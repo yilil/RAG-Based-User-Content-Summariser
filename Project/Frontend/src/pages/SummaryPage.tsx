@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
 
+const BASE_URL = "http://127.0.0.1:8000";
+
 type Chat = {
   id: string;
   platform: string;
@@ -49,7 +51,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     if (stored) {
       setSessionKey(stored);
     } else {
-      fetch("http://127.0.0.1:8000/sessionKey/", {
+      fetch(`${BASE_URL}/sessionKey/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chat.id }),
@@ -146,15 +148,15 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
       
       // 确定API端点
-      let endpoint = "http://127.0.0.1:8000/search/";
+      let endpoint = `${BASE_URL}/search/`;
       
       // 如果开启了实时抓取，使用real_time_crawl端点
       if (realTimeCrawlingEnabled) {
-        endpoint = "http://127.0.0.1:8000/real_time_crawl/";
+        endpoint = `${BASE_URL}/real_time_crawl/`;
       } 
       // 如果开启了混合搜索，使用mix_search端点
       else if (mixedSearchEnabled) {
-        endpoint = "http://127.0.0.1:8000/mix_search/";
+        endpoint = `${BASE_URL}/mix_search/`;
       }
       
       const requestBody = {
