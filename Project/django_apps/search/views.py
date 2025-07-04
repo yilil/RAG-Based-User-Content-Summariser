@@ -445,10 +445,11 @@ def handle_mixed_search(search_query, platform, session_id, llm_model, recent_me
             
         elif platform == 'stackoverflow':
             try:
-                from django_apps.search.stackoverflow_crawler import fetch_and_store_stackoverflow_data
+                from django_apps.search.stackoverflow_crawler import fetch_and_store_stackoverflow_questions,create_stackoverflow_instance
                 
                 # 对于StackOverflow不需要太多优化
-                crawled_posts = fetch_and_store_stackoverflow_data(search_query, limit=5)
+                fetcher = create_stackoverflow_instance()
+                crawled_posts = fetch_and_store_stackoverflow_questions(fetcher, search_query, limit=5)
                 
                 # 在后台处理数据，进行embedding
                 import threading
@@ -775,10 +776,11 @@ def handle_pure_real_time_crawling(search_query, platform, session_id, llm_model
             
         elif platform == 'stackoverflow':
             try:
-                from django_apps.search.stackoverflow_crawler import fetch_and_store_stackoverflow_data
+                from django_apps.search.stackoverflow_crawler import fetch_and_store_stackoverflow_questions,create_stackoverflow_instance
                 
                 # 对于StackOverflow不需要太多优化
-                crawled_posts = fetch_and_store_stackoverflow_data(search_query, limit=5)
+                fetcher = create_stackoverflow_instance()
+                crawled_posts = fetch_and_store_stackoverflow_questions(fetcher, search_query, limit=5)
                 
                 # 在后台处理数据，进行embedding
                 import threading
