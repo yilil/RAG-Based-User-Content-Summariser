@@ -2,7 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
 
 const rawIp = import.meta.env.VITE_BASE_URL;
-const BASE_URL = `http://${rawIp}:8000`;
+
+const BASE_URL = rawIp && rawIp.length > 0
+  ? `http://${rawIp}:8000`
+  : 'http://127.0.0.1:8000';
 
 type Chat = {
   id: string;
