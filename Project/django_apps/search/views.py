@@ -19,6 +19,8 @@ from langchain.docstore.document import Document
 from urllib.parse import quote
 from django_apps.search.crawler_config import REDNOTE_LOGIN_COOKIES
 from datetime import datetime
+from django.contrib.sessions.models import Session
+from django_apps.memory.models import SessionMemory
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -370,9 +372,7 @@ def getAllChat(request):
         }
         for s in sessions
     ]
-    return JsonResponse({
-        'sessions': sessions_data
-    })
+    return JsonResponse(sessions_data, safe=False)
 
 
 def format_recommendation_results(documents: List[Document], query: str) -> str:
@@ -1248,3 +1248,93 @@ def log_benchmark(description: str, start_time: datetime):
     with open('benchmark.txt', 'a') as file:
         file.write(f"{description}\n")
         file.write(f"Running time: {running_time:.6f} seconds\n\n")
+
+@require_POST
+def saveSession(request):
+    """
+    保存当前会话的消息历史到后端
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        session_id = data.get('session_id')
+        messages = data.get('messages', [])
+        platform = data.get('platform')
+        topic = data.get('topic')
+        
+        if not session_id:
+            return JsonResponse({'error': '未提供session_id'}, status=400)
+        
+        if not messages:
+            return JsonResponse({'error': '没有消息需要保存'}, status=400)
+        
+        # 按消息对（用户+AI）进行分组保存
+        user_messages = [msg for msg in messages if msg.get('type') == 'user']
+        bot_messages = [msg for msg in messages if msg.get('type') == 'bot']
+        
+        # 获取当前已保存的消息数量
+        current_memory = MemoryService.get_recent_memory(session_id, limit=1000)  # 获取所有
+        saved_pairs_count = len(current_memory)
+        
+        # 计算新的消息对数量（应该是用户消息和机器人消息中较小的那个）
+        new_pairs_count = min(len(user_messages), len(bot_messages))
+        
+        # 只保存新增的消息对
+        for i in range(saved_pairs_count, new_pairs_count):
+            if i < len(user_messages) and i < len(bot_messages):
+                user_msg = user_messages[i]['content']
+                bot_msg = bot_messages[i]['content']
+                
+                # 保存到记忆
+                MemoryService.add_to_memory(
+                    session_id=session_id,
+                    user_input=user_msg,
+                    ai_response=bot_msg,
+                    platform=platform,
+                    topic=topic
+                )
+        
+        # 返回更新后的记忆
+        updated_memory = MemoryService.get_recent_memory(session_id)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'成功保存了 {new_pairs_count - saved_pairs_count} 对新消息',
+            'history': updated_memory
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': '无效的JSON数据'}, status=400)
+    except Exception as e:
+        logger.error(f"保存会话异常: {str(e)}", exc_info=True)
+        return JsonResponse({'error': f'保存会话失败: {str(e)}'}, status=500)
+
+@require_POST
+def deleteSession(request):
+    """
+    删除指定的会话
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return JsonResponse({'error': '未提供session_id'}, status=400)
+        
+        # 查找并删除会话
+        try:
+            session = SessionMemory.objects.get(session_id=session_id)
+            session.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'成功删除会话 {session_id}'
+            })
+            
+        except SessionMemory.DoesNotExist:
+            return JsonResponse({'error': '会话不存在'}, status=404)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': '无效的JSON数据'}, status=400)
+    except Exception as e:
+        logger.error(f"删除会话异常: {str(e)}", exc_info=True)
+        return JsonResponse({'error': f'删除会话失败: {str(e)}'}, status=500)

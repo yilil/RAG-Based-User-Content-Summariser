@@ -1,0 +1,17 @@
+2025-07-10 00:06:17
+Received search query: 悉尼大学美食推荐
+Platform: rednote
+LLM model: gemini-2.0-flash
+
+Real time crawling
+Running time: 0.000006 seconds
+
+Get memory
+Running time: 0.002689 seconds
+
+Initialize Hybrid Retriever
+Running time: 0.000017 seconds
+
+Retrieve docs
+Running time: 0.186105 seconds
+
