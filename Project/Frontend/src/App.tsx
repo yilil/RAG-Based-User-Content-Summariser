@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar"; // adjust path as needed
 import PlatformSelection from "./pages/PlatformSelection"; // adjust path as needed
 import SummaryPage from "./pages/SummaryPage"; // adjust path as needed
+import TopBar from "./components/TopBar";
 
 type Message = {
   id: string;
@@ -58,15 +59,19 @@ const App: React.FC = () => {
   const loadAllHistorySessions = async () => {
     try {
       setLoading(true);
+      console.log('Loading all history sessions...');
       const response = await fetch(`${BASE_URL}/getAllChat/`);
       if (!response.ok) {
         throw new Error(`Failed to load chat history: ${response.status}`);
       }
       const data = await response.json();
+      console.log('Raw sessions data from server:', data.length);
       // Filter out sessions with no memory data
       const validSessions = data.filter((session: HistorySession) => 
         session.memory_data && session.memory_data.length > 0
       );
+      console.log('Valid sessions after filtering:', validSessions.length);
+      console.log('Session IDs:', validSessions.map(s => s.session_id));
       setHistorySessions(validSessions);
     } catch (error) {
       console.error("Failed to load history sessions:", error);
@@ -211,7 +216,11 @@ const App: React.FC = () => {
   const handleDeleteSession = async (sessionId: string) => {
     try {
       setLoading(true);
+      console.log('=== DELETE SESSION DEBUG ===');
       console.log('Deleting session:', sessionId);
+      console.log('Current historySessions before delete:', historySessions.length);
+      console.log('Active history session ID:', activeHistorySessionId);
+      
       const response = await fetch(`${BASE_URL}/deleteSession/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -220,28 +229,42 @@ const App: React.FC = () => {
         }),
       });
 
+      console.log('Delete response status:', response.status);
+      console.log('Delete response ok:', response.ok);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Delete error response:', errorData);
         throw new Error(errorData.error || `Failed to delete session: ${response.status}`);
       }
       
       const data = await response.json();
       console.log('Session deleted successfully:', data.message);
+      console.log('Delete response data:', data);
       
       // If the deleted session is currently active, clear it
       if (activeHistorySessionId === sessionId) {
+        console.log('Clearing active session because it was deleted');
         setActiveHistorySessionId(null);
         setActiveChatId(null);
         setShowPlatformSelection(true);
       }
       
       // Remove the session from current chats if it's there
-      setChats(prev => prev.filter(chat => chat.id !== sessionId));
+      setChats(prev => {
+        const filtered = prev.filter(chat => chat.id !== sessionId);
+        console.log('Chats before filter:', prev.length, 'after filter:', filtered.length);
+        return filtered;
+      });
       
       // Refresh history sessions
+      console.log('Refreshing history sessions...');
       await loadAllHistorySessions();
+      console.log('History sessions refreshed');
+      console.log('=== DELETE SESSION DEBUG END ===');
     } catch (error: any) {
       console.error('Error deleting session:', error);
+      console.error('Error stack:', error.stack);
       setError(error.message || "Failed to delete session. Please try again.");
     } finally {
       setLoading(false);
@@ -369,13 +392,20 @@ const App: React.FC = () => {
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
         onSelectHistorySession={handleSelectHistorySession}
-        onModelChange={handleModelChange}
         onDeleteSession={handleDeleteSession}
       />
 
-      <div style={{ flex: 1, marginTop: error ? "49px" : "0" }}>
+      <div style={{ 
+        flex: 1, 
+        marginTop: error ? "49px" : "0",
+        height: "100vh" 
+      }}>
         {showPlatformSelection && (
-          <PlatformSelection onPlatformSelect={handlePlatformSelect} />
+          <PlatformSelection 
+            onPlatformSelect={handlePlatformSelect}
+            selectedModel={selectedModel}
+            onModelChange={handleModelChange}
+          />
         )}
 
         {activeChat ? (
@@ -384,11 +414,29 @@ const App: React.FC = () => {
             selectedModel={selectedModel}
             onUpdateMessages={handleUpdateMessages}
             onSetMessages={handleSetMessages}
+            onModelChange={handleModelChange}
           />
         ) : (
           !showPlatformSelection && (
-            <div style={{ flex: 1, padding: "20px" }}>
-              <h2>No chat selected</h2>
+            <div style={{ 
+              display: "flex",
+              flexDirection: "column",
+              height: "100vh",
+              width: "100%",
+            }}>
+              <TopBar 
+                selectedModel={selectedModel}
+                onModelChange={handleModelChange}
+              />
+              <div style={{ 
+                height: "calc(100vh - 60px)",
+                padding: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <h2>No chat selected</h2>
+              </div>
             </div>
           )
         )}

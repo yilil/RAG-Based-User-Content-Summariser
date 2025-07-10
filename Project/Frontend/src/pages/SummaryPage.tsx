@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
+import TopBar from "../components/TopBar";
 
 const rawIp = import.meta.env.VITE_BASE_URL;
 const BASE_URL = rawIp && rawIp.length > 0
@@ -25,6 +26,7 @@ interface SummaryPageProps {
   selectedModel: string;
   onUpdateMessages: (message: Message | Message[]) => void;
   onSetMessages: (messages: Message[]) => void;
+  onModelChange: (model: string) => void;
 }
 
 const SummaryPage: React.FC<SummaryPageProps> = ({
@@ -32,6 +34,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   selectedModel,
   onUpdateMessages,
   onSetMessages,
+  onModelChange,
 }) => {
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -96,7 +99,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   const topicsByPlatform: Record<string, string[]> = {
     "Stack Overflow": ["JavaScript", "React", "CSS", "TypeScript"],
     Reddit: ["Academic", "Community", "Career"],
-    "Red Note": ["Travel", "Food", "Fashion"],
+    "Rednote": ["Travel", "Food", "Fashion"],
   };
 
   // Reset history loaded state when chat changes
@@ -360,13 +363,23 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         flexDirection: "column",
         height: "100vh",
         width: "100%",
-        padding: "20px",
-        boxSizing: "border-box",
       }}
     >
-      <h2>
-        Chat for {chat.platform} - {topic || "No Topic Selected"}
-      </h2>
+      <TopBar 
+        selectedModel={selectedModel}
+        onModelChange={onModelChange}
+      />
+      
+      <div style={{
+        height: "calc(100vh - 60px)",
+        padding: "20px",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+      }}>
+        <h2>
+          Chat for {chat.platform} - {topic || "No Topic Selected"}
+        </h2>
 
       {/* Topic selector */}
       <div style={{ marginBottom: "10px", width: "100%" }}>
@@ -419,13 +432,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
               marginBottom: "10px",
               padding: "8px",
               borderRadius: "5px",
-              backgroundColor: msg.type === 'user' ? "#f0f8ff" : "#f5f5f5",
+              backgroundColor: msg.type === 'user' ? "#f3eeff" : "#f5f5f5",
             }}
           >
             <div style={{ 
               fontWeight: "bold", 
               marginBottom: "4px",
-              color: msg.type === 'user' ? "#007bff" : "#333"
+              color: msg.type === 'user' ? "#7e3ecf" : "#333"
             }}>
               {msg.type === 'user' ? 'User' : 'Bot'}
             </div>
@@ -489,6 +502,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             Search
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

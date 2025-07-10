@@ -1,32 +1,77 @@
 import React from "react";
+import TopBar from "../components/TopBar";
 
 interface PlatformSelectionProps {
   onPlatformSelect: (platform: string) => void;
+  selectedModel: string;
+  onModelChange: (model: string) => void;
 }
 
-const PlatformSelection: React.FC<PlatformSelectionProps> = ({ onPlatformSelect }) => {
+const PlatformSelection: React.FC<PlatformSelectionProps> = ({ 
+  onPlatformSelect, 
+  selectedModel, 
+  onModelChange 
+}) => {
   return (
     <div
       style={{
-        padding: "20px",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
         height: "100vh",
-        flex: 1,
+        width: "100%",
       }}
     >
-      <h1>Choose a Platform to Search</h1>
-      <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
+      <TopBar 
+        selectedModel={selectedModel}
+        onModelChange={onModelChange}
+      />
+      
+      <div
+        style={{
+          height: "calc(100vh - 60px)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+        }}
+      >
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          transform: "translateY(-30px)",
+        }}>
+          <h1 style={{
+            color: "var(--Colours-Grey-11, #25272C)",
+            fontSize: "32px",
+            fontStyle: "normal",
+            fontWeight: 700,
+            lineHeight: "normal",
+            marginBottom: "32px",
+          }}>Choose a Platform to search</h1>
+          <div style={{ display: "flex", gap: "20px" }}>
         <button
           onClick={() => onPlatformSelect("Stack Overflow")}
           style={{
-            backgroundColor: "#d4c2ff",
-            padding: "15px 30px",
+            display: "flex",
+            width: "280px",
+            height: "120px",
+            padding: "20px",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            flexShrink: 0,
+            borderRadius: "10px",
+            backgroundColor: "#AAAAFF",
             border: "none",
-            borderRadius: "8px",
             cursor: "pointer",
+            color: "#FFFFFF",
+            fontSize: "20px",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "normal",
           }}
         >
           Stack Overflow
@@ -34,27 +79,55 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ onPlatformSelect 
         <button
           onClick={() => onPlatformSelect("Reddit")}
           style={{
-            backgroundColor: "#99e2db",
-            padding: "15px 30px",
+            display: "flex",
+            width: "280px",
+            height: "120px",
+            padding: "20px",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            flexShrink: 0,
+            borderRadius: "10px",
+            backgroundColor: "#69C6C4",
             border: "none",
-            borderRadius: "8px",
             cursor: "pointer",
+            color: "#FFFFFF",
+            fontSize: "20px",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "normal",
           }}
         >
           Reddit
         </button>
         <button
-          onClick={() => onPlatformSelect("Red Note")}
+          onClick={() => onPlatformSelect("Rednote")}
           style={{
-            backgroundColor: "#f3badc",
-            padding: "15px 30px",
+            display: "flex",
+            width: "280px",
+            height: "120px",
+            padding: "20px",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            flexShrink: 0,
+            borderRadius: "10px",
+            backgroundColor: "#EDA0CE",
             border: "none",
-            borderRadius: "8px",
             cursor: "pointer",
+            color: "#FFFFFF",
+            fontSize: "20px",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "normal",
           }}
         >
-          Red Note
+          Rednote
         </button>
+        </div>
+        </div>
       </div>
     </div>
   );

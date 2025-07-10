@@ -344,7 +344,7 @@ def sessionKey(request):
     data = json.loads(request.body.decode('utf-8'))
     platform = data.get('platform')
     topic = data.get('topic')
-    MemoryService.get_or_create_memory(session_id, platform, topic)
+    MemoryService.get_or_create_memory(session_id, platform=platform, topic=topic)
     return JsonResponse({
         'session_id': session_id
     })

@@ -30,7 +30,6 @@ interface SidebarProps {
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
   onSelectHistorySession: (sessionId: string) => Promise<void>;
-  onModelChange: (model: string) => void;
   onDeleteSession?: (sessionId: string) => Promise<void>;
 }
 
@@ -42,16 +41,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onSelectChat,
   onSelectHistorySession,
-  onModelChange,
   onDeleteSession,
 }) => {
-  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newModel = e.target.value;
-    setSelectedModel(newModel);
-    onModelChange(newModel);
-  };
 
   // Helper function to format session title
   const getSessionTitle = (session: HistorySession) => {
@@ -128,91 +120,80 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div style={{ 
-      width: "280px", 
-      backgroundColor: "#f8f9fa", 
+      width: "240px", 
+      backgroundColor: "#369496", 
       height: "100vh",
       display: "flex",
       flexDirection: "column",
-      borderRight: "1px solid #e1e5e9"
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexShrink: 0,
+      borderRight: "1px solid rgba(28, 28, 28, 0.10)"
     }}>
-      {/* Header with Model Selection */}
+      {/* Header with New Chat Button */}
       <div style={{ 
-        padding: "16px", 
-        borderBottom: "1px solid #e1e5e9",
-        backgroundColor: "white"
+        height: "60px",
+        padding: "8px 12px 8px 8px", 
+        borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+        backgroundColor: "transparent",
+        width: "240px",
+        display: "flex",
+        alignItems: "center",
+        boxSizing: "border-box"
       }}>
-        <div style={{ marginBottom: "12px" }}>
-          <label htmlFor="model-select" style={{ 
-            fontWeight: "600", 
-            fontSize: "14px",
-            color: "#374151"
-          }}>
-            Model:
-          </label>
-          <select
-            id="model-select"
-            value={selectedModel}
-            onChange={handleModelChange}
-            style={{
-              marginLeft: "8px",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              border: "1px solid #d1d5db",
-              fontSize: "13px",
-              backgroundColor: "white"
-            }}
-          >
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview</option>
-            <option value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</option>  
-            <option value="deepseek-1.0">Deepseek-1.0</option>
-          </select>
-        </div>
 
         {/* New Chat Button */}
         <button 
           onClick={onNewChat}
           style={{
-            width: "100%",
-            padding: "10px 16px",
-            backgroundColor: "#ffffff",
-            border: "1px solid #d1d5db",
-            borderRadius: "8px",
+            display: "flex",
+            padding: "8px 20px",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "8px",
+            backgroundColor: "#69C6C4",
+            border: "1px solid #69C6C4",
+            borderRadius: "6px",
             cursor: "pointer",
             fontSize: "14px",
             fontWeight: "500",
-            color: "#374151",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s ease"
+            color: "white",
+            transition: "all 0.2s ease",
+            margin: "2px 4px",
+            width: "calc(100% - 8px)",
+            boxSizing: "border-box"
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#f3f4f6";
-            e.currentTarget.style.borderColor = "#9ca3af";
+            e.currentTarget.style.backgroundColor = "#5AB3B1";
+            e.currentTarget.style.borderColor = "#5AB3B1";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "#ffffff";
-            e.currentTarget.style.borderColor = "#d1d5db";
+            e.currentTarget.style.backgroundColor = "#69C6C4";
+            e.currentTarget.style.borderColor = "#69C6C4";
           }}
         >
-          <span style={{ marginRight: "8px", fontSize: "16px" }}>+</span>
+          <span style={{ fontSize: "16px" }}>+</span>
           New Chat
         </button>
       </div>
 
       {/* Chat History */}
-      <div style={{ 
-        flex: 1,
-        overflowY: "auto",
-        padding: "8px"
-      }}>
+      <div 
+        className="sidebar-scroll"
+        style={{ 
+          flex: 1,
+          overflowY: "auto",
+          padding: "8px 12px 8px 8px",
+          width: "100%",
+          boxSizing: "border-box"
+        }}
+      >
         <div style={{ 
           marginBottom: "12px", 
           padding: "8px 12px",
           fontSize: "13px",
           fontWeight: "600",
-          color: "#6b7280",
+          color: "rgba(255, 255, 255, 0.8)",
           textTransform: "uppercase",
           letterSpacing: "0.05em"
         }}>
@@ -223,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div style={{
             padding: "20px 12px",
             textAlign: "center",
-            color: "#9ca3af",
+            color: "rgba(255, 255, 255, 0.6)",
             fontSize: "14px"
           }}>
             No chat history yet
@@ -237,8 +218,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 margin: "2px 4px",
                 borderRadius: "8px",
                 cursor: "pointer",
-                backgroundColor: item.isActive ? "#e5f3ff" : "transparent",
-                border: item.isActive ? "1px solid #bfdbfe" : "1px solid transparent",
+                backgroundColor: item.isActive ? "rgba(255, 255, 255, 0.2)" : "transparent",
+                border: item.isActive ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid transparent",
                 transition: "all 0.2s ease",
                 position: "relative",
                 display: "flex",
@@ -247,7 +228,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}
               onMouseEnter={(e) => {
                 if (!item.isActive) {
-                  e.currentTarget.style.backgroundColor = "#f3f4f6";
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
                 }
               }}
               onMouseLeave={(e) => {
@@ -263,7 +244,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div style={{ 
                   fontWeight: "500", 
                   fontSize: "14px",
-                  color: "#1f2937",
+                  color: "white",
                   marginBottom: "4px",
                   lineHeight: "1.4"
                 }}>
@@ -271,14 +252,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div style={{ 
                   fontSize: "12px", 
-                  color: "#6b7280",
+                  color: "rgba(255, 255, 255, 0.8)",
                   marginBottom: "2px"
                 }}>
                   {item.subtitle}
                 </div>
                 <div style={{ 
                   fontSize: "11px", 
-                  color: "#9ca3af"
+                  color: "rgba(255, 255, 255, 0.6)"
                 }}>
                   {item.date}
                 </div>
@@ -296,16 +277,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                     backgroundColor: "transparent",
                     cursor: "pointer",
                     fontSize: "12px",
-                    color: "#9ca3af",
+                    color: "rgba(255, 255, 255, 0.6)",
                     transition: "all 0.2s ease"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#fee2e2";
-                    e.currentTarget.style.color = "#dc2626";
+                    e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+                    e.currentTarget.style.color = "#fca5a5";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "#9ca3af";
+                    e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
                   }}
                   title="Delete this chat"
                 >
@@ -316,6 +297,35 @@ const Sidebar: React.FC<SidebarProps> = ({
           ))
         )}
       </div>
+      
+      {/* Custom scrollbar styles */}
+      <style>{`
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: rgba(105, 198, 196, 0.2);
+          border-radius: 3px;
+          margin: 4px 0;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background: #69C6C4;
+          border-radius: 3px;
+          transition: background 0.2s ease;
+        }
+        
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: #5AB3B1;
+        }
+        
+        /* For Firefox */
+        .sidebar-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: #69C6C4 rgba(105, 198, 196, 0.2);
+        }
+      `}</style>
     </div>
   );
 };

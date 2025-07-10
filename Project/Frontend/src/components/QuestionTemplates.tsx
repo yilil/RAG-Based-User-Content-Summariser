@@ -46,7 +46,7 @@ const templates: { [platform: string]: { [topic: string]: string[] } } = {
       "What advice do you have for someone looking to start a career in ____?",
     ],
   },
-  "Red Note": {
+  "Rednote": {
     Travel: [
       "What are the must-see destinations in ____?",
       "What travel tips do you have for visiting ____?",
