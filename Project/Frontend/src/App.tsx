@@ -25,7 +25,10 @@ type HistorySession = {
   updated_at: string;
 };
 
-const BASE_URL = "http://127.0.0.1:8000";
+const rawIp = import.meta.env.VITE_BASE_URL;
+const BASE_URL = rawIp && rawIp.length > 0
+  ? `http://${rawIp}:8000`
+  : 'http://127.0.0.1:8000';
 
 const App: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
