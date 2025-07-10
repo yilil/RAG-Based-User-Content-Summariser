@@ -39,7 +39,6 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [realTimeCrawlingEnabled, setRealTimeCrawlingEnabled] = useState(false);
-  const [mixedSearchEnabled, setMixedSearchEnabled] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -220,58 +219,100 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
     setTopic(e.target.value);
 
-  // NEW: a tiny toggle button component
-  const RealTimeToggle = () => (
-    <button
-      type="button"
-      onClick={() => {
-        setRealTimeCrawlingEnabled((prev) => !prev);
-        // 如果开启实时抓取，关闭混合搜索(互斥)
-        if (!realTimeCrawlingEnabled) {
-          setMixedSearchEnabled(false);
-        }
-      }}
-      style={{
-        padding: "6px 12px",
-        marginRight: "10px",
-        marginBottom: "12px",
-        borderRadius: "4px",
-        border: "1px solid #188a8d",
-        background: realTimeCrawlingEnabled ? "#188a8d" : "white",
-        color: realTimeCrawlingEnabled ? "white" : "#188a8d",
-        cursor: "pointer",
-      }}
-      aria-pressed={realTimeCrawlingEnabled}
-    >
-      {realTimeCrawlingEnabled ? "Real-time Crawl: On" : "Real-time Crawl: Off"}
-    </button>
-  );
+  // 新的药丸形状切换器组件
+  const SearchModeToggle = () => {
+    const getActiveMode = () => {
+      if (realTimeCrawlingEnabled) return 'realtime';
+      return 'standard';
+    };
 
-  // 添加新的MixedSearchToggle组件
-  const MixedSearchToggle = () => (
-    <button
-      type="button"
-      onClick={() => {
-        setMixedSearchEnabled((prev) => !prev);
-        // 如果开启混合搜索，关闭实时抓取(互斥)
-        if (!mixedSearchEnabled) {
+    const handleModeChange = (mode: string) => {
+      switch (mode) {
+        case 'realtime':
+          setRealTimeCrawlingEnabled(true);
+          break;
+        case 'standard':
           setRealTimeCrawlingEnabled(false);
-        }
-      }}
-      style={{
-        padding: "6px 12px",
-        marginBottom: "12px",
-        borderRadius: "4px",
-        border: "1px solid #6a5acd",
-        background: mixedSearchEnabled ? "#6a5acd" : "white",
-        color: mixedSearchEnabled ? "white" : "#6a5acd",
-        cursor: "pointer",
-      }}
-      aria-pressed={mixedSearchEnabled}
-    >
-      {mixedSearchEnabled ? "Mixed Search: On" : "Mixed Search: Off"}
-    </button>
-  );
+          break;
+      }
+    };
+
+    const activeMode = getActiveMode();
+
+    return (
+      <div style={{
+        position: 'relative',
+        display: 'inline-flex',
+        backgroundColor: '#f1f5f9',
+        padding: '4px',
+        borderRadius: '24px',
+        border: '1px solid #e2e8f0',
+        marginBottom: '12px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}>
+        {/* 滑动指示器 */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '4px',
+            left: activeMode === 'realtime' ? '4px' : 'calc(50% + 2px)',
+            width: 'calc(50% - 4px)',
+            height: 'calc(100% - 8px)',
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
+            zIndex: 1,
+          }}
+        />
+        
+        {/* 按钮选项 */}
+        <button
+          type="button"
+          onClick={() => handleModeChange('realtime')}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            padding: '8px 20px',
+            border: 'none',
+            background: 'transparent',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: activeMode === 'realtime' ? '600' : '500',
+            color: activeMode === 'realtime' ? '#188a8d' : '#64748b',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
+            minWidth: '120px',
+          }}
+        >
+          Real-time Crawl
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => handleModeChange('standard')}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            padding: '8px 20px',
+            border: 'none',
+            background: 'transparent',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: activeMode === 'standard' ? '600' : '500',
+            color: activeMode === 'standard' ? '#059669' : '#64748b',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
+            minWidth: '120px',
+          }}
+        >
+          Standard
+        </button>
+      </div>
+    );
+  };
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,10 +338,6 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       // 如果开启了实时抓取，使用real_time_crawl端点
       if (realTimeCrawlingEnabled) {
         endpoint = `${BASE_URL}/real_time_crawl/`;
-      } 
-      // 如果开启了混合搜索，使用mix_search端点
-      else if (mixedSearchEnabled) {
-        endpoint = `${BASE_URL}/mix_search/`;
       }
       
       const requestBody = {
@@ -310,7 +347,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         chosen_topic: topic,
         session_id: sessionKey,
         // 仅在使用普通搜索时需要这个参数
-        real_time_crawling_enabled: false
+        real_time_crawling_enabled: realTimeCrawlingEnabled
       };
 
       const res = await fetch(endpoint, {
@@ -393,10 +430,18 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         </select>
       </div>
 
-      {/* 搜索选项区域 */}
-      <div style={{ display: "flex", marginBottom: "10px" }}>
-        <RealTimeToggle />
-        <MixedSearchToggle />
+      {/* 搜索选项区域 - 使用新的药丸切换器 */}
+      <div style={{ display: "flex", marginBottom: "10px", alignItems: "center" }}>
+        <SearchModeToggle />
+        <div style={{ 
+          marginLeft: '12px', 
+          fontSize: '12px', 
+          color: '#6b7280',
+          fontStyle: 'italic'
+        }}>
+          {realTimeCrawlingEnabled && "🔴 Real-time web crawling enabled"}
+          {!realTimeCrawlingEnabled && "📊 Standard search mode"}
+        </div>
       </div>
 
       {/* Chat history + results */}
