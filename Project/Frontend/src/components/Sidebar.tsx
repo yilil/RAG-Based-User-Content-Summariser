@@ -12,6 +12,7 @@ type Chat = {
   platform: string;
   topic: string;
   messages: Message[];
+  createdAt: string;
 };
 
 type HistorySession = {
@@ -46,14 +47,50 @@ const Sidebar: React.FC<SidebarProps> = ({
 
 
   // Helper function to format session title
+  // Cache for original session titles to prevent title changes when session data updates
+  const [sessionTitleCache, setSessionTitleCache] = React.useState<{[key: string]: string}>({});
+
+  // Clean up title cache when history sessions change
+  React.useEffect(() => {
+    const currentSessionIds = new Set(historySessions.map(session => session.session_id));
+    const cachedSessionIds = Object.keys(sessionTitleCache);
+    
+    // Remove cached titles for sessions that no longer exist
+    const toRemove = cachedSessionIds.filter(id => !currentSessionIds.has(id));
+    if (toRemove.length > 0) {
+      setSessionTitleCache(prev => {
+        const newCache = { ...prev };
+        toRemove.forEach(id => delete newCache[id]);
+        console.log(`Cleaned up title cache for removed sessions: ${toRemove.join(', ')}`);
+        return newCache;
+      });
+    }
+  }, [historySessions, sessionTitleCache]);
+
   const getSessionTitle = (session: HistorySession) => {
+    // Check if we already have a cached title for this session
+    if (sessionTitleCache[session.session_id]) {
+      return sessionTitleCache[session.session_id];
+    }
+
+    // Generate title from the original first message
+    let title: string;
     if (session.memory_data && session.memory_data.length > 0) {
       const firstMessage = session.memory_data[0].user;
-      return firstMessage.length > 35 
+      title = firstMessage.length > 35 
         ? firstMessage.substring(0, 35) + "..." 
         : firstMessage;
+    } else {
+      title = `${session.platform || "Unknown"} Session`;
     }
-    return `${session.platform || "Unknown"} Session`;
+
+    // Cache the title so it doesn't change even if session data updates
+    setSessionTitleCache(prev => ({
+      ...prev,
+      [session.session_id]: title
+    }));
+
+    return title;
   };
 
   // Helper function to format date
@@ -81,34 +118,69 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (window.confirm('Are you sure you want to delete this chat?')) {
       if (onDeleteSession) {
         await onDeleteSession(sessionId);
+        // Clean up the title cache for the deleted session
+        setSessionTitleCache(prev => {
+          const newCache = { ...prev };
+          delete newCache[sessionId];
+          console.log(`Cleaned up title cache for deleted session: ${sessionId}`);
+          return newCache;
+        });
       }
     }
   };
 
+  // Helper function to check if a history session has been converted to a current chat
+  const isSessionConvertedToChat = (sessionId: string) => {
+    const isConverted = chats.some(chat => {
+      // Check if any current chat uses this session ID as its session key
+      const chatSessionKey = localStorage.getItem(`sessionKey-${chat.id}`);
+      return chatSessionKey === sessionId;
+    });
+    
+    if (isConverted) {
+      console.log(`History session ${sessionId} has been converted to current chat - filtering out from sidebar`);
+    }
+    
+    return isConverted;
+  };
+
   // Combine current chats and history sessions for unified display
   const allChatItems = [
-    // Current chats (only truly new chats from this session, not virtual chats from history)
+    // Current chats (exclude virtual chats that start with 'history-')
     ...chats
-      .filter(chat => !historySessions.some(session => session.session_id === chat.id))
+      .filter(chat => !chat.id.startsWith('history-'))
       .map(chat => ({
         id: chat.id,
         type: 'current' as const,
         title: `${chat.platform} Chat`,
         subtitle: `${chat.messages.length} messages`,
-        date: "Current session",
+        date: formatDate(chat.createdAt),
+        timestamp: chat.createdAt,
         isActive: activeChatId === chat.id
       })),
-    // History sessions (show all history sessions, regardless of whether they're loaded as virtual chats)
-    ...historySessions.map(session => ({
-      id: session.session_id,
-      type: 'history' as const,
-      title: getSessionTitle(session),
-      subtitle: `${session.platform || "Unknown"} • ${session.memory_data.length} messages`,
-      date: formatDate(session.updated_at),
-      // Check if this history session is currently active (either as activeHistorySessionId or as virtual chat)
-      isActive: activeHistorySessionId === session.session_id || activeChatId === session.session_id
-    }))
-  ];
+    // History sessions (exclude those that have been converted to current chats)
+    ...(() => {
+      const filteredSessions = historySessions.filter(session => !isSessionConvertedToChat(session.session_id));
+      console.log(`=== SIDEBAR DUPLICATE FILTERING ===`);
+      console.log(`Total history sessions: ${historySessions.length}`);
+      console.log(`Filtered history sessions: ${filteredSessions.length}`);
+      console.log(`Removed duplicates: ${historySessions.length - filteredSessions.length}`);
+      console.log(`Current chats: ${chats.filter(chat => !chat.id.startsWith('history-')).length}`);
+      return filteredSessions;
+    })().map(session => ({
+        id: session.session_id,
+        type: 'history' as const,
+        title: getSessionTitle(session),
+        subtitle: `${session.platform || "Unknown"} • ${session.memory_data.length} messages`,
+        date: formatDate(session.updated_at),
+        timestamp: session.updated_at,
+        // Check if this history session is currently active (either as activeHistorySessionId or as virtual chat)
+        isActive: activeHistorySessionId === session.session_id || activeChatId === `history-${session.session_id}`
+      }))
+  ].sort((a, b) => {
+    // Sort by timestamp descending (newest first)
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   const handleItemClick = (item: typeof allChatItems[0]) => {
     if (item.type === 'current') {

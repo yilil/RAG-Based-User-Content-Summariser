@@ -2,10 +2,22 @@ import React, { useState, useRef, useEffect } from "react";
 import QuestionTemplates from "../components/QuestionTemplates"; // adjust path as needed
 import TopBar from "../components/TopBar";
 
-const rawIp = import.meta.env.VITE_BASE_URL;
-const BASE_URL = rawIp && rawIp.length > 0
-  ? `http://${rawIp}:8000`
-  : 'http://127.0.0.1:8000';
+// Safe access to import.meta.env for compatibility with Jest
+const getBaseUrl = () => {
+  try {
+    const rawIp = import.meta.env.VITE_BASE_URL;
+    return rawIp && rawIp.length > 0
+      ? `http://${rawIp}:8000`
+      : 'http://127.0.0.1:8000';
+  } catch (error) {
+    // Fallback for test environment where import.meta is not available
+    return process.env.VITE_BASE_URL 
+      ? `http://${process.env.VITE_BASE_URL}:8000`
+      : 'http://127.0.0.1:8000';
+  }
+};
+
+const BASE_URL = getBaseUrl();
 
 type Message = {
   id: string;
@@ -19,6 +31,7 @@ type Chat = {
   platform: string;
   topic: string;
   messages: Message[];
+  createdAt: string;
 };
 
 interface SummaryPageProps {
@@ -102,9 +115,16 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     "Rednote": ["Travel", "Food", "Fashion"],
   };
 
-  // Reset history loaded state when chat changes
+  // Reset all component state when chat changes
   useEffect(() => {
+    console.log(`Resetting state for chat change: ${chat.id}`);
     setHistoryLoaded(false);
+    setSearchText("");
+    setLoading(false);
+    setError(null);
+    setRealTimeCrawlingEnabled(false);
+    setMixedSearchEnabled(false);
+    setShowTemplates(false);
   }, [chat.id]);
 
   // topic selection
@@ -113,18 +133,27 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     setTopic("");
   }, [chat.platform, chat.topic]);
 
-  // fetch or reuse sessionKey and load history
+  // fetch or reuse sessionKey - only run when chat.id changes
   useEffect(() => {
+    // Check if this is a virtual chat from history session
+    if (chat.id.startsWith('history-')) {
+      const historySessionId = chat.id.replace('history-', '');
+      console.log(`Using history session ID directly: ${historySessionId}`);
+      setSessionKey(historySessionId);
+      return;
+    }
+
+    // Regular session management for new chats
     const storageKey = `sessionKey-${chat.id}`;
     const stored = localStorage.getItem(storageKey);
     
+    console.log(`Session effect triggered for chat ${chat.id}, stored:`, stored);
+    
     if (stored) {
       setSessionKey(stored);
-      // Load history if we haven't loaded it yet and we have messages in chat
-      if (!historyLoaded && chat.messages.length === 0) {
-        loadChatHistory(stored);
-      }
+      console.log(`Using existing session key: ${stored}`);
     } else {
+      console.log(`Creating new session for chat ${chat.id}`);
       fetch(`${BASE_URL}/sessionKey/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,17 +167,34 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         .then(({ session_id }) => {
           localStorage.setItem(storageKey, session_id);
           setSessionKey(session_id);
-          // Load history for new session too
-          if (!historyLoaded && chat.messages.length === 0) {
-            loadChatHistory(session_id);
-          }
+          console.log(`New session created: ${session_id}`);
         })
         .catch((e) => {
           console.error(e);
           setError("Failed to get session key.");
         });
     }
-  }, [chat.id, historyLoaded, chat.messages.length]);
+  }, [chat.id]); // Only depend on chat.id
+
+  // Separate effect for loading history when sessionKey is ready
+  useEffect(() => {
+    // Only load history for non-virtual chats (regular chats that need backend history)
+    // Virtual chats from history sessions already have their messages from getActiveChat()
+    if (sessionKey && !historyLoaded && chat.messages.length === 0 && !chat.id.startsWith('history-')) {
+      console.log(`Loading history for session: ${sessionKey}`);
+      loadChatHistory(sessionKey);
+    } else if (chat.id.startsWith('history-')) {
+      // For virtual chats from history sessions, mark as loaded immediately
+      // since messages are already provided by getActiveChat()
+      console.log(`Virtual chat from history session - skipping backend history load`);
+      setHistoryLoaded(true);
+    } else if (sessionKey && !historyLoaded && chat.messages.length > 0) {
+      // For chats that already have messages (e.g., converted from history sessions)
+      // mark as loaded since they don't need backend history loading
+      console.log(`Chat already has messages - marking history as loaded`);
+      setHistoryLoaded(true);
+    }
+  }, [sessionKey, historyLoaded, chat.messages.length, chat.id]);
 
   // auto-scroll on new messages
   useEffect(() => {
@@ -278,8 +324,43 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('=== LOADING STATE DEBUG ===');
+    console.log('Setting loading to true');
+    console.log('Current sessionKey:', sessionKey);
+    console.log('Chat ID:', chat.id);
+    console.log('Chat ID starts with history:', chat.id.startsWith('history-'));
+    
     setLoading(true);
     setError(null);
+
+    // 检查sessionKey是否可用，对于历史session需要特殊处理
+    let effectiveSessionKey = sessionKey;
+    
+    // 如果是历史session但sessionKey还没有设置，尝试从chat.id中获取
+    if (chat.id.startsWith('history-') && !sessionKey) {
+      const historySessionId = chat.id.replace('history-', '');
+      console.log(`Deriving session key from history chat ID: ${historySessionId}`);
+      effectiveSessionKey = historySessionId;
+      // 同时更新sessionKey状态
+      setSessionKey(historySessionId);
+    }
+    
+    if (!effectiveSessionKey) {
+      console.error('No session key available for search - setting loading to false');
+      setError("Session not ready. Please try again.");
+      setLoading(false);
+      return;
+    }
+    
+    console.log('Effective session key:', effectiveSessionKey);
+    console.log('Session key is available, proceeding with search');
+    console.log('=== LOADING STATE DEBUG END ===');
+
+    console.log('=== SEARCH SUBMIT DEBUG ===');
+    console.log('Chat ID:', chat.id);
+    console.log('Session Key:', effectiveSessionKey);
+    console.log('Search Text:', searchText);
 
     // 创建用户消息对象
     const userMessage: Message = {
@@ -289,10 +370,42 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       timestamp: new Date().toISOString(),
     };
 
+    console.log('=== USER MESSAGE SUBMISSION ===');
+    console.log('User message:', userMessage);
+    console.log('Chat before adding message:', chat.id, 'Message count:', chat.messages.length);
+    console.log('Adding user message via onUpdateMessages');
     onUpdateMessages(userMessage);
+    
+    console.log('User message sent to onUpdateMessages');
+
+    // 给更多时间让状态更新，特别是当历史session转换为新chat时
+    // 如果是历史session，转换过程需要更多时间
+    const waitTime = chat.id.startsWith('history-') ? 500 : 100;
+    console.log(`Waiting ${waitTime}ms for state updates to complete (history session: ${chat.id.startsWith('history-')})`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    console.log('=== USER MESSAGE SUBMISSION END ===');
 
     try {
       const normalizedSource = chat.platform.toLowerCase().replace(/\s/g, "");
+      
+      // 确定要使用的session ID - 如果是历史session转换的chat，使用localStorage中存储的值
+      let effectiveSessionId = effectiveSessionKey;
+      if (chat.id && !chat.id.startsWith('history-')) {
+        const storedSessionId = localStorage.getItem(`sessionKey-${chat.id}`);
+        if (storedSessionId) {
+          effectiveSessionId = storedSessionId;
+        }
+      }
+      
+      console.log('Final Effective Session ID:', effectiveSessionId);
+      
+      // 再次检查是否有有效的session ID
+      if (!effectiveSessionId) {
+        console.error('No effective session ID available');
+        setError("Session ID not available. Please try again.");
+        setLoading(false);
+        return;
+      }
       
       // 确定API端点
       let endpoint = `${BASE_URL}/search/`;
@@ -311,10 +424,14 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         llm_model: selectedModel,
         source: normalizedSource,
         chosen_topic: topic,
-        session_id: sessionKey,
+        session_id: effectiveSessionId,
         // 仅在使用普通搜索时需要这个参数
         real_time_crawling_enabled: false
       };
+
+      console.log('=== API REQUEST DEBUG ===');
+      console.log('Endpoint:', endpoint);
+      console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -322,9 +439,23 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
+
+      console.log('Response Status:', res.status);
+      console.log('Response OK:', res.ok);
       
-      if (!res.ok) throw new Error(`Status ${res.status}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Error Response:', errorText);
+        throw new Error(`Status ${res.status}: ${errorText}`);
+      }
+      
       const data = await res.json();
+      console.log('Response Data:', data);
+      
+      if (!data.result) {
+        console.error('No result in response data');
+        throw new Error('No result returned from server');
+      }
       
       // 创建bot消息对象
       const botMessage: Message = {
@@ -334,10 +465,18 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         timestamp: new Date().toISOString(),
       };
 
+      console.log('Created bot message:', botMessage.id, 'Content length:', botMessage.content.length);
+      console.log('Adding bot message via onUpdateMessages');
       onUpdateMessages(botMessage);
+      console.log('Bot message sent to onUpdateMessages - addition complete');
+      console.log('=== API REQUEST DEBUG END ===');
     } catch (e: any) {
-      console.error(e);
-      setError("Failed to fetch result");
+      console.error('=== API REQUEST ERROR ===');
+      console.error('Error object:', e);
+      console.error('Error message:', e.message);
+      console.error('Error stack:', e.stack);
+      console.error('=== API REQUEST ERROR END ===');
+      setError("Failed to fetch result: " + (e.message || 'Unknown error'));
     } finally {
       setLoading(false);
       setSearchText("");
@@ -363,6 +502,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         flexDirection: "column",
         height: "100vh",
         width: "100%",
+        overflow: "hidden",
       }}
     >
       <TopBar 
@@ -371,18 +511,19 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       />
       
       <div style={{
-        height: "calc(100vh - 60px)",
+        flex: 1,
         padding: "20px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}>
-        <h2>
+        <h2 style={{ margin: "0 0 15px 0", flexShrink: 0 }}>
           Chat for {chat.platform} - {topic || "No Topic Selected"}
         </h2>
 
       {/* Topic selector */}
-      <div style={{ marginBottom: "10px", width: "100%" }}>
+      <div style={{ marginBottom: "10px", flexShrink: 0 }}>
         <label htmlFor="topic-select" style={{ marginRight: "10px" }}>
           Topic:
         </label>
@@ -395,6 +536,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             borderRadius: "5px",
             border: "1px solid #ccc",
             width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <option value="">Select a Topic</option>
@@ -407,7 +549,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       </div>
 
       {/* 搜索选项区域 */}
-      <div style={{ display: "flex", marginBottom: "10px" }}>
+      <div style={{ display: "flex", marginBottom: "15px", flexShrink: 0 }}>
         <RealTimeToggle />
         <MixedSearchToggle />
       </div>
@@ -420,8 +562,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
           border: "1px solid #ddd",
           padding: "10px",
           borderRadius: "8px",
-          width: "100%",
           marginBottom: "10px",
+          minHeight: 0, // 允许flex item收缩
         }}
       >
         {chat.messages.map((msg, i) => (
@@ -465,10 +607,14 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
       )}
 
       {/* Fixed search bar */}
-      <div style={{ borderTop: "1px solid #ddd", paddingTop: "10px" }}>
+      <div style={{ 
+        borderTop: "1px solid #ddd", 
+        paddingTop: "10px",
+        flexShrink: 0 // 防止搜索栏被压缩
+      }}>
         <form
           onSubmit={handleSearchSubmit}
-          style={{ display: "flex", alignItems: "center", width: "100%" }}
+          style={{ display: "flex", alignItems: "center", gap: "10px" }}
         >
           <input
             ref={inputRef}
@@ -490,13 +636,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
           <button
             type="submit"
             style={{
-              marginLeft: "10px",
               padding: "10px 20px",
               borderRadius: "5px",
               border: "none",
               backgroundColor: "#188a8d",
               color: "white",
               cursor: "pointer",
+              flexShrink: 0,
             }}
           >
             Search
