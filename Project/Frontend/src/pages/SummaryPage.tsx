@@ -306,7 +306,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             left: activeMode === 'realtime' ? '4px' : 'calc(50% + 2px)',
             width: 'calc(50% - 4px)',
             height: 'calc(100% - 8px)',
-            backgroundColor: '#ffffff',
+            backgroundColor: '#FAE9F4',
             borderRadius: '20px',
             transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
@@ -328,7 +328,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             cursor: 'pointer',
             fontSize: '13px',
             fontWeight: activeMode === 'realtime' ? '600' : '500',
-            color: activeMode === 'realtime' ? '#188a8d' : '#64748b',
+            color: activeMode === 'realtime' ? '#DA5AA0' : '#64748b',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap',
             minWidth: '120px',
@@ -350,7 +350,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             cursor: 'pointer',
             fontSize: '13px',
             fontWeight: activeMode === 'standard' ? '600' : '500',
-            color: activeMode === 'standard' ? '#059669' : '#64748b',
+            color: activeMode === 'standard' ? '#DA5AA0' : '#64748b',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap',
             minWidth: '120px',
@@ -618,13 +618,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
               marginBottom: "10px",
               padding: "8px",
               borderRadius: "5px",
-              backgroundColor: msg.type === 'user' ? "#f3eeff" : "#f5f5f5",
+              backgroundColor: msg.type === 'user' ? "#DFE0FF" : "#f5f5f5",
             }}
           >
             <div style={{ 
               fontWeight: "bold", 
               marginBottom: "4px",
-              color: msg.type === 'user' ? "#7e3ecf" : "#333"
+              color: msg.type === 'user' ? "#5A33CF" : "#333"
             }}>
               {msg.type === 'user' ? 'User' : 'Bot'}
             </div>
