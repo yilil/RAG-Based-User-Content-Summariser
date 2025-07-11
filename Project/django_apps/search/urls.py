@@ -21,4 +21,5 @@ urlpatterns = [
     path('mix_search/', views.mix_search, name='mix_search'),
     path('saveSession/', views.saveSession, name='saveSession'),
     path('deleteSession/', views.deleteSession, name='deleteSession'),
+    path('deleteAllSession/', views.deleteAllSession, name='deleteAllSession'),
 ]

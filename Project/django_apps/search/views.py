@@ -1338,3 +1338,20 @@ def deleteSession(request):
     except Exception as e:
         logger.error(f"删除会话异常: {str(e)}", exc_info=True)
         return JsonResponse({'error': f'删除会话失败: {str(e)}'}, status=500)
+
+@require_POST
+def deleteAllSession(request):
+    """
+    删除指定的会话
+    """
+    try:
+        MemoryService.delete_all_session_memory()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'成功删除所有会话'
+        })
+            
+    except Exception as e:
+        logger.error(f"删除会话异常: {str(e)}", exc_info=True)
+        return JsonResponse({'error': f'删除会话失败: {str(e)}'}, status=500)

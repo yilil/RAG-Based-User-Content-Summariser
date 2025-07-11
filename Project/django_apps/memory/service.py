@@ -59,3 +59,10 @@ class MemoryService:
         按照更新时间倒序获取所有会话信息
         """
         return list(SessionMemory.objects.order_by('-updated_at'))
+
+    @staticmethod
+    def delete_all_session_memory():
+        """
+        删除所有 SessionMemory 记录
+        """
+        SessionMemory.objects.all().delete()
