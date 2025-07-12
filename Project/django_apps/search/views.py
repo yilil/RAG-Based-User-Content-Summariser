@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db import models  # 添加这一行
 from search_process.langchain_parser import parse_langchain_response
 from search_process.prompt_generator import generate_prompt
 from search_process.prompt_sender import send_prompt
@@ -21,6 +22,7 @@ from django_apps.search.crawler_config import REDNOTE_LOGIN_COOKIES
 from datetime import datetime
 from django.contrib.sessions.models import Session
 from django_apps.memory.models import SessionMemory
+from django_apps.search.external_crawler_config import call_external_crawler_with_retry
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -114,14 +116,14 @@ def search(request):
             bm25_weight=0.55,
             embedding_weight=0.35,
             vote_weight=0.1,
-            l2_decay_beta=6.0
+            l2_decay_beta=4.0
         )
         log_benchmark('Initialize Hybrid Retriever', start_time)
 
         # 获取最终的 top_k retrieved_documents
         print(f"--- [views.search] 调用 hybrid_retriever.retrieve (Query: '{search_query}')... ---")
         start_time = datetime.now()
-        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=5, relevance_threshold=0.7) # 可以动态调整
+        retrieved_docs = hybrid_retriever.retrieve(query=search_query, top_k=20, relevance_threshold=0.6) # 可以动态调整
         log_benchmark('Retrieve docs', start_time)
         print(f"--- [views.search] hybrid_retriever.retrieve 返回了 {len(retrieved_docs)} 个文档 ---")
 
@@ -470,39 +472,62 @@ def handle_mixed_search(search_query, platform, session_id, llm_model, recent_me
             
         elif platform == 'rednote':
             try:
-                from django_apps.search.crawler import crawl_rednote_page
-
-                target_url = generate_xhs_search_url(search_query)
-                logger.info(f"Generated RedNote search URL: {target_url}")
-
-                # 使用从 crawler_config 导入的 Cookies
-                cookies_to_use = REDNOTE_LOGIN_COOKIES
-                if not cookies_to_use:
-                     raise ValueError("RedNote cookies not configured or empty in crawler_config.py.")
-
-                crawled_posts = crawl_rednote_page(url=target_url, cookies=cookies_to_use, immediate_indexing=False)
-                logger.info(f"RedNote crawler attempted search URL, found {len(crawled_posts)} potential posts.")
+                import requests
+                import time
+                from django_apps.search.external_crawler_config import EXTERNAL_CRAWLER_CONFIG, call_external_crawler_with_retry
                 
-                # 在后台处理数据，进行embedding
-                import threading
-                threading.Thread(
-                    target=process_crawled_data_for_indexing,
-                    args=(crawled_posts, platform),
-                    daemon=True
-                ).start()
-
-            except ImportError:
-                 logger.error(f"RedNote crawler function not found.")
-                 return JsonResponse({
-                    'result': f"抱歉，RedNote实时抓取功能配置错误。",
-                    'metadata': {'crawler_error': 'ImportError', 'crawl_attempted': True, 'platform': platform},
+                # 获取配置
+                config = EXTERNAL_CRAWLER_CONFIG.get('rednote', {})
+                crawler_url = config.get('url', 'http://localhost:8000/api/crawl')  # 修复这里
+                sync_wait_time = config.get('sync_wait_time', 20)
+                
+                # 调用外部爬虫
+                payload = {
+                    "query": search_query,
+                    "limit": 5,
+                    "platform": "rednote"
+                }
+                
+                logger.info(f"Calling external crawler: {crawler_url}")
+                logger.info(f"Payload: {payload}")
+                
+                # 调用外部爬虫API
+                response = call_external_crawler_with_retry(crawler_url, payload)
+                logger.info(f"External crawler response: {response}")
+                
+                # 等待数据同步到MySQL
+                logger.info(f"Waiting {sync_wait_time} seconds for data synchronization...")
+                time.sleep(sync_wait_time)
+                
+                # 获取最新的5条数据（按id降序）
+                latest_posts = RednoteContent.objects.order_by('-id')[:5]
+                crawled_posts = list(latest_posts)
+                
+                logger.info(f"Found {len(crawled_posts)} latest posts from database (IDs: {[p.id for p in crawled_posts]})")
+                
+                if crawled_posts:
+                    # 在后台处理数据，进行embedding
+                    import threading
+                    threading.Thread(
+                        target=process_crawled_data_for_indexing,
+                        args=(crawled_posts, platform),
+                        daemon=True
+                    ).start()
+                else:
+                    logger.warning("No posts found in database after external crawling")
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request to external crawler failed: {str(e)}", exc_info=True)
+                return JsonResponse({
+                    'result': f"抱歉，外部爬虫服务连接失败: {str(e)}",
+                    'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
                     'llm_model': llm_model,
                     'history': recent_memory
                 })
             except Exception as e:
-                logger.error(f"RedNote爬虫异常 (URL: {target_url}): {str(e)}", exc_info=True) # Log URL
+                logger.error(f"RedNote external crawler error: {str(e)}", exc_info=True)
                 return JsonResponse({
-                    'result': f"抱歉，在抓取RedNote信息时遇到问题: {str(e)}",
+                    'result': f"抱歉，RedNote实时搜索出现问题: {str(e)}",
                     'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
                     'llm_model': llm_model,
                     'history': recent_memory
@@ -801,39 +826,62 @@ def handle_pure_real_time_crawling(search_query, platform, session_id, llm_model
             
         elif platform == 'rednote':
             try:
-                from django_apps.search.crawler import crawl_rednote_page
-
-                target_url = generate_xhs_search_url(search_query)
-                logger.info(f"Generated RedNote search URL: {target_url}")
-
-                # 使用从 crawler_config 导入的 Cookies
-                cookies_to_use = REDNOTE_LOGIN_COOKIES
-                if not cookies_to_use:
-                     raise ValueError("RedNote cookies not configured or empty in crawler_config.py.")
-
-                crawled_posts = crawl_rednote_page(url=target_url, cookies=cookies_to_use, immediate_indexing=False)
-                logger.info(f"RedNote crawler attempted search URL, found {len(crawled_posts)} potential posts.")
+                import requests
+                import time
+                from django_apps.search.external_crawler_config import EXTERNAL_CRAWLER_CONFIG, call_external_crawler_with_retry
                 
-                # 在后台处理数据，进行embedding
-                import threading
-                threading.Thread(
-                    target=process_crawled_data_for_indexing,
-                    args=(crawled_posts, platform),
-                    daemon=True
-                ).start()
-
-            except ImportError:
-                 logger.error(f"RedNote crawler function not found.")
-                 return JsonResponse({
-                    'result': f"抱歉，RedNote实时抓取功能配置错误。",
-                    'metadata': {'crawler_error': 'ImportError', 'crawl_attempted': True, 'platform': platform},
+                # 获取配置
+                config = EXTERNAL_CRAWLER_CONFIG.get('rednote', {})
+                crawler_url = config.get('url', 'http://localhost:8001/api/crawl')  # 修复这里
+                sync_wait_time = config.get('sync_wait_time', 20)
+                
+                # 调用外部爬虫
+                payload = {
+                    "query": search_query,
+                    "limit": 5,
+                    "platform": "rednote"
+                }
+                
+                logger.info(f"Calling external crawler: {crawler_url}")
+                logger.info(f"Payload: {payload}")
+                
+                # 调用外部爬虫API
+                response = call_external_crawler_with_retry(crawler_url, payload)
+                logger.info(f"External crawler response: {response}")
+                
+                # 等待数据同步到MySQL
+                logger.info(f"Waiting {sync_wait_time} seconds for data synchronization...")
+                time.sleep(sync_wait_time)
+                
+                # 获取最新的5条数据（按id降序）
+                latest_posts = RednoteContent.objects.order_by('-id')[:5]
+                crawled_posts = list(latest_posts)
+                
+                logger.info(f"Found {len(crawled_posts)} latest posts from database (IDs: {[p.id for p in crawled_posts]})")
+                
+                if crawled_posts:
+                    # 在后台处理数据，进行embedding
+                    import threading
+                    threading.Thread(
+                        target=process_crawled_data_for_indexing,
+                        args=(crawled_posts, platform),
+                        daemon=True
+                    ).start()
+                else:
+                    logger.warning("No posts found in database after external crawling")
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request to external crawler failed: {str(e)}", exc_info=True)
+                return JsonResponse({
+                    'result': f"抱歉，外部爬虫服务连接失败: {str(e)}",
+                    'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
                     'llm_model': llm_model,
                     'history': recent_memory
                 })
             except Exception as e:
-                logger.error(f"RedNote爬虫异常 (URL: {target_url}): {str(e)}", exc_info=True) # Log URL
+                logger.error(f"RedNote external crawler error: {str(e)}", exc_info=True)
                 return JsonResponse({
-                    'result': f"抱歉，在抓取RedNote信息时遇到问题: {str(e)}",
+                    'result': f"抱歉，RedNote实时搜索出现问题: {str(e)}",
                     'metadata': {'crawler_error': str(e), 'crawl_attempted': True, 'platform': platform},
                     'llm_model': llm_model,
                     'history': recent_memory

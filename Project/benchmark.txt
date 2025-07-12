@@ -1,17 +1,8 @@
-2025-07-10 00:27:02
-Received search query: s
+2025-07-12 19:22:54
+Received search query: 快思考与慢思考的理解
 Platform: rednote
 LLM model: gemini-2.0-flash
 
-Real time crawling
-Running time: 0.000004 seconds
-
-Get memory
-Running time: 0.002877 seconds
-
-Initialize Hybrid Retriever
-Running time: 0.000019 seconds
-
-Retrieve docs
-Running time: 0.043251 seconds
+纯实时抓取
+Running time: 153.487360 seconds
 
