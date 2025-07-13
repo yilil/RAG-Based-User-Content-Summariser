@@ -19,7 +19,12 @@ if [ $HAS_SESSION != 0 ]; then
   tmux send-keys -t $SESSION_NAME:frontend "cd ~/NextGen-AI/Project/Frontend" C-m
   tmux send-keys -t $SESSION_NAME:frontend "VITE_BASE_URL=$PUBLIC_IP npm run dev -- --host" C-m
 
+  sleep 1
 
+  tmux new-window -t $SESSION_NAME -n rednote
+  tmux send-keys -t $SESSION_NAME:rednote "cd ~/NextGen-AI/Project/MediaCrawler" C-m
+  tmux send-keys -t $SESSION_NAME:rednote "source venv/bin/activate" C-m
+  tmux send-keys -t $SESSION_NAME:rednote "python main.py --platform xhs --lt qrcode --type search" C-m
 
   sleep 1
 
@@ -32,13 +37,6 @@ if [ $HAS_SESSION != 0 ]; then
   tmux send-keys -t $SESSION_NAME:backend "python manage.py runserver 0.0.0.0:8000" C-m
 
   echo "tmux session '$SESSION_NAME' created with frontend and backend."
-
-  sleeep 1
-
-  tmux new-window -t $SESSION_NAME -n rednote
-  tmux send-keys -t $SESSION_NAME:rednote "cd ~/NextGen-AI/Project/MediaCrawler" C-m
-  tmux send-keys -t $SESSION_NAME:rednote "source venv/bin/activate" C-m
-  tmux send-keys -t $SESSION_NAME:rednote "python main.py --platform xhs --lt qrcode --type search" C-m
 
 else
   echo "tmux session '$SESSION_NAME' already exists."
