@@ -1,9 +1,13 @@
-# 外部爬虫配置
+import os
+
+# 获取系统环境变量中的 PUBLIC_IP
+public_ip = os.environ.get("PUBLIC_IP", "127.0.0.1")  # 如果没有就用默认 localhost
+
 EXTERNAL_CRAWLER_CONFIG = {
     'rednote': {
-        'url': 'http://localhost:8001/api/crawl',  # 更新为你的实际API地址
+        'url': f'http://{public_ip}:8001/api/crawl',
         'timeout': 300,
-        'sync_wait_time': 20,  # 等待数据同步的时间
+        'sync_wait_time': 20,
         'max_retries': 3
     }
 }
