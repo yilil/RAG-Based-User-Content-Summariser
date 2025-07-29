@@ -1,4 +1,4 @@
-# 负责对检索结果分组合并、排序，返回最终 Document 集合
+# Responsible for grouping, merging, and sorting retrieval results, returning final Document collections
 
 from langchain.docstore.document import Document
 from typing import List, Dict
@@ -23,14 +23,22 @@ class ResultProcessor:
         self.prompt_builder = PromptBuilder()
 
     def process_recommendations(self, documents: List[Document], query: str, top_k: int) -> str:
-        """处理推荐类查询，直接返回格式化后的 HTML 内容"""
+        """
+        [DEMO SECTION - Recommendation Processor Logic] 
+        Process recommendation queries, directly return formatted HTML content
+        
+        This method implements the specialized recommendation processing logic mentioned in the demo:
+        - Extraction Process: Uses LLM to extract recommendation items from retrieved documents
+        - Scoring Algorithm: Calculates comprehensive scores combining sentiment, upvotes, mentions
+        - Final Output: Returns ranked recommendations with detailed explanations
+        """
         try:
-            # 1. Extract items + qualitative sentiment labels from LLM
+            # [DEMO SECTION 1] Step 1: Extract items + qualitative sentiment labels from LLM
             prompt = self.prompt_builder.build_extraction_prompt(documents, query)
             response = self._call_llm_for_extraction(prompt)
             extracted_items = json.loads(response)
             
-            # 2. Local aggregation
+            # [DEMO SECTION 2+3] Step 2+3: Local aggregation and sentiment analysis
             recommendations = []
             for item_idx, item in enumerate(extracted_items, 1):
                 if 'name' not in item or 'posts' not in item:
@@ -38,17 +46,17 @@ class ResultProcessor:
                     continue
 
                 posts = item['posts']
-                total_upvotes = 0  # 初始化总点赞数
+                total_upvotes = 0  # Initialize total upvotes
 
                 print(f"\n=== Debug 2: Processing Item {item_idx} ===")
                 print(f"Item name: {item['name']}")
                 
-                # 处理不同平台的点赞/投票字段
+                # Process upvotes/votes for different platforms
                 for post_idx, p in enumerate(posts, 1):
-                    # 获取平台信息
+                    # Get platform information
                     platform = p.get('platform', '').lower()
                     
-                    # 根据不同平台获取对应的点赞/投票数
+                    # Get corresponding upvotes/votes based on different platforms
                     if platform == 'reddit':
                         upvotes = p.get('upvotes', 0)
                     elif platform == 'stackoverflow':
@@ -56,10 +64,10 @@ class ResultProcessor:
                     elif platform == 'rednote':
                         upvotes = p.get('likes', 0)
                     else:
-                        # 默认尝试所有可能的字段
+                        # Default: try all possible fields
                         upvotes = p.get('upvotes', p.get('vote_score', p.get('likes', 0)))
                     
-                    # 统一使用 upvotes 字段
+                    # Use unified upvotes field
                     p['upvotes'] = upvotes
                     total_upvotes += upvotes
                     
@@ -70,7 +78,7 @@ class ResultProcessor:
                     print(f"Current total_upvotes: {total_upvotes}")
                 print("=== End Debug 2 ===\n")
 
-                # Map qualitative sentiment → numeric once per post
+                # [DEMO SECTION 3] Map qualitative sentiment → numeric once per post
                 numeric_ratings = []
                 for p in posts:
                     sent = p.get('sentiment', '').lower()
@@ -109,56 +117,63 @@ class ResultProcessor:
                     'summary': item.get('summary', 'No summary available')
                 })
             
-            # 3. Score & rank
+            # [DEMO SECTION 4] Step 4: Score & rank recommendations
             self.score_calculator.calculate_scores(recommendations)
             top_recs = sorted(recommendations, key=lambda r: r['score'], reverse=True)[:top_k]
 
-            # 4. Format into HTML using the new ResultFormatter
+            # [DEMO SECTION 5] Step 5: Format into HTML using the new ResultFormatter
             return self.result_formatter.format_recommendations(top_recs)
             
         except Exception as e:
             logger.error(f"Error processing recommendations: {e}")
-            return "<p>处理推荐时发生错误。</p>"
+            return "<p>Error occurred while processing recommendations.</p>"
     
     def _call_llm_for_extraction(self, prompt: str) -> str:
-        """调用大模型进行提取"""
+        """
+        [DEMO SECTION 1] Call LLM for extraction
+        
+        This method implements the extraction process mentioned in the demo:
+        - Uses LLM to extract recommendation items from retrieved documents
+        - Each item includes: name, posts with content and engagement metrics, sentiment scores
+        - Returns JSON format data for further processing
+        """
         try:
             response = send_prompt_to_gemini(prompt, model_name="gemini-2.0-flash")
             response_text = response.text
             
-            # 1. 首先尝试从 json 代码块中提取
+            # 1. First try to extract from json code block
             if "```json" in response_text:
                 start = response_text.find("```json") + 7
                 end = response_text.find("```", start)
-                if start > 6 and end > start:  # 确保找到了有效的标记
+                if start > 6 and end > start:  # Ensure valid markers found
                     json_str = response_text[start:end].strip()
                     try:
-                        # 修复可能的无效转义序列
+                        # Fix possible invalid escape sequences
                         fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
-                        # 验证 JSON 是否有效
+                        # Validate JSON
                         recommendations = json.loads(fixed_json)
                         return json.dumps(recommendations, indent=2, ensure_ascii=False)
                     except json.JSONDecodeError as e:
                         logger.warning(f"Failed to parse JSON from code block: {e}")
             
-            # 2. 如果代码块提取失败，尝试直接提取 JSON 数组
+            # 2. If code block extraction fails, try to extract JSON array directly
             try:
                 start = response_text.find("[")
                 end = response_text.rfind("]") + 1
                 if start >= 0 and end > start:
                     json_str = response_text[start:end].strip()
-                    # 修复可能的无效转义序列
+                    # Fix possible invalid escape sequences
                     fixed_json = re.sub(r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
                     recommendations = json.loads(fixed_json)
                     return json.dumps(recommendations, indent=2, ensure_ascii=False)
             except (json.JSONDecodeError, ValueError) as e:
                 logger.error(f"Failed to extract JSON array: {e}")
-                # 记录问题区域帮助调试
+                # Record problem area for debugging
                 pos = e.pos if hasattr(e, 'pos') else 0
                 error_context = json_str[max(0, pos-30):min(len(json_str), pos+30)] if pos > 0 else "unknown position"
                 logger.error(f"Error context: '{error_context}'")
             
-            # 3. 如果所有提取方法都失败，记录错误并返回 mock 数据
+            # 3. If all extraction methods fail, log error and return mock data
             logger.error("Failed to extract valid JSON from response")
             logger.debug(f"Raw response: {response_text}")
             
@@ -168,7 +183,7 @@ class ResultProcessor:
             raise ValueError("Failed to extract valid recommendations from model response")
                 
         except Exception as e:
-            logger.error(f"Gemini API 调用失败: {str(e)}")
+            logger.error(f"Gemini API call failed: {str(e)}")
             if settings.DEBUG:
                 logger.warning("Using mock data for testing")
                 return self.prompt_builder.get_mock_response()

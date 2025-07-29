@@ -5,14 +5,18 @@ import json
 class PromptBuilder:
     @staticmethod
     def build_extraction_prompt(documents: List[Document], query: str) -> str:
-        """构建大模型提取信息的提示词
+        """
+        [DEMO SECTION 1] Build extraction prompt for LLM
+        
+        This method creates the prompt used to extract recommendation items from retrieved documents.
+        It formats the documents and provides clear instructions for the LLM to extract structured data.
         
         Args:
-            documents: 文档列表，每个文档包含内容和元数据
-            query: 用户查询
+            documents: List of documents, each containing content and metadata
+            query: User query
             
         Returns:
-            str: 格式化后的提示词
+            str: Formatted prompt for LLM extraction
         """
         posts_text = ""
         for doc in documents:
@@ -53,7 +57,12 @@ Return ONLY a JSON array of items."""
 
     @staticmethod
     def get_mock_response() -> str:
-        """返回用于测试的模拟数据"""
+        """
+        Return mock data for testing
+        
+        This method provides fallback mock data when LLM extraction fails,
+        ensuring the demo can continue even if there are API issues.
+        """
         mock_data = [
             {
                 "name": "a",
