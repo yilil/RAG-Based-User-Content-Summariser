@@ -186,80 +186,80 @@ class FaissManager:
 
 
     def search_bm25(self, query: str, top_k: int):
-        """使用 BM25 进行搜索"""
-        print(f"--- [FaissManager.search_bm25] 开始 BM25 搜索，查询: '{query}' ---")
+        """Perform search using BM25."""
+        print(f"--- [FaissManager.search_bm25] Starting BM25 search, query: '{query}' ---")
         if self.bm25 is None:
-            print("--- [FaissManager.search_bm25] 警告：BM25 模型未初始化，尝试重新初始化... ---")
-            # 尝试重新初始化，以防万一
+            print("--- [FaissManager.search_bm25] Warning: BM25 model not initialized, attempting to reinitialize... ---")
+            # Try to reinitialize just in case
             try:
                 self._initialize_bm25_from_faiss()
             except Exception as e:
-                print(f"!!! [FaissManager.search_bm25] 尝试重新初始化 BM25 失败: {e}")
+                print(f"!!! [FaissManager.search_bm25] Failed to reinitialize BM25: {e}")
 
         if self.bm25 is None:
-            print("!!! [FaissManager.search_bm25] BM25 模型仍未初始化，无法执行搜索，返回空列表。 ---")
+            print("!!! [FaissManager.search_bm25] BM25 model still uninitialized, cannot perform search, returning empty list. ---")
             return []
-        
-        # 从FAISS获取所有文档及其原始元数据
+
+        # Retrieve all documents and their original metadata from FAISS
         faiss_docs = self._get_all_docs_from_faiss()
         faiss_docs_dict = {doc.page_content: doc.metadata for doc in faiss_docs}
-        
-        # 预处理查询
-        print(f"--- [FaissManager.search_bm25] 正在预处理查询: '{query}' ---")
+
+        # Preprocess the query
+        print(f"--- [FaissManager.search_bm25] Preprocessing query: '{query}' ---")
         tokenized_query = self.preprocessor.preprocess_text(query)
-        print(f"    分词后查询: {tokenized_query}")
+        print(f"    Tokenized query: {tokenized_query}")
 
-        # --- 关键：打印原始 BM25 分数 ---
+        # --- Key: print raw BM25 scores ---
         try:
-            print("--- [FaissManager.search_bm25] 正在调用 bm25.get_scores()... ---")
+            print("--- [FaissManager.search_bm25] Calling bm25.get_scores()... ---")
             scores = self.bm25.get_scores(tokenized_query)
-            print(f"--- [FaissManager.search_bm25] bm25.get_scores() 返回的原始分数 (前 10): {scores[:10]} ---")
-            print(f"    原始分数统计: Min={min(scores):.4f}, Max={max(scores):.4f}, Avg={sum(scores)/len(scores):.4f}")
+            print(f"--- [FaissManager.search_bm25] Raw scores from bm25.get_scores() (top 10): {scores[:10]} ---")
+            print(f"    Score stats: Min={min(scores):.4f}, Max={max(scores):.4f}, Avg={sum(scores)/len(scores):.4f}")
         except Exception as e:
-            print(f"!!! [FaissManager.search_bm25] 调用 bm25.get_scores() 时出错: {e}")
+            print(f"!!! [FaissManager.search_bm25] Error calling bm25.get_scores(): {e}")
             return []
-        # --- 结束打印 ---
+        # --- End printing ---
 
-        # 得到前 top_k 的文档索引
+        # Get top top_k document indexes by score
         top_indexes = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
 
-         # 把它们转成 Document 对象 和 score 的元组列表
-        results = [] # <--- 修改变量名，更清晰
-        print(f"--- [FaissManager.search_bm25] 正在构建 BM25 返回结果... ---") # 添加日志
+        # Convert them into list of (Document, score) tuples
+        results = []  # <--- renamed variable for clarity
+        print(f"--- [FaissManager.search_bm25] Constructing BM25 results... ---")  # Added log
         for i in top_indexes:
-            if i < 0 or i >= len(self.all_texts): # 添加边界检查
-                print(f"!!! [FaissManager.search_bm25] 警告: 索引 {i} 超出 all_texts 范围，跳过。")
+            if i < 0 or i >= len(self.all_texts):  # Add boundary check
+                print(f"!!! [FaissManager.search_bm25] Warning: index {i} out of all_texts range, skipping.")
                 continue
-            if i < 0 or i >= len(scores): # 添加边界检查
-                 print(f"!!! [FaissManager.search_bm25] 警告: 索引 {i} 超出 scores 范围，跳过。")
-                 continue
+            if i < 0 or i >= len(scores):  # Add boundary check
+                print(f"!!! [FaissManager.search_bm25] Warning: index {i} out of scores range, skipping.")
+                continue
 
             doc_text = self.all_texts[i]
             bm25_score = scores[i]
-            
-            # 创建基本元数据
+
+            # Create basic metadata
             metadata = {
-                # 'bm25_score': bm25_score, # 不再在此处添加，将在元组中返回
+                # 'bm25_score': bm25_score, # no longer added here, will return in tuple
                 'id': i,
                 'source': self.platform
             }
-            
-            # 如果能在FAISS索引中找到对应的文本，就添加其完整元数据
-            # 注意：faiss_docs_dict 可能很大，查找效率可能不高，但保持现有逻辑
+
+            # If found in FAISS index, add full original metadata
+            # Note: faiss_docs_dict might be large, lookup efficiency may be low, but keep logic
             if faiss_docs_dict and doc_text in faiss_docs_dict:
-                original_metadata = faiss_docs_dict[doc_text].copy() # 使用 .copy() 避免意外修改
-                # 确保 ID 和 source 正确
+                original_metadata = faiss_docs_dict[doc_text].copy()  # use copy() to avoid accidental modification
+                # Ensure id and source are correct
                 original_metadata['id'] = i
                 original_metadata['source'] = self.platform
-                # original_metadata['bm25_score'] = bm25_score # 不再在此处添加
+                # original_metadata['bm25_score'] = bm25_score # no longer added here
 
                 doc_obj = Document(
                     page_content=doc_text,
                     metadata=original_metadata
                 )
             else:
-                # 如果在FAISS索引中找不到，则根据平台添加特定字段
-                # (这部分逻辑可能需要审视，因为 all_texts 应该来自 FAISS)
+                # If not found in FAISS index, add platform-specific fields accordingly
+                # (This logic may need review, as all_texts should come from FAISS)
                 if self.platform == 'reddit':
                     metadata['upvotes'] = 0
                 elif self.platform == 'stackoverflow':
@@ -272,63 +272,62 @@ class FaissManager:
                     metadata=metadata
                 )
 
-            # --- 关键修改：返回 (Document, score) 元组 ---
-            if doc_obj is not None: # 确保 doc_obj 成功创建
-                 results.append((doc_obj, bm25_score))
+            # --- Key modification: return (Document, score) tuple ---
+            if doc_obj is not None:  # Ensure doc_obj was created successfully
+                results.append((doc_obj, bm25_score))
             else:
-                 print(f"!!! [FaissManager.search_bm25] 警告: 未能为索引 {i} 创建 Document 对象。")
+                print(f"!!! [FaissManager.search_bm25] Warning: Failed to create Document object for index {i}.")
 
-
-        print(f"--- [FaissManager.search_bm25] BM25 搜索完成，返回 {len(results)} 个 (文档, 分数) 元组 ---")
-        # --- 确保返回的是元组列表 ---
+        print(f"--- [FaissManager.search_bm25] BM25 search completed, returning {len(results)} (Document, score) tuples ---")
+        # --- Ensure returning tuple list ---
         return results
-    
+
 
     def search(self, query: str, k: int):
         """
-        执行 FAISS 向量相似度搜索，并返回包含分数的 (Document, score) 元组列表。
-        如果 FAISS store 不可用，则尝试 BM25 搜索。
+        Perform FAISS vector similarity search and return a list of (Document, score) tuples.
+        If FAISS store is unavailable, fallback to BM25 search.
         """
-        print(f"--- [FaissManager.search] 开始 FAISS 查询: '{query}' (Top {k}) ---")
+        print(f"--- [FaissManager.search] Starting FAISS query: '{query}' (Top {k}) ---")
         if self.faiss_store:
             try:
-                # 直接调用并获取 (Document, score) 元组列表
+                # Directly call and get list of (Document, score) tuples
                 results_with_scores = self.faiss_store.similarity_search_with_score(query, k)
 
-                # --- 日志打印部分 (可选保留) ---
-                print(f"--- [FaissManager.search] 原始 FAISS 搜索结果 (Top 5): ---")
+                # --- Optional logging ---
+                print(f"--- [FaissManager.search] Raw FAISS search results (Top 5): ---")
                 raw_scores = []
-                for i, (doc, score) in enumerate(results_with_scores[:5]): # 只打印前5个
-                    print(f"  结果 {i+1}: 原始分数(L2)={score:.4f}, 文档 ID={doc.metadata.get('id', 'N/A')}")
+                for i, (doc, score) in enumerate(results_with_scores[:5]):  # Only print top 5
+                    print(f"  Result {i+1}: Raw score (L2)={score:.4f}, Document ID={doc.metadata.get('id', 'N/A')}")
                     raw_scores.append(score)
                 if raw_scores:
-                     # 避免对空列表求 min/max/avg
-                     if len(results_with_scores) > 0:
-                         all_scores = [s for _, s in results_with_scores]
-                         print(f"  原始分数统计 (共 {len(all_scores)} 个): Min={min(all_scores):.4f}, Max={max(all_scores):.4f}, Avg={sum(all_scores)/len(all_scores):.4f}")
-                # --- 结束日志打印 ---
+                    # Avoid min/max/avg on empty list
+                    if len(results_with_scores) > 0:
+                        all_scores = [s for _, s in results_with_scores]
+                        print(f"  Raw score stats (total {len(all_scores)}): Min={min(all_scores):.4f}, Max={max(all_scores):.4f}, Avg={sum(all_scores)/len(all_scores):.4f}")
+                # --- End logging ---
 
-                print(f"--- [FaissManager.search] FAISS 查询成功，返回 {len(results_with_scores)} 个 (文档, 分数) 元组 ---")
-                # --- 直接返回原始的 (Document, score) 元组列表 ---
+                print(f"--- [FaissManager.search] FAISS query succeeded, returning {len(results_with_scores)} (Document, score) tuples ---")
+                # --- Return the original (Document, score) tuples ---
                 return results_with_scores
 
             except Exception as e:
-                print(f"!!! [FaissManager.search] 执行 similarity_search_with_score 时出错: {e}")
-                print("--- [FaissManager.search] FAISS 搜索失败，尝试回退到 BM25 搜索。 ---")
+                print(f"!!! [FaissManager.search] Error executing similarity_search_with_score: {e}")
+                print("--- [FaissManager.search] FAISS search failed, trying fallback to BM25 search. ---")
                 try:
-                    # 确保 search_bm25 返回正确的 (doc, score) 格式
+                    # Ensure search_bm25 returns correct (doc, score) format
                     return self.search_bm25(query, k)
                 except Exception as bm25_e:
-                     print(f"!!! [FaissManager.search] BM25 回退搜索也失败: {bm25_e}")
-                     return [] # 确保错误时返回空列表
+                    print(f"!!! [FaissManager.search] BM25 fallback search also failed: {bm25_e}")
+                    return []  # Ensure return empty list on error
         else:
-            print("--- [FaissManager.search] FAISS store 未加载，尝试 BM25 搜索。 ---")
+            print("--- [FaissManager.search] FAISS store not loaded, trying BM25 search. ---")
             try:
-                # 确保 search_bm25 返回正确的 (doc, score) 格式
+                # Ensure search_bm25 returns correct (doc, score) format
                 return self.search_bm25(query, k)
             except Exception as bm25_e:
-                print(f"!!! [FaissManager.search] BM25 搜索失败: {bm25_e}")
-                return [] # 确保错误时返回空列表
+                print(f"!!! [FaissManager.search] BM25 search failed: {bm25_e}")
+                return []  # Ensure return empty list on error
 
     def ensure_directories(self):
         """Ensure all required directories exist"""
