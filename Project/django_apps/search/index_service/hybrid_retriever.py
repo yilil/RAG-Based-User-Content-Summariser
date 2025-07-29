@@ -5,6 +5,14 @@ import math
 
 class HybridRetriever:
     def __init__(self, faiss_manager, embedding_model, bm25_weight=0.3, embedding_weight=0.4, vote_weight=0.3, l2_decay_beta=1.0):
+        """
+        [DEMO SECTION 6] Initialize Hybrid Retriever with configurable weights
+        
+        This class implements the core RAG retrieval system mentioned in the demo:
+        - Combines semantic similarity (FAISS) and keyword relevance (BM25)
+        - Uses weighted fusion of multiple scoring mechanisms
+        - Applies relevance threshold filtering for quality control
+        """
         self.bm25_weight = bm25_weight
         self.embedding_weight = embedding_weight
         self.vote_weight = vote_weight
@@ -14,16 +22,25 @@ class HybridRetriever:
         print(f"--- [HybridRetriever.__init__] Initialization completed: Weights(BM25={bm25_weight}, Emb={embedding_weight}, Vote={vote_weight}), L2 Decay Beta={l2_decay_beta} ---")
 
     def retrieve(self, query, top_k=80, relevance_threshold=0.6):
+        """
+        [DEMO SECTION] Core RAG retrieval method with four key steps
+        
+        This method implements the hybrid ranking process mentioned in the demo:
+        Step 1: Dual Search - FAISS handles semantic similarity while BM25 provides keyword relevance
+        Step 2: Score Fusion - Merges results using document IDs as keys
+        Step 3: Normalization - Standardizes different scoring mechanisms
+        Step 4: Ranking - Applies weighted fusion and threshold filtering
+        """
         print(f"\n--- [HybridRetriever.retrieve] Start processing query: '{query}' (Top {top_k}, Threshold {relevance_threshold}) ---")
 
-        # --- Retrieve original results ---
+        # [DEMO SECTION 1] Step 1: Dual Search - Retrieve original results
         # Slightly increase BM25 retrieval count to capture more potentially relevant IDs
         bm25_docs = self.faiss_manager.search_bm25(query, 200)
         embedding_docs = self.faiss_manager.search(query, 200) # Embedding search (returns L2 distance)
 
         print(f"--- [HybridRetriever.retrieve] Original BM25 result count: {len(bm25_docs)}, Original Embedding result count: {len(embedding_docs)} ---")
 
-        # --- Merge and fill scores ---
+        # [DEMO SECTION 2] Step 2: Score Fusion - Merge and fill scores
         all_docs = {} # Use doc_id as the key
 
         # Process BM25 documents
@@ -75,7 +92,7 @@ class HybridRetriever:
 
         if not all_docs: return []
 
-        # --- Extract score lists for normalization ---
+        # [DEMO SECTION 3] Step 3: Normalization - Extract score lists for normalization
         doc_ids_list = list(all_docs.keys()) # Maintain consistent order
         bm25_scores = [all_docs[doc_id]['bm25_score'] for doc_id in doc_ids_list]
         embedding_l2_distances = [all_docs[doc_id]['embedding_score'] for doc_id in doc_ids_list]
@@ -83,7 +100,7 @@ class HybridRetriever:
 
         print(f"--- [HybridRetriever.retrieve] Extracted L2 distance list for normalization (Top 10, inf means invalid): {embedding_l2_distances[:10]} ---")
 
-        # --- Normalization ---
+        # Normalize all scores
         print("--- [HybridRetriever.retrieve] Start normalizing all scores ---")
         bm25_normalized = self.normalize(bm25_scores)
         embedding_normalized = self.normalize_l2_exponential_decay(embedding_l2_distances, self.l2_decay_beta)
@@ -93,7 +110,7 @@ class HybridRetriever:
         print(f"  Normalized Embedding scores (Exp Decay L2^2, beta={self.l2_decay_beta}) (Top 10): {embedding_normalized[:10]}")
         print(f"  Normalized Vote scores (Top 10): {vote_normalized[:10]}")
 
-        # --- Combine scores and filter ---
+        # [DEMO SECTION 4] Step 4: Ranking - Combine scores and filter
         final_docs_data = []
         print("--- [HybridRetriever.retrieve] Compute final hybrid scores and apply threshold filter ---")
         passed_threshold_count = 0
@@ -107,6 +124,7 @@ class HybridRetriever:
             norm_bm25 = bm25_normalized[i]
             norm_vote = vote_normalized[i]
 
+            # Calculate weighted fusion score
             combined_score = (
                 norm_emb * self.embedding_weight +
                 norm_bm25 * self.bm25_weight +
@@ -132,12 +150,12 @@ class HybridRetriever:
 
         if not final_docs_data: return []
 
-        # --- Sort and return Top K ---
+        # Sort and return Top K
         final_docs_data.sort(key=lambda x: x[1], reverse=True)
 
         top_docs = [doc_object for _, _, doc_object in final_docs_data[:top_k]]
 
-        # --- Final check before returning ---
+        # Final check before returning
         if top_docs:
             print("--- [HybridRetriever.retrieve] Final metadata check for top returned documents (Top 5): ---")
             for rank, doc in enumerate(top_docs[:5], 1):
@@ -155,7 +173,12 @@ class HybridRetriever:
         return top_docs
 
     def normalize(self, scores):
-        """Normalize scores to [0, 1] range"""
+        """
+        [DEMO SECTION 3] Normalize scores to [0, 1] range
+        
+        This method standardizes different scoring mechanisms to ensure fair comparison
+        between BM25, embedding, and vote scores.
+        """
         if not scores:
             return []
         valid_scores = [s for s in scores if s != float('inf') and s is not None]
@@ -176,15 +199,12 @@ class HybridRetriever:
 
     def normalize_l2_exponential_decay(self, l2_distances, beta):
         """
-        Convert a list of L2 distances into similarity scores in (0, 1] range using exponential decay.
+        [DEMO SECTION 3] Convert L2 distances to similarity scores using exponential decay
+        
+        This method converts L2 distances from FAISS into similarity scores (0,1] range.
         Score = exp(-beta * L2_distance^2)
-
-        Args:
-            l2_distances (list): List of L2 distances.
-            beta (float): Exponential decay factor.
-
-        Returns:
-            list: List of normalized scores.
+        
+        This is part of the normalization process that standardizes different scoring mechanisms.
         """
         normalized_scores = []
 
@@ -222,6 +242,12 @@ class HybridRetriever:
         return normalized_scores
 
     def combine_scores(self, bm25_results, embedding_results, vote_scores):
+        """
+        [DEMO SECTION 4] Combine normalized scores using weighted fusion
+        
+        This method implements the weighted fusion algorithm mentioned in the demo:
+        combined_score = norm_emb * embedding_weight + norm_bm25 * bm25_weight + norm_vote * vote_weight
+        """
         final_scores = []
         for bm25_score, embedding_score, vote_score in zip(bm25_results, embedding_results, vote_scores):
             combined_score = (self.bm25_weight * bm25_score +
@@ -231,7 +257,12 @@ class HybridRetriever:
         return final_scores
 
     def get_vote_scores(self, documents):
-        # Retrieve vote scores from document metadata (Upvotes/Likes/vote_score)
+        """
+        [DEMO SECTION 2] Retrieve vote scores from document metadata
+        
+        This method extracts social engagement metrics (Upvotes/Likes/vote_score) 
+        from document metadata for the hybrid ranking process.
+        """
         scores = []
         for doc in documents:
             upvotes = doc.metadata.get('upvotes', 0)
@@ -241,7 +272,12 @@ class HybridRetriever:
         return scores
         
     def get_doc_vote_score(self, doc):
-        """Retrieve vote score for a single document"""
+        """
+        [DEMO SECTION 2] Retrieve vote score for a single document
+        
+        This method extracts social engagement metrics for individual documents,
+        supporting different platforms (Reddit upvotes, Xiaohongshu likes, etc.)
+        """
         upvotes = doc.metadata.get('upvotes', None)
         likes = doc.metadata.get('likes', None)
         vote_score = doc.metadata.get('vote_score', None)
