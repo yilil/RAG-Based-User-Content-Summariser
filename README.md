@@ -1,4 +1,4 @@
-# RAG-Based-User-Content-Summariser
+# RAG-Based User Content Summariser
 
 ## Abstract
 User-generated content (UGC) platforms are key sources for tasks ranging from product recommendations to technical problem-solving. However, users often encounter scattered, disorganized, and sometimes contradictory information. To address this, we propose the RAG-Based User Content Summarizer (RBUCS), a system designed to aggregate and distill UGC into coherent responses.
@@ -16,7 +16,7 @@ Overall, RBUCS effectively streamlines the process of reviewing and analyzing UG
 Coming soon...
 
 ## Contributing
-See [CONTRIBUTING.md](https://github.com/yilil/RAG-Based-User-Content-Summariser/blob/main/Project/CONTRIBUTING.md)
+See [CONTRIBUTING.md](https://github.com/yilil/RAG-Based-User-Content-Summariser/blob/main/Project/CONTRIBUTING.md).
 
 ## Other Resources
 - [Web Development](https://www.notion.so/Web-Development-d45066738c604a8cbf783bf8ac1bcae7?pvs=4)
