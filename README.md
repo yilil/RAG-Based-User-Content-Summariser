@@ -16,7 +16,7 @@ Overall, RBUCS effectively streamlines the process of reviewing and analyzing UG
 Coming soon...
 
 ## Contributing
-See CONTRIBUTION.md
+See [CONTRIBUTING.md](https://github.com/yilil/RAG-Based-User-Content-Summariser/blob/main/Project/CONTRIBUTING.md)
 
 ## Other Resources
 - [Web Development](https://www.notion.so/Web-Development-d45066738c604a8cbf783bf8ac1bcae7?pvs=4)
