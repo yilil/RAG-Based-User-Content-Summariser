@@ -36,18 +36,6 @@ Watch our system in action:
         <i>📁 File size: ~22MB | ⏱️ Duration: Demo of the complete workflow</i>
       </td>
     </tr>
-    <tr>
-      <td align="left">
-        <b>📋 What you'll see in the demo:</b>
-        <ul>
-          <li>🔍 User query input and processing</li>
-          <li>🧠 RAG system aggregating content from multiple platforms</li>
-          <li>📊 Real-time search across Reddit, Stack Overflow, and Rednote</li>
-          <li>✨ AI-generated comprehensive summary with source citations</li>
-          <li>🎯 Recommendation system with ranked results</li>
-        </ul>
-      </td>
-    </tr>
   </tbody>
 </table>
 
