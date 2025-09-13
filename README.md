@@ -10,10 +10,14 @@ To evaluate the retrieval effectiveness of our RAG module, we labeled 150 query-
 Overall, RBUCS effectively streamlines the process of reviewing and analyzing UGC, offering concise and targeted summaries to mitigate information overload on modern UGC platforms.
 
 ## Poster
+Our poster for showcase:
+
 ![Coding Fest 2025_RBUCS_page-0001](https://github.com/user-attachments/assets/dd4391c4-95c4-45c0-aa6d-18def2d1d720)
 
 ## Demo
-Coming soon...
+Watch our system in action:
+
+https://github.com/user-attachments/assets/844_1757462005.mp4
 
 ## Contributing
 See [CONTRIBUTING.md](https://github.com/yilil/RAG-Based-User-Content-Summariser/blob/main/Project/CONTRIBUTING.md).
