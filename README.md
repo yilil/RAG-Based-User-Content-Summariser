@@ -17,7 +17,39 @@ Our poster for showcase:
 ## Demo
 Watch our system in action:
 
-https://github.com/user-attachments/assets/844_1757462005.mp4
+<table>
+  <thead>
+    <tr>
+      <th width="100%" align="center">🎥 RAG-Based User Content Summariser Demo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">
+        <a href="./demo/844_1757462005.mp4">
+          <img src="https://img.shields.io/badge/📹_Click_to_Download-Demo_Video-blue?style=for-the-badge&logo=video" alt="Demo Video" width="300"/>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <i>📁 File size: ~22MB | ⏱️ Duration: Demo of the complete workflow</i>
+      </td>
+    </tr>
+    <tr>
+      <td align="left">
+        <b>📋 What you'll see in the demo:</b>
+        <ul>
+          <li>🔍 User query input and processing</li>
+          <li>🧠 RAG system aggregating content from multiple platforms</li>
+          <li>📊 Real-time search across Reddit, Stack Overflow, and Rednote</li>
+          <li>✨ AI-generated comprehensive summary with source citations</li>
+          <li>🎯 Recommendation system with ranked results</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Contributing
 See [CONTRIBUTING.md](https://github.com/yilil/RAG-Based-User-Content-Summariser/blob/main/Project/CONTRIBUTING.md).
